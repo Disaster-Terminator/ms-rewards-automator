@@ -141,11 +141,7 @@ class MSRewardsApp:
 
     async def _handle_login(self) -> None:
         """处理登录流程"""
-        await self.coordinator.handle_login(
-            self.page,
-            self.account_mgr,
-            self.context
-        )
+        await self.coordinator.handle_login(self.page, self.context)
 
     async def _check_initial_points(self) -> None:
         """检查初始积分"""
@@ -156,34 +152,16 @@ class MSRewardsApp:
         """执行搜索任务"""
         # 5. 桌面搜索
         if not self.args.mobile_only:
-            await self.coordinator.execute_desktop_search(
-                self.page,
-                self.search_engine,
-                self.state_monitor,
-                self.health_monitor,
-                self.browser_sim,
-                self.context
-            )
+            await self.coordinator.execute_desktop_search(self.page)
 
         # 6. 移动搜索
         if not self.args.desktop_only:
-            await self.coordinator.execute_mobile_search(
-                self.page,
-                self.search_engine,
-                self.state_monitor,
-                self.health_monitor,
-                self.browser_sim
-            )
+            await self.coordinator.execute_mobile_search(self.page)
 
     async def _execute_daily_tasks(self) -> None:
         """执行日常任务"""
         if not self.args.skip_daily_tasks:
-            await self.coordinator.execute_daily_tasks(
-                self.page,
-                self.state_monitor,
-                self.browser_sim,
-                self.health_monitor
-            )
+            await self.coordinator.execute_daily_tasks(self.page)
 
     async def _generate_report(self) -> None:
         """生成报告和通知"""
