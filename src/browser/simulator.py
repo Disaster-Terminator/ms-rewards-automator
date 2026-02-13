@@ -89,6 +89,7 @@ class BrowserSimulator:
             base_args.extend(edge_specific_args)
 
         # 通用禁用选项
+        browser_args.extend([
             '--disable-sync',  # 完全禁用同步
             '--disable-features=IdentityManager',  # 禁用身份管理器
             '--disable-features=AutofillEnableAccountWalletStorage',  # 禁用账户钱包
@@ -100,6 +101,7 @@ class BrowserSimulator:
             '--disable-features=PasswordManagerOnboarding',  # 禁用密码管理器引导
             '--disable-features=PasswordSuggestions',  # 禁用密码建议
             '--disable-features=AutofillServerCommunication',  # 禁用自动填充服务器通信
+        ])
             # WSL2 兼容参数（解决 sigtrap/page crash 问题）
             '--disable-gpu',
             '--disable-software-rasterizer',

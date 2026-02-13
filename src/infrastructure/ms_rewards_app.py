@@ -58,6 +58,9 @@ class MSRewardsApp:
         self.context = None
         self.page = None
 
+        # 设备状态跟踪
+        self.current_device = "desktop"  # 当前设备类型
+
         # 初始化器
         from .system_initializer import SystemInitializer
         self.initializer = SystemInitializer(config, args, self.logger)
@@ -163,12 +166,14 @@ class MSRewardsApp:
 
         # 6. 移动搜索
         if not self.args.desktop_only:
-            await self.coordinator.execute_mobile_search(self.page)
+            self.page = await self.coordinator.execute_mobile_search(self.page)
+            self.current_device = "desktop"  # 移动搜索完成后切换回桌面
 
     async def _execute_daily_tasks(self) -> None:
         """执行日常任务"""
         if not self.args.skip_daily_tasks:
-            await self.coordinator.execute_daily_tasks(self.page)
+            # 执行日常任务，并获取可能更新后的页面引用
+            self.page = await self.coordinator.execute_daily_tasks(self.page)
 
     async def _generate_report(self) -> None:
         """生成报告和通知"""
