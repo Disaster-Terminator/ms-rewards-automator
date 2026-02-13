@@ -41,13 +41,14 @@ class BrowserSimulator:
             self.playwright = await async_playwright().start()
             logger.info("Playwright 已启动")
     
-    def _get_browser_args(self, device_type: str = "desktop") -> list[str]:
+    def _get_browser_args(self, device_type: str = "desktop", browser_type: str = "chromium") -> list[str]:
         """
         获取浏览器启动参数
-        
+
         Args:
             device_type: 设备类型 ("desktop" 或 "mobile")
-            
+            browser_type: 浏览器类型 ("chromium", "edge", "chrome")
+
         Returns:
             启动参数列表
         """
@@ -70,17 +71,24 @@ class BrowserSimulator:
             '--disable-prompt-on-repost',
             '--disable-domain-reliability',
             '--disable-component-extensions-with-background-pages',
-            # Edge 特定：禁用登录弹窗和同步提示
-            '--disable-features=msEdgeEnableNurturingFramework',  # 禁用 Edge 培育框架（弹窗系统）
-            '--disable-features=msEdgeSignInCtaOnNtp',  # 禁用新标签页登录提示
-            '--disable-features=msEdgeSignInPromo',  # 禁用登录推广
-            '--disable-features=msEdgeSyncPromo',  # 禁用同步推广
-            '--disable-features=EdgeEnhanceSecurityMode',  # 禁用增强安全模式提示
-            '--disable-features=EdgeShoppingAssistant',  # 禁用购物助手
-            '--disable-features=EdgeCollectionsEnabled',  # 禁用集锦
-            '--disable-features=msImplicitSignin',  # 禁用隐式登录
-            '--disable-features=msSignInWithMicrosoft',  # 禁用 Microsoft 登录提示
-            # 更激进的禁用选项
+        ]
+
+        # Edge 特定：禁用登录弹窗和同步提示（仅当 browser_type 为 edge 时）
+        if browser_type == "edge":
+            edge_specific_args = [
+                '--disable-features=msEdgeEnableNurturingFramework',  # 禁用 Edge 培育框架（弹窗系统）
+                '--disable-features=msEdgeSignInCtaOnNtp',  # 禁用新标签页登录提示
+                '--disable-features=msEdgeSignInPromo',  # 禁用登录推广
+                '--disable-features=msEdgeSyncPromo',  # 禁用同步推广
+                '--disable-features=EdgeEnhanceSecurityMode',  # 禁用增强安全模式提示
+                '--disable-features=EdgeShoppingAssistant',  # 禁用购物助手
+                '--disable-features=EdgeCollectionsEnabled',  # 禁用集锦
+                '--disable-features=msImplicitSignin',  # 禁用隐式登录
+                '--disable-features=msSignInWithMicrosoft',  # 禁用 Microsoft 登录提示
+            ]
+            base_args.extend(edge_specific_args)
+
+        # 通用禁用选项
             '--disable-sync',  # 完全禁用同步
             '--disable-features=IdentityManager',  # 禁用身份管理器
             '--disable-features=AutofillEnableAccountWalletStorage',  # 禁用账户钱包
@@ -98,9 +106,7 @@ class BrowserSimulator:
             '--disable-accelerated-2d-canvas',
             '--disable-gpu-rasterization',
             '--use-gl=swiftshader',
-            '--disable-features=Crashpad',
-            # 注意：移除了 --guest 参数，因为它会导致无痕模式，无法保存登录状态
-        ]
+            '--disable-features=Crashpad',  # 禁用崩溃报告（解决 sigtrap）
         
         # 防焦点参数（仅在非无头模式且启用防焦点时添加）
         headless = self.config.get("browser.headless", False)
@@ -199,7 +205,7 @@ class BrowserSimulator:
         logger.info(f"创建桌面浏览器: {browser_type}, headless={headless}")
         
         # 获取启动参数
-        browser_args = self._get_browser_args("desktop")
+        browser_args = self._get_browser_args("desktop", browser_type)
         
         # 根据浏览器类型设置 channel
         channel = None
@@ -256,7 +262,7 @@ class BrowserSimulator:
         logger.info(f"创建移动浏览器: {device}, headless={headless}")
         
         # 获取启动参数
-        browser_args = self._get_browser_args("mobile")
+        browser_args = self._get_browser_args("mobile", device)
         
         # 启动 Chromium
         self.browser = await self.playwright.chromium.launch(
