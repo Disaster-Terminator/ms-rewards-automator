@@ -21,7 +21,8 @@ browser:
   prevent_focus: "basic" # 不弹到前台
   slow_mo: 200 # 慢速执行，便于观察
   timeout: 30000
-  type: "chromium"
+  type: "chromium"  # 浏览器类型: chromium(Playwright内置,推荐), chrome, edge
+                    # 注意: Playwright内置的chromium无需系统安装，推荐使用
 
 account:
   storage_state_path: "storage_state.json"

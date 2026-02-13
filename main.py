@@ -71,8 +71,8 @@ def parse_arguments():
     parser.add_argument(
         "--browser",
         choices=["edge", "chrome", "chromium"],
-        default="edge",
-        help="浏览器类型 (默认: edge)"
+        default="chromium",
+        help="浏览器类型 (默认: chromium，使用 Playwright 内置版本)"
     )
 
     # 搜索选项

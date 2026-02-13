@@ -27,7 +27,7 @@ class BrowserConfig:
     prevent_focus: str = "basic"  # basic, enhanced, none
     slow_mo: int = 100
     timeout: int = 30000
-    type: str = "chromium"  # chromium, edge, chrome
+    type: str = "chromium"  # chromium(Playwright内置,推荐), chrome(系统), edge(系统)
 
 
 @dataclass

@@ -12,6 +12,7 @@ search:
 # 浏览器
 browser:
   headless: false # 首次运行建议 false（显示浏览器，方便手动登录）
+  type: "chromium" # 浏览器类型: chromium(Playwright内置,推荐), chrome, edge
 
 # 登录方式（二选一）
 login:

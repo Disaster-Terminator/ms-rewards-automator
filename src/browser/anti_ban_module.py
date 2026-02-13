@@ -283,7 +283,7 @@ class AntiBanModule:
         获取设备配置
         
         Args:
-            device_type: 设备类型 (desktop_edge, desktop_chrome, mobile_iphone, mobile_android)
+            device_type: 设备类型 (desktop_edge, desktop_chromium, mobile_iphone, mobile_android)
             
         Returns:
             设备配置字典

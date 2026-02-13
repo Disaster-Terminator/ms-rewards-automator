@@ -176,7 +176,7 @@ class BrowserSimulator:
         
         return base_args
     
-    async def create_desktop_browser(self, browser_type: str = "edge") -> Browser:
+    async def create_desktop_browser(self, browser_type: str = "chromium") -> Browser:
         """
         创建桌面浏览器实例（Edge 或 Chrome）
         
@@ -271,7 +271,7 @@ class BrowserSimulator:
     async def create_context(
         self,
         browser: Browser,
-        device_type: str = "desktop_edge",
+        device_type: str = "desktop_chromium",
         storage_state: Optional[str] = None
     ) -> tuple[BrowserContext, Page]:
         """
@@ -479,7 +479,7 @@ class BrowserSimulator:
     
     async def create_manual_login_context(
         self,
-        device_type: str = "desktop_edge",
+        device_type: str = "desktop_chromium",
         storage_state: Optional[str] = None
     ) -> tuple[Browser, BrowserContext, Page]:
         """
@@ -504,7 +504,7 @@ class BrowserSimulator:
         if "mobile" in device_type:
             browser = await self.create_mobile_browser()
         else:
-            browser_type = device_type.split("_")[1] if "_" in device_type else "edge"
+            browser_type = device_type.split("_")[1] if "_" in device_type else "chromium"
             browser = await self.create_desktop_browser(browser_type)
         
         # 创建上下文（传入 storage_state 以便保存登录状态）
