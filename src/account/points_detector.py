@@ -91,7 +91,7 @@ class PointsDetector:
                     logger.debug(f"尝试选择器: {selector}")
                     
                     # 等待元素出现
-                    element = await page.wait_for_selector(selector, timeout=5000)
+                    element = await page.wait_for_selector(selector, timeout=10000)
                     
                     if element:
                         # 提取文本

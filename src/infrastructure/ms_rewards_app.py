@@ -64,7 +64,7 @@ class MSRewardsApp:
 
         # 任务协调器
         from .task_coordinator import TaskCoordinator
-        self.coordinator = TaskCoordinator(config, args, self.logger)
+        self.coordinator = TaskCoordinator(config, args, self.logger, self.browser_sim)
 
     async def run(self) -> int:
         """
@@ -126,6 +126,13 @@ class MSRewardsApp:
         self.browser_sim, self.search_engine, self.account_mgr, \
             self.state_monitor, self.error_handler, self.notificator, \
             self.health_monitor = self.initializer.initialize_components()
+
+        # 为 TaskCoordinator 设置依赖
+        self.coordinator.set_account_manager(self.account_mgr) \
+                       .set_search_engine(self.search_engine) \
+                       .set_state_monitor(self.state_monitor) \
+                       .set_health_monitor(self.health_monitor) \
+                       .set_browser_sim(self.browser_sim)
 
         # 启动健康监控
         await self.health_monitor.start_monitoring()
