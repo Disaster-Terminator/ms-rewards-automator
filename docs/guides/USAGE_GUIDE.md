@@ -1,169 +1,160 @@
 # 📖 使用指南
 
-## 📋 目录
+## 🚀 快速开始
 
-- [快速开始](#快速开始)
-- [基本使用](#基本使用)
-- [配置说明](#配置说明)
-- [数据面板](#数据面板)
-- [常见问题](#常见问题)
+### 首次使用
 
----
-
-## 快速开始
-
-### 🎯 智能模式切换
-
-程序会自动检测登录状态：
-- **首次运行**：自动使用有头模式（显示浏览器），方便你手动登录
-- **后续运行**：自动使用无头模式（后台运行），不干扰你的工作
-
-### Windows 用户
-
-**首次运行**：
-```cmd
-quick_start.bat
-```
-浏览器会自动打开，按照提示完成手动登录，登录成功后会自动保存会话。
-
-**日常使用**：
-```cmd
-quick_start.bat              # 自动后台运行（推荐）
-```
-
-如果需要重新登录或强制显示浏览器：
-```cmd
-python main.py --headless=false  # 强制显示浏览器
-```
-
-**启动调度器**（每天自动运行）：
-```cmd
-scripts/windows/start_scheduler.bat
-```
-
-**查看数据面板**：
-```cmd
-scripts/windows/start_dashboard.bat
-```
-
-### Linux/macOS 用户
-
-**首次运行**：
+**1. 环境准备**
 ```bash
-./scripts/unix/quick_start.sh
+# Windows用户（推荐）
+git clone https://github.com/yourusername/ms-rewards-automator.git
+cd ms-rewards-automator
+conda env create -f environment.yml
+conda activate ms-rewards-bot
+
+# Linux/macOS用户
+git clone https://github.com/yourusername/ms-rewards-automator.git
+cd ms-rewards-automator
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
 ```
 
-**日常使用**：
+**2. 首次运行**
 ```bash
-./scripts/unix/quick_start.sh        # 后台运行
-./scripts/unix/start_scheduler.sh    # 启动调度器
-./scripts/unix/start_dashboard.sh    # 查看数据面板
+# 开发模式（推荐首次使用）
+python main.py --dev --headless
+
+# 或使用脚本
+# Windows: quick_start.bat
+# Linux: ./scripts/unix/quick_start.sh
 ```
 
-## 基本使用
+**首次运行会**：
+- ✅ 打开浏览器，需要手动登录Microsoft账号
+- 💾 自动保存登录会话（storage_state.json）
+- 🔄 后续运行自动使用保存的会话
 
-### 运行模式
+## 🎯 基本使用
+
+### 常用命令
 
 ```bash
-# 立即执行一次
+# 立即执行一次任务
 python main.py
 
-# 后台运行（不显示浏览器）
+# 无头模式运行（后台）
 python main.py --headless
 
-# 慢速模式（更安全）
-python main.py --mode slow
+# 快速模式（减少等待时间）
+python main.py --mode fast
 
-# 启动调度器（每天自动执行）
-python main.py --schedule
-```
-
-### 任务选择
-
-```bash
-# 仅桌面搜索
+# 仅执行桌面搜索
 python main.py --desktop-only
 
-# 仅移动搜索
+# 仅执行移动搜索
 python main.py --mobile-only
+
+# 测试通知功能
+python main.py --test-notification
+
+# 调度模式（每天自动执行）
+python main.py --schedule
+
+# 立即执行一次后进入调度
+python main.py --schedule --schedule-now
 ```
 
-## 配置说明
+### 配置文件编辑
 
-编辑 `config.yaml` 进行基本配置：
-
-### 搜索设置
+编辑 `config.yaml`：
 
 ```yaml
+# 搜索任务
 search:
   desktop_count: 30    # 桌面搜索次数
   mobile_count: 20     # 移动搜索次数
-  wait_interval:
-    min: 8             # 最小等待时间（秒）
-    max: 20            # 最大等待时间（秒）
+  wait_interval: 5     # 搜索间隔（秒）
+
+# 浏览器
+browser:
+  headless: false     # 是否无头模式
+  type: "chromium"    # 浏览器类型
+
+# 登录方式（二选一）
+login:
+  # 方式1：手动登录（推荐）
+  auto_login:
+    enabled: false    # 使用手动登录
+
+  # 方式2：自动登录（不推荐）
+  # auto_login:
+  #   enabled: true
+  #   email: "your_email@example.com"
+  #   password: "your_password"
+  #   totp_secret: "your_totp_secret"
+
+# 任务系统
+task_system:
+  enabled: true       # 是否完成每日任务
+  debug_mode: false   # 是否保存调试截图
+
+# 通知（可选）
+notification:
+  enabled: false      # 是否启用通知
+  telegram:
+    bot_token: ""
+    chat_id: ""
 ```
 
-### 调度设置
+## ⚠️ 重要提示
 
-```yaml
-scheduler:
-  enabled: true              # 启用调度器
-  mode: "random"             # 随机时间模式
-  random_start_hour: 8       # 开始时间
-  random_end_hour: 22        # 结束时间
-```
+1. **首次使用必须手动登录**，保存会话后才能自动运行
+2. **建议使用手动登录**，自动登录经常失败
+3. **确保网络连接正常**，WSL2可能需要配置代理
+4. **脚本在WSL2中可能无法访问Microsoft服务**，建议在Windows运行
 
-### 通知设置
+## 🔧 故障排除
 
-详见 [通知配置指南](NOTIFICATION_GUIDE.md)
+### 常见问题
 
-## 数据面板
+**Q: 无法连接到Microsoft服务**
+- A: 在WSL2环境中常见，建议在Windows运行或配置代理
 
-启动数据面板查看今天的任务完成情况：
+**Q: 浏览器打开后无法登录**
+- A: 检查网络连接，可能需要手动完成2FA验证
 
-```bash
-# Windows
-scripts/windows/start_dashboard.bat
+**Q: 任务执行不完整**
+- A: 检查配置文件，确保task_system.enabled: true
 
-# Linux/macOS  
-./scripts/unix/start_dashboard.sh
+**Q: 积分没有增长**
+- A: 检查搜索是否正常完成，查看日志文件
 
-# 或直接运行
-streamlit run dashboard.py
-```
+### 日志文件
 
-浏览器会自动打开 `http://localhost:8501`，显示：
-- 今天还需要完成的任务
-- 积分获得情况
-- 历史数据趋势
+- 日志位置：`logs/automator.log`
+- 调试模式：`python main.py --dev` 生成详细日志
 
-## 常见问题
+## 📊 数据监控
 
-### Q: 首次运行需要手动登录吗？
+### 实时状态
+- 运行时会显示实时状态更新
+- 显示当前操作、运行时间、进度
 
-A: 是的。首次运行会打开浏览器，需要手动登录 Microsoft 账号。登录成功后会自动保存会话，后续无需再次登录。
+### 积分监控
+- 自动监控积分变化
+- 如果积分异常会记录警告
 
-### Q: 会话过期了怎么办？
-
-A: 删除 `storage_state.json` 文件，重新运行程序完成登录。
-
-**注意**：在删除此文件前，请确保已关闭所有正在运行的脚本窗口，以防文件占用无法删除。
-
-### Q: 积分没有增加怎么办？
-
-A: 可能已达到每日上限。检查数据面板确认今天的任务完成情况。
-
-### Q: 如何更安全地使用？
-
-A: 
-- 使用慢速模式：`python main.py --mode slow`
-- 启用调度器在随机时间运行：`python main.py --schedule`
-- 不要频繁手动运行
-
-### Q: 程序出错了怎么办？
-
-A: 查看日志文件 `logs/automator.log` 了解具体错误信息。
+### 健康检查
+- 内置健康监控
+- 检查网络状态和系统资源
 
 ---
 
-**使用愉快！** 🎉
+## 📞 支持
+
+如有问题，请：
+1. 查看 [故障排除](docs/guides/TROUBLESHOOTING.md)
+2. 检查日志文件
+3. 提交 Issue 并提供错误信息

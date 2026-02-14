@@ -249,6 +249,9 @@ class TaskCoordinator:
 
             # 移动搜索完成后，切换回桌面上下文并返回桌面页面
             self.logger.info("  移动搜索完成，切换回桌面上下文...")
+            # 关闭旧的上下文（如果存在）
+            if browser_sim.context:
+                await browser_sim.context.close()
             desktop_context, desktop_page = await browser_sim.create_context(
                 browser_sim.browser,
                 f"desktop_{self.args.browser}",
@@ -293,6 +296,10 @@ class TaskCoordinator:
                     self.logger.info("  切换回桌面浏览器上下文以执行任务...")
                     # 使用保存的浏览器实例创建新的桌面上下文
                     if browser_sim and browser_sim.browser:
+                        # 关闭旧的上下文（如果存在）
+                        if browser_sim.context:
+                            await browser_sim.context.close()
+                        # 创建新的上下文
                         context, page = await browser_sim.create_context(
                             browser_sim.browser,
                             f"desktop_{self.args.browser}",

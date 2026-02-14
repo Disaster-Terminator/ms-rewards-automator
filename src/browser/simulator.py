@@ -89,7 +89,7 @@ class BrowserSimulator:
             base_args.extend(edge_specific_args)
 
         # 通用禁用选项
-        browser_args.extend([
+        base_args.extend([
             '--disable-sync',  # 完全禁用同步
             '--disable-features=IdentityManager',  # 禁用身份管理器
             '--disable-features=AutofillEnableAccountWalletStorage',  # 禁用账户钱包
@@ -102,13 +102,15 @@ class BrowserSimulator:
             '--disable-features=PasswordSuggestions',  # 禁用密码建议
             '--disable-features=AutofillServerCommunication',  # 禁用自动填充服务器通信
         ])
-            # WSL2 兼容参数（解决 sigtrap/page crash 问题）
+        wsl2_args = [
             '--disable-gpu',
             '--disable-software-rasterizer',
             '--disable-accelerated-2d-canvas',
             '--disable-gpu-rasterization',
             '--use-gl=swiftshader',
             '--disable-features=Crashpad',  # 禁用崩溃报告（解决 sigtrap）
+        ]
+        base_args.extend(wsl2_args)
         
         # 防焦点参数（仅在非无头模式且启用防焦点时添加）
         headless = self.config.get("browser.headless", False)

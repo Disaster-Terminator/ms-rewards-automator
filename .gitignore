@@ -39,8 +39,12 @@ cookies.json
 logs/
 *.log
 
-# 配置文件（如果包含敏感信息）
-# config.yaml
+# 配置文件
+# config.yaml  # 包含敏感信息，需要用户手动配置
+storage_state.json
+storage_state_*.json
+*.session
+cookies.json
 
 # Kiro 开发文件
 .kiro/
