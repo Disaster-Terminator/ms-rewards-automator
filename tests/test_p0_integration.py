@@ -10,8 +10,8 @@ from pathlib import Path
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from config_manager import ConfigManager
-from logger import setup_logging
+from infrastructure.config_manager import ConfigManager
+from infrastructure.logger import setup_logging
 import logging
 
 

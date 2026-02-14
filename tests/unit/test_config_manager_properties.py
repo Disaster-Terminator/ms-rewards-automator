@@ -13,7 +13,7 @@ import sys
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from config_manager import ConfigManager
+from infrastructure.config_manager import ConfigManager
 
 
 # 定义策略

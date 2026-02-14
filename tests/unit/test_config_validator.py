@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from config_validator import ConfigValidator, ConfigValidationError
+from infrastructure.config_validator import ConfigValidator, ConfigValidationError
 
 
 class TestConfigValidator:

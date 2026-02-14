@@ -13,7 +13,7 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from health_monitor import HealthMonitor
+from infrastructure.health_monitor import HealthMonitor
 
 
 class TestHealthMonitor:

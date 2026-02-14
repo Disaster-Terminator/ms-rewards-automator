@@ -12,7 +12,7 @@ from unittest.mock import Mock, AsyncMock, patch
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from element_detector import ElementDetector
+from browser.element_detector import ElementDetector
 
 
 class TestElementDetector:

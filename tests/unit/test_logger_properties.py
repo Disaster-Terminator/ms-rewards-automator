@@ -12,7 +12,7 @@ import sys
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from logger import setup_logging
+from infrastructure.logger import setup_logging
 
 
 @given(

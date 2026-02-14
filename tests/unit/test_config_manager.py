@@ -12,7 +12,7 @@ import sys
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from config_manager import ConfigManager, DEFAULT_CONFIG
+from infrastructure.config_manager import ConfigManager, DEFAULT_CONFIG
 
 
 class TestConfigManager:
@@ -54,9 +54,9 @@ class TestConfigManager:
         manager = ConfigManager("nonexistent_config.yaml")
         
         # 测试嵌套访问
-        assert manager.get("search.wait_interval.min") == 5
-        assert manager.get("search.wait_interval.max") == 15
-        assert manager.get("anti_detection.scroll_behavior.enabled") == True
+        assert manager.get("search.wait_interval") == 5
+        assert manager.get("login.auto_login.enabled") == False
+        assert manager.get("browser.headless") == False
     
     def test_invalid_config_error_handling(self):
         """测试无效配置文件错误处理"""
@@ -103,12 +103,13 @@ class TestConfigManager:
             os.unlink(config_path)
     
     def test_validate_config_invalid_wait_interval(self):
-        """测试无效的等待间隔"""
+        """测试 wait_interval 的向后兼容转换"""
+        # 当 wait_interval 是 dict 格式时，会自动转换为 int（使用 min 和 max 的中间值）
         config_data = {
             "search": {
                 "wait_interval": {
-                    "min": 15,
-                    "max": 5  # min > max，无效
+                    "min": 3,
+                    "max": 8
                 }
             }
         }
@@ -119,7 +120,9 @@ class TestConfigManager:
         
         try:
             manager = ConfigManager(config_path)
-            assert manager.validate_config() == False
+            # dict 格式会被转换为 int（中间值）
+            assert manager.get("search.wait_interval") == 5  # (3+8)//2 = 5
+            assert manager.validate_config() == True
         finally:
             os.unlink(config_path)
     
