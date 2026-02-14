@@ -39,12 +39,13 @@ class LogRotation:
         # 计算时间阈值（秒）
         self.age_threshold = max_age_days * 24 * 60 * 60
 
-    def should_delete(self, file_path: Path) -> bool:
+    def should_delete(self, file_path: Path, min_age_hours: int = 1) -> bool:
         """
         判断文件是否应该删除
 
         Args:
             file_path: 文件路径
+            min_age_hours: 最小年龄（小时），文件至少存在这么久才会被删除
 
         Returns:
             是否应该删除
@@ -53,6 +54,11 @@ class LogRotation:
             # 获取文件修改时间
             mtime = file_path.stat().st_mtime
             age = time.time() - mtime
+
+            # 保护新文件：至少存在 min_age_hours 小时才考虑删除
+            min_age_seconds = min_age_hours * 60 * 60
+            if age < min_age_seconds:
+                return False
 
             # 如果超过最大天数，应该删除
             if age > self.age_threshold:
@@ -111,8 +117,8 @@ class LogRotation:
                     result["skipped"] += 1
                     continue
 
-                # 检查是否应该删除
-                if self.should_delete(file_path) or i >= files_to_keep:
+                # 检查是否应该删除（必须通过 should_delete 检查）
+                if self.should_delete(file_path):
                     file_size = file_path.stat().st_size
 
                     if not dry_run:

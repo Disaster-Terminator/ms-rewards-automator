@@ -130,8 +130,7 @@ class RealTimeStatusDisplay:
             mobile_bar = self._create_progress_bar(mobile_percent, width=20)
             print(f"📱 移动搜索: {mobile_bar} {self.mobile_searches_completed}/{self.mobile_searches_total}")
         
-        # 显示积分信息
-        if self.current_points > 0:
+        if self.current_points is not None and self.current_points > 0:
             print(f"💰 积分状态: {self.current_points} (+{self.points_gained})")
         
         # 显示时间信息

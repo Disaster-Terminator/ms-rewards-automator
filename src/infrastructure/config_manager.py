@@ -155,9 +155,20 @@ DEV_MODE_OVERRIDES = {
             "enabled": False
         }
     },
+    # 开发模式下启用积分监控，便于测试完整流程
+    "monitoring": {
+        "enabled": True,
+    },
+    # 开发模式下禁用主题管理，避免自动导航干扰任务流程
+    "bing_theme": {
+        "enabled": False,
+        "persistence_enabled": False,
+    },
     # 开发模式下保留监控与任务执行，但提高可观测性（由各模块内部根据 dev_mode 决定是否降级行为）
     "task_system": {
+        "enabled": True,  # 开发模式下启用任务系统
         "debug_mode": True,
+        "max_tasks": 2,  # 开发模式只执行少量任务
     },
     "logging": {
         "level": "DEBUG"
@@ -367,9 +378,8 @@ class ConfigManager:
         """
         required_keys = [
             "search.desktop_count",
-            "search.mobile_count", 
-            "search.wait_interval.min",
-            "search.wait_interval.max",
+            "search.mobile_count",
+            "search.wait_interval",
             "browser.headless",
             "account.storage_state_path",
             "logging.level"
@@ -392,14 +402,26 @@ class ConfigManager:
             logger.error(f"search.mobile_count 必须是正整数: {mobile_count}")
             return False
         
-        wait_min = self.get("search.wait_interval.min")
-        wait_max = self.get("search.wait_interval.max")
-        if not isinstance(wait_min, (int, float)) or not isinstance(wait_max, (int, float)):
-            logger.error("wait_interval 必须是数字")
-            return False
-        
-        if wait_min >= wait_max:
-            logger.error(f"wait_interval.min ({wait_min}) 必须小于 wait_interval.max ({wait_max})")
+        # 验证 wait_interval（支持单个值和字典两种格式）
+        wait_interval = self.get("search.wait_interval")
+        if isinstance(wait_interval, dict):
+            wait_min = wait_interval.get("min")
+            wait_max = wait_interval.get("max")
+            if wait_min is None or wait_max is None:
+                logger.error("wait_interval 字典必须包含 min 和 max 键")
+                return False
+            if not isinstance(wait_min, (int, float)) or not isinstance(wait_max, (int, float)):
+                logger.error("wait_interval.min 和 wait_interval.max 必须是数字")
+                return False
+            if wait_min >= wait_max:
+                logger.error(f"wait_interval.min ({wait_min}) 必须小于 wait_interval.max ({wait_max})")
+                return False
+        elif isinstance(wait_interval, (int, float)):
+            if wait_interval <= 0:
+                logger.error(f"wait_interval 必须为正数: {wait_interval}")
+                return False
+        else:
+            logger.error(f"wait_interval 格式无效，应为数字或包含 min/max 的字典: {wait_interval}")
             return False
         
         # 验证浏览器配置

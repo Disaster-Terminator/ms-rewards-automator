@@ -1,8 +1,10 @@
 """
 Task Parser for extracting task information from Microsoft Rewards dashboard
+Supports the new React-based rewards.bing.com dashboard (2025+)
 """
 
 import logging
+import re
 from typing import List, Optional
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeout
 
@@ -12,6 +14,9 @@ from tasks.task_base import TaskMetadata
 class TaskParser:
     """Parser for Microsoft Rewards dashboard tasks"""
     
+    # Sections on the dashboard that contain tasks
+    TASK_SECTIONS = ["section#dailyset", "section#streaks", "section#offers"]
+    
     def __init__(self, config=None):
         self.logger = logging.getLogger(__name__)
         self.config = config
@@ -20,31 +25,25 @@ class TaskParser:
     async def discover_tasks(self, page: Page) -> List[TaskMetadata]:
         """
         Navigate to dashboard and discover all available tasks
-        
-        Args:
-            page: Playwright page object
-            
-        Returns:
-            List of TaskMetadata objects
         """
         self.logger.info("Discovering tasks from dashboard...")
         
         try:
             # Navigate to rewards dashboard if not already there
             current_url = page.url
-            if "rewards.microsoft.com" not in current_url:
+            on_rewards_page = "rewards.microsoft.com" in current_url or "rewards.bing.com" in current_url
+            if not on_rewards_page:
                 await page.goto(
-                    "https://rewards.microsoft.com/",
+                    "https://rewards.bing.com/",
                     wait_until="domcontentloaded",
-                    timeout=15000
+                    timeout=30000
                 )
             
-            # Wait for dashboard to load
-            await page.wait_for_load_state("domcontentloaded")
-            await page.wait_for_timeout(2000)
+            # Wait for OAuth redirect to complete (if any)
+            await self._wait_for_dashboard(page)
             
             # DIAGNOSTIC: Log current state
-            self.logger.info(f"Current URL: {page.url}")
+            self.logger.info(f"Final URL: {page.url}")
             try:
                 page_title = await page.title()
                 self.logger.info(f"Page title: {page_title}")
@@ -54,7 +53,11 @@ class TaskParser:
             # Check if on login page
             if await self._is_login_page(page):
                 self.logger.error("Detected login page, cannot discover tasks")
+                self.logger.info("  提示: 会话可能已过期，请重新登录")
                 return []
+            
+            # Wait for React content to finish loading
+            await self._wait_for_content_load(page)
             
             # Parse tasks from the page
             tasks = await self._parse_tasks_from_page(page)
@@ -69,6 +72,124 @@ class TaskParser:
             self.logger.error(f"Error discovering tasks: {e}")
             return []
 
+    async def _wait_for_dashboard(self, page: Page):
+        """Wait for OAuth redirects to complete and land on rewards page"""
+        max_wait_attempts = 5
+        for attempt in range(max_wait_attempts):
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(2000)
+            
+            current_url = page.url
+            self.logger.info(f"Current URL (attempt {attempt + 1}): {current_url}")
+            
+            on_rewards = "rewards.microsoft.com" in current_url or "rewards.bing.com" in current_url
+            if on_rewards:
+                break
+            
+            if "login.live.com" in current_url or "login.microsoftonline.com" in current_url:
+                self.logger.info("  检测到 OAuth 页面，等待自动登录完成...")
+                try:
+                    await page.wait_for_url("**/rewards.*", timeout=15000)
+                    self.logger.info("  OAuth 自动登录成功，已跳转到 rewards 页面")
+                except PlaywrightTimeout:
+                    self.logger.warning("  OAuth 自动登录超时，尝试直接导航到 dashboard...")
+                    try:
+                        await page.goto("https://rewards.bing.com/dashboard", wait_until="networkidle", timeout=30000)
+                        await page.wait_for_timeout(2000)
+                        new_url = page.url
+                        self.logger.info(f"  导航后 URL: {new_url}")
+                        if "rewards" in new_url:
+                            self.logger.info("  成功导航到 dashboard")
+                            break
+                    except Exception as e:
+                        self.logger.warning(f"  导航失败: {e}")
+            else:
+                break
+        
+        final_url = page.url
+        self.logger.info(f"Final URL: {final_url}")
+        
+        if "login" in final_url.lower() or "oauth" in final_url.lower():
+            self.logger.warning("  最终仍在 OAuth 页面，检查页面内容...")
+            try:
+                has_dashboard_content = await page.evaluate("""
+                    () => {
+                        const sections = document.querySelectorAll('section#dailyset, section#streaks, section[id*="daily"]');
+                        return sections.length > 0;
+                    }
+                """)
+                if has_dashboard_content:
+                    self.logger.info("  页面已包含 dashboard 内容，继续执行")
+                else:
+                    self.logger.warning("  页面不包含 dashboard 内容，尝试强制导航...")
+                    await page.goto("https://rewards.bing.com/dashboard", wait_until="networkidle", timeout=30000)
+                    await page.wait_for_timeout(2000)
+            except Exception as e:
+                self.logger.warning(f"  内容检查失败: {e}")
+
+    async def _wait_for_content_load(self, page: Page):
+        """
+        Wait for React async content to finish loading.
+        The new dashboard uses skeleton loaders (animate-pulse) while fetching data.
+        We need to wait for these to be replaced with actual content.
+        """
+        self.logger.info("Waiting for dashboard content to load...")
+        
+        try:
+            accept_btn = page.locator("button:has-text('Accept'), button:has-text('接受')")
+            if await accept_btn.count() > 0:
+                self.logger.info("  Found cookie consent banner, accepting...")
+                await accept_btn.first.click()
+                await page.wait_for_timeout(1000)
+        except Exception as e:
+            self.logger.debug(f"  No cookie consent banner: {e}")
+        
+        section_selectors = ["section#dailyset", "section#streaks", "section[id*='daily']", "section[id*='streak']"]
+        section_found = False
+        
+        for selector in section_selectors:
+            try:
+                await page.wait_for_selector(selector, timeout=5000)
+                self.logger.debug(f"  Found section: {selector}")
+                section_found = True
+                break
+            except PlaywrightTimeout:
+                continue
+        
+        if not section_found:
+            self.logger.warning("  No task sections found, waiting for page to stabilize...")
+            await page.wait_for_timeout(3000)
+        
+        max_attempts = 10
+        for i in range(max_attempts):
+            try:
+                current_url = page.url
+                if "login" in current_url.lower() or "oauth" in current_url.lower():
+                    self.logger.warning("  Page navigated away, attempting to return to dashboard...")
+                    await page.goto("https://rewards.bing.com/dashboard", wait_until="domcontentloaded", timeout=30000)
+                    await page.wait_for_timeout(2000)
+            except Exception:
+                pass
+            
+            try:
+                skeleton_count = await page.evaluate("""
+                    () => {
+                        const skeletons = document.querySelectorAll('.animate-pulse, [class*="skeleton"], [class*="loading"]');
+                        return skeletons.length;
+                    }
+                """)
+                
+                if skeleton_count == 0:
+                    self.logger.info(f"  Dashboard content loaded (after {i + 1} checks)")
+                    return
+                
+                self.logger.debug(f"  Still loading... ({skeleton_count} skeletons remaining)")
+            except Exception as e:
+                self.logger.debug(f"  Error checking skeletons: {e}")
+            
+            await page.wait_for_timeout(1000)
+        
+        self.logger.warning(f"  Content may not be fully loaded after {max_attempts}s")
     
     async def _is_login_page(self, page: Page) -> bool:
         """Check if currently on login page"""
@@ -90,401 +211,184 @@ class TaskParser:
     
     async def _parse_tasks_from_page(self, page: Page) -> List[TaskMetadata]:
         """
-        Parse task elements from the dashboard page (with fallback strategies)
-        
-        Args:
-            page: Playwright page object
-            
-        Returns:
-            List of TaskMetadata objects
+        Parse task elements from the dashboard page.
+        Uses JavaScript evaluation to extract structured task data from the React DOM.
         """
         tasks = []
         
         try:
-            # Strategy 1: Try standard selectors
-            elements = await self._try_standard_selectors(page)
-            
-            # Strategy 2: Try generic selectors if standard fails
-            if not elements:
-                self.logger.info("Standard selectors failed, trying generic selectors...")
-                elements = await self._try_generic_selectors(page)
-            
-            # Strategy 3: Try link-based selectors as last resort
-            if not elements:
-                self.logger.info("Generic selectors failed, trying link-based selectors...")
-                elements = await self._try_link_based_selectors(page)
-            
-            if not elements:
-                self.logger.warning("No task elements found on page")
-                
-                # DIAGNOSTIC: Save screenshot and HTML for analysis (if debug mode enabled)
-                if self.debug_mode:
-                    import os
-                    from datetime import datetime
-                    os.makedirs("logs/diagnostics", exist_ok=True)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            raw_tasks = await page.evaluate("""
+                () => {
+                    const tasks = [];
                     
-                    try:
-                        # Save screenshot
-                        screenshot_path = f"logs/diagnostics/no_tasks_{timestamp}.png"
-                        await page.screenshot(path=screenshot_path, full_page=True)
-                        self.logger.warning(f"📸 截图已保存: {screenshot_path}")
+                    const sectionIds = ['dailyset', 'streaks', 'offers', 'snapshot'];
+                    let sections = [];
+                    
+                    for (const sectionId of sectionIds) {
+                        const section = document.querySelector(`section#${sectionId}`);
+                        if (section) sections.push({id: sectionId, el: section});
+                    }
+                    
+                    if (sections.length === 0) {
+                        sections = Array.from(document.querySelectorAll('section')).map(s => ({
+                            id: s.id || 'unknown',
+                            el: s
+                        }));
+                    }
+                    
+                    if (sections.length === 0) {
+                        const mainContent = document.querySelector('main, [role="main"], #main, .main-content');
+                        if (mainContent) {
+                            sections = [{id: 'main', el: mainContent}];
+                        }
+                    }
+                    
+                    for (const {id: sectionId, el: section} of sections) {
+                        const cards = section.querySelectorAll('a[href], button[href], [role="link"]');
                         
-                        # Save HTML
-                        html = await page.content()
-                        html_path = f"logs/diagnostics/no_tasks_{timestamp}.html"
-                        with open(html_path, "w", encoding="utf-8") as f:
-                            f.write(html)
-                        self.logger.warning(f"📄 HTML已保存: {html_path}")
-                        
-                        self.logger.warning("⚠️ 诊断数据已收集 - 请检查这些文件以分析问题")
-                    except Exception as e:
-                        self.logger.error(f"保存诊断数据失败: {e}")
-                else:
-                    self.logger.info("💡 提示: 在config.yaml中启用task_system.debug_mode以保存诊断数据")
-                
+                        for (const card of cards) {
+                            const href = card.getAttribute('href') || card.getAttribute('data-href') || '';
+                            
+                            if (href === '/earn' || href === '/dashboard' || 
+                                href === '/redeem' || href === '/about' || href === '/refer' ||
+                                href === '/' || href === '#') {
+                                continue;
+                            }
+                            
+                            const text = card.innerText || '';
+                            const ariaLabel = card.getAttribute('aria-label') || '';
+                            
+                            let title = '';
+                            const headings = card.querySelectorAll('h3, h4, p, span, div');
+                            for (const h of headings) {
+                                const t = h.innerText.trim();
+                                if (t && t.length > 2 && t.length < 200) {
+                                    title = t;
+                                    break;
+                                }
+                            }
+                            if (!title) {
+                                title = ariaLabel || text.substring(0, 80).trim();
+                            }
+                            
+                            if (!title && !href) continue;
+                            
+                            let points = 0;
+                            const pointsMatch = text.match(/(\\d+)\\s*(?:points?|pts?|积分)/i);
+                            if (pointsMatch) {
+                                points = parseInt(pointsMatch[1]);
+                            } else {
+                                const numMatch = text.match(/\\+(\\d+)/);
+                                if (numMatch) points = parseInt(numMatch[1]);
+                            }
+                            
+                            let taskType = 'urlreward';
+                            const combined = (href + ' ' + text + ' ' + ariaLabel).toLowerCase();
+                            if (combined.includes('quiz') || combined.includes('测验')) {
+                                taskType = 'quiz';
+                            } else if (combined.includes('poll') || combined.includes('投票')) {
+                                taskType = 'poll';
+                            }
+                            
+                            let completed = false;
+                            const completedEl = card.querySelector(
+                                '[class*="completed"], [class*="done"], [class*="check"], ' +
+                                'svg[class*="check"], [aria-label*="Completed"], [aria-label*="完成"]'
+                            );
+                            if (completedEl) completed = true;
+                            if (ariaLabel.toLowerCase().includes('completed') || 
+                                ariaLabel.includes('完成')) {
+                                completed = true;
+                            }
+                            
+                            tasks.push({
+                                sectionId: sectionId,
+                                title: title,
+                                href: href,
+                                points: points,
+                                taskType: taskType,
+                                completed: completed,
+                                ariaLabel: ariaLabel
+                            });
+                        }
+                    }
+                    
+                    return tasks;
+                }
+            """)
+            
+            if not raw_tasks:
+                self.logger.warning("No task elements found on page")
+                await self._save_diagnostics(page)
                 return tasks
             
-            self.logger.info(f"Found {len(elements)} potential task elements")
+            self.logger.info(f"Found {len(raw_tasks)} potential task elements")
             
-            # Parse each task element
-            for i, element in enumerate(elements):
+            for i, raw in enumerate(raw_tasks):
                 try:
-                    task_metadata = await self._extract_task_metadata(element, i)
-                    if task_metadata:
-                        tasks.append(task_metadata)
-                        self.logger.debug(f"  ✓ Parsed task: {task_metadata.title} ({task_metadata.task_type}, {task_metadata.points}pts)")
-                        
-                        # DIAGNOSTIC: Log raw promotion_type for debugging
-                        if task_metadata.promotion_type:
-                            self.logger.debug(f"    Raw promotion_type: '{task_metadata.promotion_type}'")
-                    else:
-                        self.logger.debug(f"  ✗ Failed to parse task element {i}: metadata extraction returned None")
+                    title = raw.get('title', f'Task {i + 1}')
+                    href = raw.get('href', '')
+                    points = raw.get('points', 0)
+                    task_type = raw.get('taskType', 'urlreward')
+                    completed = raw.get('completed', False)
+                    section_id = raw.get('sectionId', '')
+                    
+                    metadata = TaskMetadata(
+                        task_id=f"{section_id}_{i}",
+                        task_type=task_type,
+                        title=title,
+                        points=points,
+                        is_completed=completed,
+                        destination_url=href,
+                        promotion_type=task_type
+                    )
+                    tasks.append(metadata)
+                    self.logger.debug(f"  ✓ Parsed: {title} (type={task_type}, pts={points}, done={completed})")
                 except Exception as e:
-                    self.logger.debug(f"  ✗ Failed to parse task element {i}: {e}")
+                    self.logger.debug(f"  ✗ Failed to parse task {i}: {e}")
                     continue
             
         except Exception as e:
             self.logger.error(f"Error parsing tasks from page: {e}")
+            await self._save_diagnostics(page)
         
         return tasks
     
-    async def _try_standard_selectors(self, page: Page) -> List:
-        """Try standard task card selectors"""
-        selectors = [
-            'mee-card[data-bi-id]',
-            '.mee-card',
-            'mee-card',
-        ]
+    async def _save_diagnostics(self, page: Page):
+        """Save diagnostic screenshot and HTML for debugging"""
+        if not self.debug_mode:
+            self.logger.info("💡 提示: 在config.yaml中启用task_system.debug_mode以保存诊断数据")
+            return
         
-        for selector in selectors:
-            elements = await page.query_selector_all(selector)
-            if elements:
-                self.logger.debug(f"Standard selector succeeded: {selector} ({len(elements)} elements)")
-                return elements
+        import os
+        from datetime import datetime
+        os.makedirs("logs/diagnostics", exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        return []
-    
-    async def _try_generic_selectors(self, page: Page) -> List:
-        """Try generic selectors as fallback"""
-        selectors = [
-            '[class*="daily-set"]',
-            '[class*="promotion"]',
-            '[class*="reward-card"]',
-            '[class*="activity-card"]',
-            '.c-card',
-            '[data-bi-id]',
-        ]
-        
-        for selector in selectors:
-            elements = await page.query_selector_all(selector)
-            if elements and len(elements) > 0:
-                self.logger.debug(f"Generic selector succeeded: {selector} ({len(elements)} elements)")
-                return elements
-        
-        return []
-    
-    async def _try_link_based_selectors(self, page: Page) -> List:
-        """Try link-based selectors as last resort"""
-        selectors = [
-            'a[href*="punchcard"]',
-            'a[href*="quiz"]',
-            'a[href*="urlreward"]',
-            'a[href*="poll"]',
-        ]
-        
-        all_elements = []
-        for selector in selectors:
-            elements = await page.query_selector_all(selector)
-            if elements:
-                self.logger.debug(f"Link selector found: {selector} ({len(elements)} elements)")
-                all_elements.extend(elements)
-        
-        return all_elements
-    
-    async def _extract_task_metadata(self, element, index: int = 0) -> Optional[TaskMetadata]:
-        """
-        Extract metadata from a task element
-        
-        Args:
-            element: Playwright element handle
-            index: Element index (for generating fallback ID)
-            
-        Returns:
-            TaskMetadata object or None if extraction fails
-        """
         try:
-            # Extract task ID
-            task_id = await element.get_attribute('data-bi-id')
-            if not task_id:
-                task_id = await element.get_attribute('id')
-            if not task_id:
-                task_id = f"task_{index}"
+            screenshot_path = f"logs/diagnostics/no_tasks_{timestamp}.png"
+            await page.screenshot(path=screenshot_path, full_page=True)
+            self.logger.warning(f"📸 截图已保存: {screenshot_path}")
             
-            # Extract promotion type - ENHANCED with more strategies
-            promotion_type = None
+            html = await page.content()
+            html_path = f"logs/diagnostics/no_tasks_{timestamp}.html"
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html)
+            self.logger.warning(f"📄 HTML已保存: {html_path}")
             
-            # Strategy 1: data-bi-type attribute
-            promotion_type = await element.get_attribute('data-bi-type')
-            
-            # Strategy 2: data-promotion-type attribute
-            if not promotion_type:
-                promotion_type = await element.get_attribute('data-promotion-type')
-            
-            # Strategy 3: class names (look for task type in class)
-            if not promotion_type:
-                class_name = await element.get_attribute('class')
-                if class_name:
-                    class_lower = class_name.lower()
-                    if 'quiz' in class_lower:
-                        promotion_type = 'quiz'
-                    elif 'poll' in class_lower:
-                        promotion_type = 'poll'
-                    elif 'urlreward' in class_lower or 'url-reward' in class_lower:
-                        promotion_type = 'urlreward'
-            
-            # Strategy 4: Check href for clues
-            if not promotion_type:
-                href = await element.get_attribute('href')
-                if not href:
-                    # Look for child link
-                    link_element = await element.query_selector('a[href]')
-                    if link_element:
-                        href = await link_element.get_attribute('href')
-                
-                if href:
-                    href_lower = href.lower()
-                    if 'quiz' in href_lower:
-                        promotion_type = 'quiz'
-                    elif 'poll' in href_lower:
-                        promotion_type = 'poll'
-                    elif 'urlreward' in href_lower:
-                        promotion_type = 'urlreward'
-                    elif 'punchcard' in href_lower:
-                        promotion_type = 'urlreward'  # Punchcards are usually URL rewards
-            
-            # Strategy 5: Check aria-label
-            if not promotion_type:
-                aria_label = await element.get_attribute('aria-label')
-                if aria_label:
-                    aria_lower = aria_label.lower()
-                    if 'quiz' in aria_lower or '测验' in aria_lower:
-                        promotion_type = 'quiz'
-                    elif 'poll' in aria_lower or '投票' in aria_lower:
-                        promotion_type = 'poll'
-            
-            # Strategy 6: Check inner text for keywords
-            if not promotion_type:
-                try:
-                    inner_text = await element.inner_text()
-                    if inner_text:
-                        text_lower = inner_text.lower()
-                        if 'quiz' in text_lower or '测验' in text_lower:
-                            promotion_type = 'quiz'
-                        elif 'poll' in text_lower or '投票' in text_lower:
-                            promotion_type = 'poll'
-                except Exception:
-                    pass
-            
-            # Default to urlreward if still unknown (most common type)
-            if not promotion_type:
-                promotion_type = 'urlreward'
-            
-            # Extract title
-            title = await self._extract_title(element)
-            if not title:
-                title = f"Task {index + 1}"
-            
-            # Extract points
-            points = await self._extract_points(element)
-            
-            # Check if completed
-            is_completed = await self._is_task_completed(element)
-            
-            # Extract destination URL
-            destination_url = await self._extract_destination_url(element)
-            
-            # Determine task type from promotion type
-            task_type = self._determine_task_type(promotion_type)
-            
-            return TaskMetadata(
-                task_id=task_id,
-                task_type=task_type,
-                title=title,
-                points=points,
-                is_completed=is_completed,
-                destination_url=destination_url,
-                promotion_type=promotion_type
-            )
-            
+            self.logger.warning("⚠️ 诊断数据已收集 - 请检查这些文件以分析问题")
         except Exception as e:
-            self.logger.debug(f"Failed to extract task metadata: {e}")
-            return None
-    
-    async def _extract_title(self, element) -> Optional[str]:
-        """Extract task title with multiple fallback strategies"""
-        title_selectors = [
-            '.mee-card-title',
-            '[class*="title"]',
-            'h3',
-            'h4',
-            '.card-title',
-        ]
-        
-        for selector in title_selectors:
-            try:
-                title_element = await element.query_selector(selector)
-                if title_element:
-                    title = await title_element.inner_text()
-                    if title and title.strip():
-                        return title.strip()
-            except Exception:
-                continue
-        
-        # Fallback: get element text content
-        try:
-            text = await element.inner_text()
-            if text and text.strip():
-                return text.strip()[:50]  # Limit to 50 chars
-        except Exception:
-            pass
-        
-        return None
-    
-    async def _extract_points(self, element) -> int:
-        """Extract points value with fallback"""
-        points_selectors = [
-            '.mee-card-points',
-            '[class*="points"]',
-            '[class*="point-value"]',
-        ]
-        
-        for selector in points_selectors:
-            try:
-                points_element = await element.query_selector(selector)
-                if points_element:
-                    points_text = await points_element.inner_text()
-                    points = self._parse_points(points_text)
-                    if points > 0:
-                        return points
-            except Exception:
-                continue
-        
-        # Fallback: try to extract from entire element text
-        try:
-            text = await element.inner_text()
-            points = self._parse_points(text)
-            if points > 0:
-                return points
-        except Exception:
-            pass
-        
-        return 0
-    
-    async def _extract_destination_url(self, element) -> Optional[str]:
-        """Extract destination URL"""
-        try:
-            # Check if element itself is a link
-            href = await element.get_attribute('href')
-            if href:
-                return href
-            
-            # Look for child link
-            link_element = await element.query_selector('a[href]')
-            if link_element:
-                href = await link_element.get_attribute('href')
-                return href
-            
-            return None
-        except Exception:
-            return None
-    
-    def _parse_points(self, points_text: str) -> int:
-        """Parse points value from text"""
-        try:
-            # Extract numeric value from text like "10 points" or "+10"
-            import re
-            match = re.search(r'(\d+)', points_text)
-            return int(match.group(1)) if match else 0
-        except Exception:
-            return 0
-    
-    async def _is_task_completed(self, element) -> bool:
-        """Check if task is completed (enhanced with more indicators)"""
-        try:
-            # Check for completion indicators
-            completed_indicators = [
-                '.mee-icon-AddMedium',  # Checkmark icon
-                '[class*="completed"]',
-                '[class*="done"]',
-                '[class*="check"]',  # Added
-                '[aria-label*="Completed"]',
-                '[aria-label*="完成"]',  # Added for Chinese
-            ]
-            
-            for indicator in completed_indicators:
-                completed_element = await element.query_selector(indicator)
-                if completed_element:
-                    return True
-            
-            # Check aria-label attribute
-            aria_label = await element.get_attribute('aria-label')
-            if aria_label and ('completed' in aria_label.lower() or '完成' in aria_label):
-                return True
-            
-            return False
-        except Exception:
-            return False
+            self.logger.error(f"保存诊断数据失败: {e}")
     
     def _determine_task_type(self, promotion_type: str) -> str:
-        """
-        Determine task type from promotion type
-        
-        Args:
-            promotion_type: Raw promotion type from element
-            
-        Returns:
-            Standardized task type
-        """
+        """Determine task type from promotion type"""
         promotion_type_lower = promotion_type.lower()
         
-        # Quiz tasks
         if 'quiz' in promotion_type_lower:
             return 'quiz'
-        
-        # Poll tasks
         elif 'poll' in promotion_type_lower:
             return 'poll'
-        
-        # URL reward tasks (most common)
         elif 'urlreward' in promotion_type_lower or 'url' in promotion_type_lower:
             return 'urlreward'
-        
-        # Special tasks
-        elif 'clippy' in promotion_type_lower or 'findclippy' in promotion_type_lower:
-            return 'urlreward'  # Treat as URL task
-        
-        # Default: treat unknown types as URL reward tasks
-        # Most tasks are just "click and visit" which is what urlreward does
         else:
             return 'urlreward'

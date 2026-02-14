@@ -14,6 +14,7 @@ Design Pattern: State Machine with Handler Registry
 from enum import Enum
 from typing import Dict, List, Optional, Any
 from datetime import datetime
+from collections import deque
 import logging
 import asyncio
 import os
@@ -102,7 +103,8 @@ class LoginStateMachine:
         
         # State tracking
         self.current_state = LoginState.EMAIL_INPUT  # 初始状态：邮箱输入（登录流程起点）
-        self.state_history: List[StateTransition] = []
+        self._max_history_size = 50  # 固定最大历史记录数
+        self.state_history: deque = deque(maxlen=self._max_history_size)
         
         # Handler registry (will be populated by state handlers)
         self.handlers: Dict[LoginState, Any] = {}
@@ -209,11 +211,6 @@ class LoginStateMachine:
         )
         
         self.state_history.append(transition)
-
-        # 限制历史记录长度，防止内存泄漏
-        max_history = max(self.max_transitions * 2, 50)  # 至少保留50条
-        if len(self.state_history) > max_history:
-            self.state_history = self.state_history[-max_history:]
         
         # Log the transition
         if success:
@@ -231,7 +228,7 @@ class LoginStateMachine:
         Returns:
             List of StateTransition objects
         """
-        return self.state_history.copy()
+        return list(self.state_history)
     
     def get_transition_count(self) -> int:
         """

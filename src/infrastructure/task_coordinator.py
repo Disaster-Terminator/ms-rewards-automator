@@ -215,8 +215,14 @@ class TaskCoordinator:
             self.logger.info("  使用现有浏览器实例，创建移动浏览器上下文...")
             StatusManager.update_operation("创建移动浏览器上下文")
 
-            # 保存桌面页面的引用
+            # 关闭桌面上下文（释放资源，避免多窗口）
             desktop_context = page.context
+            try:
+                if desktop_context:
+                    await desktop_context.close()
+                    self.logger.debug("  已关闭桌面上下文")
+            except Exception as e:
+                self.logger.debug(f"  关闭桌面上下文时出错: {e}")
 
             from account.manager import AccountManager
 
@@ -249,21 +255,19 @@ class TaskCoordinator:
 
             # 移动搜索完成后，切换回桌面上下文并返回桌面页面
             self.logger.info("  移动搜索完成，切换回桌面上下文...")
-            # 关闭旧的上下文（如果存在）
-            if browser_sim.context:
-                await browser_sim.context.close()
-            desktop_context, desktop_page = await browser_sim.create_context(
+            # 关闭移动端上下文
+            if context:
+                await context.close()
+
+            # 重新创建桌面上下文
+            new_desktop_context, new_desktop_page = await browser_sim.create_context(
                 browser_sim.browser,
                 f"desktop_{self.args.browser}",
                 storage_state=self.config.get("account.storage_state_path")
             )
 
-            # 保存桌面上下文
-            browser_sim.context = desktop_context
-            browser_sim.page = desktop_page
-
             self.logger.info("  ✓ 已切换回桌面上下文")
-            return desktop_page
+            return new_desktop_page
 
         StatusManager.update_progress(6, 8)
         return page  # 如果是 dry_run，返回原来的页面
@@ -286,44 +290,37 @@ class TaskCoordinator:
 
         task_system_enabled = self.config.get("task_system.enabled", False)
 
-        if task_system_enabled and not self.args.dry_run:
+        if task_system_enabled:
             try:
                 from tasks import TaskManager
                 task_manager = TaskManager(self.config)
 
-                # 如果是移动端，需要切换回桌面上下文
-                if not self.args.desktop_only:
-                    self.logger.info("  切换回桌面浏览器上下文以执行任务...")
-                    # 使用保存的浏览器实例创建新的桌面上下文
+                # 检查传入的 page 是否有效
+                # 注意: execute_mobile_search 已经返回了有效的桌面页面
+                # 不需要再创建新的上下文
+                page_valid = False
+                try:
+                    await page.evaluate("() => document.readyState")
+                    page_valid = True
+                    self.logger.info("  使用现有桌面页面执行任务...")
+                except Exception:
+                    self.logger.warning("  传入的页面已失效，需要重建...")
+                
+                # 只有在页面无效时才创建新上下文
+                if not page_valid:
                     if browser_sim and browser_sim.browser:
-                        # 关闭旧的上下文（如果存在）
-                        if browser_sim.context:
-                            await browser_sim.context.close()
-                        # 创建新的上下文
-                        context, page = await browser_sim.create_context(
+                        _, page = await browser_sim.create_context(
                             browser_sim.browser,
                             f"desktop_{self.args.browser}",
                             storage_state=self.config.get("account.storage_state_path")
                         )
                     else:
-                        # 如果没有浏览器实例，需要创建新的
                         await self._create_desktop_browser_if_needed(browser_sim)
-                        context, page = await browser_sim.create_context(
+                        _, page = await browser_sim.create_context(
                             browser_sim.browser,
                             f"desktop_{self.args.browser}",
                             storage_state=self.config.get("account.storage_state_path")
                         )
-
-                    # 更新浏览器模拟器的状态
-                    browser_sim.context = context
-                    browser_sim.page = page
-
-                # 确保页面在正确的状态
-                try:
-                    await page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=15000)
-                    await page.wait_for_timeout(2000)
-                except Exception as e:
-                    self.logger.warning(f"导航到 Bing 失败: {e}")
 
                 # 发现任务
                 self.logger.info("  发现可用任务...")

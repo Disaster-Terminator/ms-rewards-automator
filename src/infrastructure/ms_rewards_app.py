@@ -230,22 +230,75 @@ class MSRewardsApp:
     async def _handle_login(self) -> None:
         """处理登录流程"""
         await self.coordinator.handle_login(self.page, self.context)
+        
+        if await self._is_page_crashed():
+            self.logger.warning("  登录检测后页面已崩溃，重建浏览器上下文...")
+            await self._recreate_page()
 
     async def _check_initial_points(self) -> None:
         """检查初始积分"""
         initial_points = await self.state_monitor.check_points_before_task(self.page)
         StatusManager.update_points(initial_points, initial_points)
+        
+        if await self._is_page_crashed():
+            self.logger.warning("  积分检测后页面已崩溃，重建浏览器上下文...")
+            await self._recreate_page()
+        else:
+            try:
+                current_url = self.page.url
+                if 'login' in current_url.lower() or 'oauth' in current_url.lower():
+                    self.logger.info("  页面仍在登录页面，导航到 Bing...")
+                    await self.page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=30000)
+            except Exception as e:
+                self.logger.warning(f"  导航到 Bing 失败: {e}")
 
     async def _execute_searches(self) -> None:
         """执行搜索任务"""
         # 5. 桌面搜索
         if not self.args.mobile_only:
+            # 检查页面是否有效，如果崩溃则重建
+            if await self._is_page_crashed():
+                self.logger.warning("  页面已崩溃，重建浏览器上下文...")
+                await self._recreate_page()
             await self.coordinator.execute_desktop_search(self.page)
 
         # 6. 移动搜索
         if not self.args.desktop_only:
             self.page = await self.coordinator.execute_mobile_search(self.page)
             self.current_device = "desktop"  # 移动搜索完成后切换回桌面
+
+    async def _is_page_crashed(self) -> bool:
+        """检查页面是否已崩溃"""
+        try:
+            if self.page is None:
+                return True
+            if self.page.is_closed():
+                return True
+            url = self.page.url
+            if not url:
+                return True
+            await self.page.evaluate("() => document.readyState")
+            return False
+        except Exception as e:
+            self.logger.debug(f"页面状态检查失败: {e}")
+            return True
+
+    async def _recreate_page(self) -> None:
+        """重建页面"""
+        try:
+            # 关闭旧的上下文
+            if self.context:
+                await self.context.close()
+        except Exception:
+            pass
+
+        # 创建新的上下文和页面
+        self.context, self.page = await self.browser_sim.create_context(
+            self.browser,
+            f"desktop_{self.args.browser}",
+            storage_state=self.config.get("account.storage_state_path")
+        )
+        self.logger.info("  ✓ 浏览器上下文已重建")
 
     async def _execute_daily_tasks(self) -> None:
         """执行日常任务"""

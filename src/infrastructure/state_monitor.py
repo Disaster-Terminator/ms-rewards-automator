@@ -115,16 +115,16 @@ class StateMonitor:
         Returns:
             当前积分数量
         """
-        if not self.enabled:
-            return None
-        
         self.search_count += 1
         
-        # 更新搜索计数
         if search_type == "desktop":
             self.session_data["desktop_searches"] += 1
         else:
             self.session_data["mobile_searches"] += 1
+        
+        if not self.enabled:
+            logger.debug(f"监控已禁用，跳过积分检查 (搜索计数: {self.search_count})")
+            return None
         
         # 只在达到检查间隔时检查
         if self.search_count % self.check_interval != 0:

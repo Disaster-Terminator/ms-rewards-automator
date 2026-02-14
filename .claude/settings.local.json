@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(conda:*)",
+      "Bash(source:*)",
+      "Bash(playwright install:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(apt-cache search:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install -y xvfb)",
+      "Bash(xvfb-run -a python:*)",
+      "Bash(nc:*)",
+      "Bash(curl:*)",
+      "Bash(getent hosts:*)",
+      "Bash(# 检查所有网络接口 netstat -tn)",
+      "Bash(ss:*)",
+      "Bash(netstat:*)",
+      "Bash(echo:*)",
+      "Bash(unset:*)",
+      "Bash(python3 -c:*)",
+      "Bash(env:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(/home/raystorm/miniconda3/envs/ms-rewards-bot/bin/python:*)",
+      "WebFetch(domain:www.bing.com)",
+      "WebFetch(domain:login.live.com)",
+      "Bash(pip show:*)",
+      "Bash(export TMPDIR=\"/home/raystorm/projects/MS-Rewards-Automator/tmp\")"
+    ]
+  },
+  "outputStyle": "default",
+  "sandbox": {
+    "enabled": false,
+    "autoAllowBashIfSandboxed": false
+  },
+  "prefersReducedMotion": false
+}

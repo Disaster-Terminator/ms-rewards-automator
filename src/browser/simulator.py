@@ -342,10 +342,11 @@ class BrowserSimulator:
         self.state_manager.register_browser(browser, context, main_page)
         
         # 集成主题持久化：在创建上下文后尝试恢复主题设置
+        # 注意：只有当主题管理功能启用且持久化启用时才执行
         try:
             from ui.bing_theme_manager import BingThemeManager
             theme_manager = BingThemeManager(self.config)
-            if theme_manager.persistence_enabled:
+            if theme_manager.enabled and theme_manager.persistence_enabled:
                 logger.debug("尝试在新上下文中恢复主题设置...")
                 # 导航到Bing首页以便应用主题
                 await main_page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=10000)
