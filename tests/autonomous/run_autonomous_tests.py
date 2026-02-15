@@ -16,7 +16,7 @@ sys.path.insert(0, str(_project_root / "src"))
 sys.path.insert(0, str(_project_root))
 
 from tests.autonomous.autonomous_test_runner import AutonomousTestRunner, TestConfig
-from tests.autonomous.test_reporter import TestReporter
+from tests.autonomous.reporter import TestReporter
 
 
 def setup_logging(log_level: str = "INFO", log_file: str = None):
