@@ -6,7 +6,7 @@
 main                          # 核心分支：登录 + 搜索（必须稳定）
 ├── feature/daily-tasks       # 每日任务系统（问答、投票、URL奖励）
 ├── feature/theme-management  # Bing主题管理
-├── feature/health-monitor-enhanced  # 健康监控与自诊断
+├── feature/health-monitor    # 健康监控与进度跟踪（已合并）
 ├── feature/notifications     # 通知系统
 ├── feature/scheduler-enhanced # 调度器增强（先执行一次，再进入调度）
 ├── fix/xxx                   # Bug修复分支
@@ -44,7 +44,7 @@ monitoring.health_check.enabled: false  # 健康监控
 |------|------|----------|
 | `feature/daily-tasks` | 每日任务 | `src/tasks/` |
 | `feature/theme-management` | 主题管理 | `src/ui/bing_theme_manager.py` |
-| `feature/health-monitor-enhanced` | 健康监控 | `src/infrastructure/health_monitor.py`, `self_diagnosis.py` |
+| `feature/health-monitor` | 健康监控+进度跟踪 | `src/infrastructure/health_monitor.py`, `src/ui/real_time_status.py` |
 | `feature/notifications` | 通知系统 | `src/infrastructure/notificator.py` |
 | `feature/scheduler-enhanced` | 调度器增强 | `src/infrastructure/scheduler.py` |
 
