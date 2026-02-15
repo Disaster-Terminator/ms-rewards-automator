@@ -413,10 +413,12 @@ scheduler:
 ```
 python main.py 执行流程：
 ┌─────────────────────────────────────────┐
-│ 1. 立即执行一次正常逻辑（登录+搜索）       │
-│ 2. 进入调度模式，等待下次触发             │
-│    - 用户可通过 --no-schedule 跳过调度    │
-│    - 用户可通过 --schedule-only 跳过首次  │
+│ 默认：立即执行一次正常逻辑（登录+搜索）    │
+│       不进入调度模式                      │
+│                                         │
+│ --schedule：进入调度模式，等待下次触发    │
+│ --schedule --schedule-now：立即执行一次  │
+│                          后进入调度模式   │
 └─────────────────────────────────────────┘
 ```
 
@@ -424,9 +426,9 @@ python main.py 执行流程：
 
 | 参数 | 说明 |
 |------|------|
-| `python main.py` | 执行一次 + 进入调度（默认） |
-| `python main.py --no-schedule` | 仅执行一次，不进入调度 |
-| `python main.py --schedule-only` | 跳过首次执行，直接进入调度 |
+| `python main.py` | 执行一次，不进入调度（默认） |
+| `python main.py --schedule` | 进入调度模式，等待下次触发 |
+| `python main.py --schedule --schedule-now` | 立即执行一次后进入调度 |
 
 ## 七、依赖关系图
 
