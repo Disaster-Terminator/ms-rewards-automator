@@ -41,7 +41,12 @@ class HealthMonitor:
             "cpu_usage": [],
             "browser_crashes": 0,
             "network_errors": 0,
+            "browser_memory_mb": 0,
+            "browser_page_count": 0,
         }
+        
+        self._browser_context = None
+        self._browser_instance = None
         
         # 健康状态
         self.health_status = {
@@ -61,6 +66,18 @@ class HealthMonitor:
         
         logger.info(f"健康监控器初始化完成 (enabled={self.enabled})")
     
+    def register_browser(self, browser_instance=None, browser_context=None):
+        """
+        注册浏览器实例用于健康监控
+        
+        Args:
+            browser_instance: Playwright Browser 实例
+            browser_context: BrowserContext 实例
+        """
+        self._browser_instance = browser_instance
+        self._browser_context = browser_context
+        logger.debug("已注册浏览器实例到健康监控器")
+    
     async def start_monitoring(self):
         """启动健康监控"""
         if not self.enabled:
@@ -78,9 +95,11 @@ class HealthMonitor:
             logger.info("停止健康监控...")
             self._monitoring_task.cancel()
             try:
-                await self._monitoring_task
-            except asyncio.CancelledError:
+                await asyncio.wait_for(self._monitoring_task, timeout=5.0)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
                 logger.debug("健康监控任务已取消")
+            finally:
+                self._monitoring_task = None
     
     async def _monitoring_loop(self):
         """监控循环"""
@@ -98,6 +117,8 @@ class HealthMonitor:
         except asyncio.CancelledError:
             logger.debug("监控循环已停止")
             raise
+        finally:
+            logger.debug("监控循环资源已清理")
     
     async def perform_health_check(self) -> Dict[str, Any]:
         """
@@ -114,10 +135,14 @@ class HealthMonitor:
         # 网络连接检查
         network_health = await self._check_network_health()
         
+        # 浏览器健康检查
+        browser_health = await self._check_browser_health()
+        
         # 更新健康状态
         self.health_status.update({
             "system": system_health["status"],
             "network": network_health["status"],
+            "browser": browser_health["status"],
             "last_check": datetime.now().isoformat(),
         })
         
@@ -264,12 +289,92 @@ class HealthMonitor:
                 "issues": ["网络健康检查失败"],
             }
     
+    async def _check_browser_health(self) -> Dict[str, Any]:
+        """检查浏览器健康状态"""
+        try:
+            issues = []
+            status = "healthy"
+            
+            browser_connected = False
+            page_count = 0
+            browser_memory_mb = 0
+            
+            if self._browser_instance:
+                try:
+                    browser_connected = self._browser_instance.is_connected()
+                    
+                    if self._browser_context:
+                        pages = self._browser_context.pages
+                        page_count = len(pages)
+                        
+                        for page in pages:
+                            try:
+                                if not page.is_closed():
+                                    pass
+                            except Exception:
+                                pass
+                except Exception as e:
+                    logger.debug(f"浏览器状态检查异常: {e}")
+                    browser_connected = False
+                
+                self.metrics["browser_page_count"] = page_count
+                
+                for proc in psutil.process_iter(['name', 'memory_info']):
+                    try:
+                        name = proc.info['name'].lower()
+                        if any(browser in name for browser in ['chrome', 'chromium', 'msedge', 'firefox']):
+                            browser_memory_mb += proc.info['memory_info'].rss / (1024 * 1024)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                
+                self.metrics["browser_memory_mb"] = round(browser_memory_mb, 1)
+                
+                if not browser_connected:
+                    status = "error"
+                    issues.append("浏览器连接已断开")
+                
+                if browser_memory_mb > 2000:
+                    status = "warning" if status != "error" else "error"
+                    issues.append(f"浏览器内存占用过高: {browser_memory_mb:.0f}MB")
+                
+                if page_count > 10:
+                    status = "warning" if status == "healthy" else status
+                    issues.append(f"页面数量过多: {page_count} 个")
+                
+                if self.metrics["browser_crashes"] > 0:
+                    status = "warning" if status == "healthy" else status
+            else:
+                self.metrics["browser_page_count"] = 0
+                self.metrics["browser_memory_mb"] = 0
+                status = "unknown"
+            
+            return {
+                "status": status,
+                "connected": browser_connected,
+                "page_count": page_count,
+                "memory_mb": browser_memory_mb,
+                "crashes": self.metrics["browser_crashes"],
+                "issues": issues,
+            }
+            
+        except Exception as e:
+            logger.error(f"浏览器健康检查失败: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "issues": ["浏览器健康检查失败"],
+            }
+    
     def _calculate_overall_health(self):
         """计算总体健康状态"""
         statuses = [
             self.health_status["system"],
             self.health_status["network"],
         ]
+        
+        browser_status = self.health_status["browser"]
+        if browser_status != "unknown":
+            statuses.append(browser_status)
         
         if "error" in statuses:
             self.health_status["overall"] = "error"
@@ -500,13 +605,56 @@ class HealthMonitor:
             f"{emoji} 总体状态: {overall_status.upper()}",
             f"系统: {status_emoji.get(self.health_status['system'], '❓')} {self.health_status['system']}",
             f"网络: {status_emoji.get(self.health_status['network'], '❓')} {self.health_status['network']}",
+            f"浏览器: {status_emoji.get(self.health_status['browser'], '❓')} {self.health_status['browser']}",
         ]
         
         if self.metrics["total_searches"] > 0:
             success_rate = self.metrics["successful_searches"] / self.metrics["total_searches"]
             summary.append(f"成功率: {success_rate*100:.1f}%")
         
+        if self.metrics["browser_memory_mb"] > 0:
+            summary.append(f"浏览器内存: {self.metrics['browser_memory_mb']:.0f}MB")
+        
         if self.recommendations:
             summary.append(f"建议: {len(self.recommendations)} 条")
         
         return " | ".join(summary)
+    
+    def get_detailed_status(self) -> Dict[str, Any]:
+        """
+        获取详细健康状态（用于实时监控）
+        
+        Returns:
+            详细状态字典
+        """
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "overall": self.health_status["overall"],
+            "components": {
+                "system": {
+                    "status": self.health_status["system"],
+                    "cpu_percent": self.metrics["cpu_usage"][-1] if self.metrics["cpu_usage"] else 0,
+                    "memory_percent": self.metrics["memory_usage"][-1] if self.metrics["memory_usage"] else 0,
+                },
+                "network": {
+                    "status": self.health_status["network"],
+                },
+                "browser": {
+                    "status": self.health_status["browser"],
+                    "memory_mb": self.metrics["browser_memory_mb"],
+                    "page_count": self.metrics["browser_page_count"],
+                    "crashes": self.metrics["browser_crashes"],
+                },
+            },
+            "search_stats": {
+                "total": self.metrics["total_searches"],
+                "successful": self.metrics["successful_searches"],
+                "failed": self.metrics["failed_searches"],
+                "success_rate": (
+                    self.metrics["successful_searches"] / self.metrics["total_searches"]
+                    if self.metrics["total_searches"] > 0 else 0
+                ),
+            },
+            "uptime_seconds": time.time() - self.metrics["start_time"],
+            "recommendations": self.recommendations[:3],
+        }
