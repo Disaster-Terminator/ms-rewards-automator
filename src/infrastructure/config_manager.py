@@ -380,7 +380,7 @@ class ConfigManager:
         """
         try:
             # 使用新的配置验证器
-            from config_validator import ConfigValidator
+            from .config_validator import ConfigValidator
             validator = ConfigValidator(self)
             
             is_valid, errors, warnings = validator.validate_config(self.config)

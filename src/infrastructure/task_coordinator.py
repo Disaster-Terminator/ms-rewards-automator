@@ -6,9 +6,19 @@ TaskCoordinator - 任务协调器 (依赖注入版)
 """
 
 import logging
-from typing import Any, Dict, Optional
+import argparse
+from typing import TYPE_CHECKING, Dict, Optional
 
+from playwright.async_api import Page, BrowserContext
 from ui.real_time_status import StatusManager
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
+    from account.manager import AccountManager
+    from search.search_engine import SearchEngine
+    from infrastructure.state_monitor import StateMonitor
+    from infrastructure.health_monitor import HealthMonitor
+    from browser.simulator import BrowserSimulator
 
 
 class TaskCoordinator:
@@ -21,15 +31,14 @@ class TaskCoordinator:
 
     def __init__(
         self,
-        config: Any,
-        args: Any,
+        config: 'ConfigManager',
+        args: argparse.Namespace,
         logger: logging.Logger,
-        # 依赖项通过参数注入
-        account_manager: Optional[Any] = None,
-        search_engine: Optional[Any] = None,
-        state_monitor: Optional[Any] = None,
-        health_monitor: Optional[Any] = None,
-        browser_sim: Optional[Any] = None,
+        account_manager: Optional['AccountManager'] = None,
+        search_engine: Optional['SearchEngine'] = None,
+        state_monitor: Optional['StateMonitor'] = None,
+        health_monitor: Optional['HealthMonitor'] = None,
+        browser_sim: Optional['BrowserSimulator'] = None,
     ):
         """
         初始化任务协调器
@@ -48,47 +57,38 @@ class TaskCoordinator:
         self.args = args
         self.logger = logger
 
-        # 依赖项（可通过 setter 注入或构造函数注入）
         self._account_manager = account_manager
         self._search_engine = search_engine
         self._state_monitor = state_monitor
         self._health_monitor = health_monitor
         self._browser_sim = browser_sim
 
-    # ============================================================
-    # 依赖注入 setter 方法
-    # ============================================================
-
-    def set_account_manager(self, account_manager: Any) -> 'TaskCoordinator':
+    def set_account_manager(self, account_manager: 'AccountManager') -> 'TaskCoordinator':
         """设置 AccountManager（支持链式调用）"""
         self._account_manager = account_manager
         return self
 
-    def set_search_engine(self, search_engine: Any) -> 'TaskCoordinator':
+    def set_search_engine(self, search_engine: 'SearchEngine') -> 'TaskCoordinator':
         """设置 SearchEngine"""
         self._search_engine = search_engine
         return self
 
-    def set_state_monitor(self, state_monitor: Any) -> 'TaskCoordinator':
+    def set_state_monitor(self, state_monitor: 'StateMonitor') -> 'TaskCoordinator':
         """设置 StateMonitor"""
         self._state_monitor = state_monitor
         return self
 
-    def set_health_monitor(self, health_monitor: Any) -> 'TaskCoordinator':
+    def set_health_monitor(self, health_monitor: 'HealthMonitor') -> 'TaskCoordinator':
         """设置 HealthMonitor"""
         self._health_monitor = health_monitor
         return self
 
-    def set_browser_sim(self, browser_sim: Any) -> 'TaskCoordinator':
+    def set_browser_sim(self, browser_sim: 'BrowserSimulator') -> 'TaskCoordinator':
         """设置 BrowserSimulator"""
         self._browser_sim = browser_sim
         return self
 
-    # ============================================================
-    # 任务执行方法
-    # ============================================================
-
-    async def handle_login(self, page: Any, context: Any) -> None:
+    async def handle_login(self, page: Page, context: BrowserContext) -> None:
         """
         处理登录流程
 

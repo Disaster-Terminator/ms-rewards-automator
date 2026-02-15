@@ -267,6 +267,115 @@ class AntiBanModule:
                 get: () => 8
             });
             """,
+            
+            # 脚本 9: WebGL 指纹保护
+            """
+            (() => {
+                const getParameterProxyHandler = {
+                    apply: function(target, thisArg, args) {
+                        const param = args[0];
+                        
+                        // UNMASKED_VENDOR_WEBGL
+                        if (param === 37445) {
+                            return 'Google Inc. (NVIDIA)';
+                        }
+                        // UNMASKED_RENDERER_WEBGL
+                        if (param === 37446) {
+                            const renderers = [
+                                'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)',
+                                'ANGLE (NVIDIA, NVIDIA GeForce RTX 3070 Direct3D11 vs_5_0 ps_5_0, D3D11)',
+                                'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)',
+                                'ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)',
+                                'ANGLE (AMD, AMD Radeon RX 6600 Direct3D11 vs_5_0 ps_5_0, D3D11)'
+                            ];
+                            return renderers[Math.floor(Math.random() * renderers.length)];
+                        }
+                        
+                        const paramOverrides = {
+                            3379: 16384, 34076: 16384, 34024: 16384,
+                            35661: 80, 34930: 16, 35660: 32,
+                            36347: 1024, 36348: 1024, 36349: 32, 34921: 16
+                        };
+                        
+                        if (param in paramOverrides) {
+                            const baseValue = paramOverrides[param];
+                            const variance = Math.floor(baseValue * 0.05);
+                            return baseValue + (Math.random() > 0.5 ? variance : -variance);
+                        }
+                        
+                        return target.apply(thisArg, args);
+                    }
+                };
+                
+                if (typeof WebGLRenderingContext !== 'undefined') {
+                    WebGLRenderingContext.prototype.getParameter = new Proxy(
+                        WebGLRenderingContext.prototype.getParameter,
+                        getParameterProxyHandler
+                    );
+                }
+                
+                if (typeof WebGL2RenderingContext !== 'undefined') {
+                    WebGL2RenderingContext.prototype.getParameter = new Proxy(
+                        WebGL2RenderingContext.prototype.getParameter,
+                        getParameterProxyHandler
+                    );
+                }
+            })();
+            """,
+            
+            # 脚本 10: Canvas 指纹保护
+            """
+            (() => {
+                const sessionSeed = Math.random() * 10000;
+                
+                function addNoiseToImageData(imageData) {
+                    const data = imageData.data;
+                    const noiseLevel = 1;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        for (let j = 0; j < 3; j++) {
+                            const noise = Math.floor(
+                                (Math.sin(sessionSeed + i + j) * 0.5 + 0.5) * noiseLevel * 2 - noiseLevel
+                            );
+                            data[i + j] = Math.max(0, Math.min(255, data[i + j] + noise));
+                        }
+                    }
+                    return imageData;
+                }
+                
+                const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+                HTMLCanvasElement.prototype.toDataURL = function(type, quality) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = this.width;
+                    tempCanvas.height = this.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(this, 0, 0);
+                    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                    addNoiseToImageData(imageData);
+                    tempCtx.putImageData(imageData, 0, 0);
+                    return originalToDataURL.apply(tempCanvas, arguments);
+                };
+                
+                const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+                CanvasRenderingContext2D.prototype.getImageData = function(x, y, w, h) {
+                    const imageData = originalGetImageData.apply(this, arguments);
+                    return addNoiseToImageData(imageData);
+                };
+                
+                const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+                HTMLCanvasElement.prototype.toBlob = function(callback, type, quality) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = this.width;
+                    tempCanvas.height = this.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(this, 0, 0);
+                    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                    addNoiseToImageData(imageData);
+                    tempCtx.putImageData(imageData, 0, 0);
+                    return originalToBlob.call(tempCanvas, callback, type, quality);
+                };
+            })();
+            """,
         ]
         
         return scripts

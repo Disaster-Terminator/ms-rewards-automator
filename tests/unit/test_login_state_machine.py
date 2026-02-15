@@ -32,7 +32,10 @@ class TestLoginState:
             "get_a_code",
             "recovery_email",
             "mobile_access",
-            "error"
+            "error",
+            "otp_code_entry",
+            "stay_signed_in",
+            "auth_blocked"
         }
         
         actual_states = {state.value for state in LoginState}

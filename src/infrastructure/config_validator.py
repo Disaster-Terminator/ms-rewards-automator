@@ -465,7 +465,7 @@ class ConfigValidator:
             (是否有效, 验证报告)
         """
         try:
-            from config_manager import ConfigManager
+            from .config_manager import ConfigManager
             
             # 加载配置
             config_manager = ConfigManager(config_path)

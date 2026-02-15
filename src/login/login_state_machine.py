@@ -12,15 +12,21 @@ Design Pattern: State Machine with Handler Registry
 """
 
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import TYPE_CHECKING, Dict, List, Optional, Any
 from datetime import datetime
 from collections import deque
 import logging
 import asyncio
 import os
 
+from playwright.async_api import Page
+
 from infrastructure.self_diagnosis import SelfDiagnosisSystem
 from login.edge_popup_handler import EdgePopupHandler
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
+    from login.state_handler import StateHandler
 
 
 class LoginState(Enum):
@@ -90,7 +96,7 @@ class LoginStateMachine:
         logger: Logger instance
     """
     
-    def __init__(self, config: Any, logger: Optional[logging.Logger] = None):
+    def __init__(self, config: 'ConfigManager', logger: Optional[logging.Logger] = None):
         """
         Initialize the login state machine.
         
@@ -101,22 +107,17 @@ class LoginStateMachine:
         self.config = config
         self.logger = logger or logging.getLogger(__name__)
         
-        # State tracking
-        self.current_state = LoginState.EMAIL_INPUT  # 初始状态：邮箱输入（登录流程起点）
-        self._max_history_size = 50  # 固定最大历史记录数
+        self.current_state = LoginState.ERROR
+        self._max_history_size = 50
         self.state_history: deque = deque(maxlen=self._max_history_size)
         
-        # Handler registry (will be populated by state handlers)
-        self.handlers: Dict[LoginState, Any] = {}
+        self.handlers: Dict[LoginState, 'StateHandler'] = {}
         
-        # Configuration
         self.max_transitions = config.get("login.max_transitions", 10)
         self.timeout_seconds = config.get("login.timeout_seconds", 300)
         
-        # Self-diagnosis system (will be initialized when page is available)
         self.diagnosis_system: Optional[SelfDiagnosisSystem] = None
         
-        # Edge popup handler
         self.edge_popup_handler = EdgePopupHandler(logger=self.logger)
         
         self.logger.info(
@@ -125,7 +126,7 @@ class LoginStateMachine:
             f"timeout={self.timeout_seconds}s)"
         )
     
-    def register_handler(self, state: LoginState, handler: Any) -> None:
+    def register_handler(self, state: LoginState, handler: 'StateHandler') -> None:
         """
         Register a handler for a specific state.
         
@@ -136,7 +137,7 @@ class LoginStateMachine:
         self.handlers[state] = handler
         self.logger.debug(f"Registered handler for state: {state}")
     
-    async def detect_state(self, page: Any) -> LoginState:
+    async def detect_state(self, page: Page) -> LoginState:
         """
         Detect the current login state by examining page elements.
         

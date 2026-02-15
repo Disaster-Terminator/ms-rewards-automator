@@ -11,9 +11,14 @@ Design Pattern: Strategy Pattern with Template Method
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import TYPE_CHECKING, List, Dict, Any, Optional
 from enum import Enum
 import logging
+
+from playwright.async_api import Page
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
 
 
 class StateHandler(ABC):
@@ -29,7 +34,7 @@ class StateHandler(ABC):
         human_simulator: Human behavior simulator for anti-detection
     """
     
-    def __init__(self, config: Any, logger: Optional[logging.Logger] = None):
+    def __init__(self, config: 'ConfigManager', logger: Optional[logging.Logger] = None):
         """
         Initialize the state handler.
         
@@ -40,12 +45,11 @@ class StateHandler(ABC):
         self.config = config
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         
-        # Initialize human behavior simulator
         from .human_behavior_simulator import HumanBehaviorSimulator
         self.human_simulator = HumanBehaviorSimulator(logger=self.logger)
     
     @abstractmethod
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if this handler can handle the current page state.
         
@@ -61,7 +65,7 @@ class StateHandler(ABC):
         pass
     
     @abstractmethod
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle the current state by performing appropriate actions.
         

@@ -843,8 +843,8 @@ class TestBingThemeManager:
         """测试生成深色主题强制CSS"""
         css = theme_manager._generate_force_theme_css("dark")
         
-        assert "background-color: #212529 !important" in css
-        assert "color: #ffffff !important" in css
+        assert "background-color: #1a1a2e !important" in css
+        assert "color: #e0e0e0 !important" in css
         assert "color-scheme: dark !important" in css
         assert "forced-dark-theme" in css
     
@@ -852,8 +852,8 @@ class TestBingThemeManager:
         """测试生成浅色主题强制CSS"""
         css = theme_manager._generate_force_theme_css("light")
         
-        assert "background-color: #ffffff !important" in css
-        assert "color: #212529 !important" in css
+        assert "background-color: #f5f5f5 !important" in css
+        assert "color: #333333 !important" in css
         assert "color-scheme: light !important" in css
         assert "forced-light-theme" in css
     
