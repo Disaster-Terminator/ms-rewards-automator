@@ -140,7 +140,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/ms-rewards-automator.git
+git clone https://github.com/Disaster-Terminator/ms-rewards-automator.git
 cd ms-rewards-automator
 
 # 使用 Conda 环境（推荐）
@@ -188,11 +188,11 @@ python main.py
 | `--usermode` | 3 | 3 | ✅ | ✅ | 鲁棒性测试 |
 | `--dev` | 2 | 2 | ❌ | ❌ | 快速迭代调试 |
 
-**智能模式说明**：
+**登录方式**：
 
-- **首次运行**: 自动打开浏览器，需要手动登录 Microsoft 账号
-- **后续运行**: 自动保存会话，使用无头模式（后台运行）
-- **重新登录**: 删除 `storage_state.json` 文件后重新运行
+- **手动登录**（推荐）：首次运行时浏览器打开，手动登录后保存会话
+- **自动登录**：在 `config.yaml` 填写账号密码，自动完成登录（需配置 2FA 密钥）
+- **重新登录**：删除 `storage_state.json` 文件后重新运行
 
 ### 3. 常用命令
 
@@ -382,7 +382,7 @@ ms-rewards-automator/
 │   └── reports/           # 技术报告
 ├── logs/                   # 日志文件
 ├── main.py                 # 主程序入口
-├── config.yaml             # 配置文件
+├── config.example.yaml     # 配置文件模板（复制为 config.yaml 使用）
 └── requirements.txt        # Python 依赖
 ```
 
