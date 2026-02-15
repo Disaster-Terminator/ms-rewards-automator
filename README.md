@@ -208,8 +208,11 @@ python main.py --usermode
 # 开发模式（快速迭代）
 python main.py --dev
 
-# 显示浏览器（调试模式）
-python main.py --headless=false
+# 显示浏览器（调试模式，默认显示）
+python main.py
+
+# 无头模式（后台运行）
+python main.py --headless
 
 # 慢速模式（更安全）
 python main.py --mode slow
@@ -230,8 +233,8 @@ python main.py --mobile-only
 # 模拟执行（不执行真实搜索）
 python main.py --dry-run
 
-# 详细日志输出
-python main.py --verbose
+# 详细日志输出（开发模式自带DEBUG日志）
+python main.py --dev
 
 # 跳过日常任务
 python main.py --skip-daily-tasks
@@ -263,7 +266,7 @@ streamlit run tools/dashboard.py
 ### 场景2：手动调试模式
 
 - **目标**: 查看浏览器执行过程，调试问题
-- **配置**: `--headless=false` 强制显示浏览器
+- **配置**: 默认显示浏览器，或使用 `--dev` 快速调试
 - **流程**: 启动 → 手动登录 → 观察执行过程 → 查看错误
 
 ### 场景3：快速测试模式

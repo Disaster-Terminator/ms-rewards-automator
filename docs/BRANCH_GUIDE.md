@@ -160,14 +160,14 @@ git push origin main
 | **1. 静态检查** | 代码风格 | `ruff check .` | 无错误 | 停止 |
 | **2. 单元测试** | 模块功能 | `pytest tests/unit/ -m "not real"` | 全部通过 | 停止 |
 | **3. 集成测试** | 模块协作 | `pytest tests/integration/` | 全部通过 | 停止 |
-| **4. Dev快速验证** | 基本流程 | `python main.py --dev --headless --no-schedule` | 退出码0 | **立即停止** |
+| **4. Dev快速验证** | 基本流程 | `python main.py --dev --headless` | 退出码0 | **立即停止** |
 | **5. 自动化诊断** | 完整验证+诊断 | `python tests/autonomous/run_tests.py --mode usermode --headless` | 无严重问题 | 停止，查看报告 |
 | **6. 有头验收** | 开发者确认 | `python main.py --dev` 或 `--usermode` | 人工确认 | 不合并 |
 
 ### 4.3 阶段4：Dev快速验证（快速失败）
 
 ```bash
-python main.py --dev --headless --no-schedule
+python main.py --dev --headless
 ```
 
 **检查项：**
@@ -413,10 +413,12 @@ scheduler:
 ```
 python main.py 执行流程：
 ┌─────────────────────────────────────────┐
-│ 1. 立即执行一次正常逻辑（登录+搜索）       │
-│ 2. 进入调度模式，等待下次触发             │
-│    - 用户可通过 --no-schedule 跳过调度    │
-│    - 用户可通过 --schedule-only 跳过首次  │
+│ 默认：立即执行一次正常逻辑（登录+搜索）    │
+│       不进入调度模式                      │
+│                                         │
+│ --schedule：进入调度模式，等待下次触发    │
+│ --schedule --schedule-now：立即执行一次  │
+│                          后进入调度模式   │
 └─────────────────────────────────────────┘
 ```
 
@@ -424,9 +426,9 @@ python main.py 执行流程：
 
 | 参数 | 说明 |
 |------|------|
-| `python main.py` | 执行一次 + 进入调度（默认） |
-| `python main.py --no-schedule` | 仅执行一次，不进入调度 |
-| `python main.py --schedule-only` | 跳过首次执行，直接进入调度 |
+| `python main.py` | 执行一次，不进入调度（默认） |
+| `python main.py --schedule` | 进入调度模式，等待下次触发 |
+| `python main.py --schedule --schedule-now` | 立即执行一次后进入调度 |
 
 ## 七、依赖关系图
 
@@ -505,7 +507,7 @@ jobs:
     steps:
       - name: Dev Quick Verify
         run: |
-          python main.py --dev --headless --no-schedule
+          python main.py --dev --headless
           exit_code=$?
           if [ $exit_code -ne 0 ]; then
             echo "❌ Dev验证失败，跳过后续测试"
