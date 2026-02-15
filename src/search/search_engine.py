@@ -8,7 +8,7 @@ import asyncio
 import logging
 import time
 from typing import Optional
-from playwright.async_api import Page
+from playwright.async_api import Page, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 from ui.cookie_handler import CookieHandler
 from ui.tab_manager import TabManager
 from browser.element_detector import ElementDetector
@@ -51,7 +51,10 @@ class SearchEngine:
             logger.debug(f"导航到 Bing: {self.BING_URL}")
             await page.goto(self.BING_URL, wait_until="networkidle", timeout=30000)
             return True
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.error("导航到 Bing 超时")
+            return False
+        except PlaywrightError as e:
             logger.error(f"导航到 Bing 失败: {e}")
             return False
     
@@ -66,8 +69,11 @@ class SearchEngine:
                     )
                     self._query_cache = await self.query_engine.generate_queries(count)
                     logger.debug(f"预生成了 {len(self._query_cache)} 个查询")
-                except Exception as e:
+                except (PlaywrightError, PlaywrightTimeout, ConnectionError) as e:
                     logger.error(f"QueryEngine 生成查询失败，回退到传统生成器: {e}")
+                    return self.term_generator.get_random_term()
+                except Exception as e:
+                    logger.error(f"QueryEngine 生成查询时发生意外错误: {e}")
                     return self.term_generator.get_random_term()
             
             if self._query_cache:
@@ -109,7 +115,10 @@ class SearchEngine:
                     await page.goto(self.BING_URL, wait_until="domcontentloaded", timeout=20000)
                     await self.element_detector.wait_for_page_ready(page, timeout=10000)
                     await asyncio.sleep(1)
-                except Exception as e:
+                except PlaywrightTimeout:
+                    logger.error("导航到 Bing 超时")
+                    return False
+                except PlaywrightError as e:
                     logger.error(f"导航到 Bing 失败: {e}")
                     return False
             
@@ -121,7 +130,9 @@ class SearchEngine:
                         await page.goto(self.BING_URL, wait_until="domcontentloaded", timeout=20000)
                         await self.element_detector.wait_for_page_ready(page, timeout=10000)
                         await asyncio.sleep(1)
-            except Exception as e:
+            except PlaywrightTimeout:
+                logger.debug("处理 Cookie 弹窗超时")
+            except PlaywrightError as e:
                 logger.debug(f"处理 Cookie 弹窗时出错: {e}")
             
             logger.debug(f"当前页面 URL: {page.url}")
@@ -267,7 +278,7 @@ class SearchEngine:
                                     button_clicked = True
                                     logger.debug(f"点击了搜索按钮: {selector}")
                                     break
-                            except Exception:
+                            except (PlaywrightTimeout, PlaywrightError):
                                 continue
                         
                         if button_clicked:
@@ -304,7 +315,7 @@ class SearchEngine:
                                         page, 
                                         f"submit_all_methods_failed_{term[:20]}.png"
                                     )
-                            except Exception as e4:
+                            except PlaywrightError as e4:
                                 logger.error(f"方法4失败: {e4}")
                 
             except Exception as e:
@@ -316,8 +327,10 @@ class SearchEngine:
             
             try:
                 await self.element_detector.wait_for_page_ready(page, timeout=15000, check_network=True)
-            except Exception:
+            except PlaywrightTimeout:
                 logger.warning("等待页面加载超时，继续...")
+            except PlaywrightError as e:
+                logger.warning(f"等待页面加载时出错: {e}，继续...")
             
             await asyncio.sleep(random.uniform(1, 2))
             
@@ -343,8 +356,11 @@ class SearchEngine:
             logger.info(f"✓ 搜索完成: {term}")
             return True
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.error(f"搜索失败 '{term}': {e}")
+            return False
+        except Exception as e:
+            logger.error(f"搜索时发生意外错误 '{term}': {e}")
             return False
     
     async def _click_random_result(self, page: Page) -> None:
@@ -366,7 +382,7 @@ class SearchEngine:
             try:
                 link_text = await link.text_content()
                 logger.debug(f"点击搜索结果: {link_text[:50]}...")
-            except Exception:
+            except (PlaywrightTimeout, PlaywrightError):
                 pass
             
             original_url = page.url
@@ -383,22 +399,22 @@ class SearchEngine:
                     await page.go_back(wait_until="domcontentloaded", timeout=10000)
                     await asyncio.sleep(random.uniform(1, 2))
                     logger.debug("✓ 搜索结果点击完成")
-                except Exception as e:
+                except PlaywrightError as e:
                     logger.debug(f"后退失败，直接导航回搜索页: {e}")
                     try:
                         await page.goto(original_url, wait_until="domcontentloaded", timeout=10000)
                         await asyncio.sleep(1)
-                    except Exception:
+                    except (PlaywrightTimeout, PlaywrightError):
                         pass
             else:
                 logger.debug("链接点击失败，跳过此次点击")
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"点击搜索结果失败: {e}")
             try:
                 if "bing.com/search" not in page.url:
                     await page.goto(self.BING_URL, wait_until="domcontentloaded", timeout=10000)
-            except Exception:
+            except (PlaywrightTimeout, PlaywrightError):
                 pass
     
     async def _random_pagination(self, page: Page) -> None:
@@ -418,7 +434,7 @@ class SearchEngine:
                     next_button = await page.query_selector(selector)
                     if next_button:
                         break
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     continue
             
             if not next_button:
@@ -429,7 +445,7 @@ class SearchEngine:
             
             try:
                 await page.wait_for_load_state("networkidle", timeout=10000)
-            except Exception:
+            except (PlaywrightTimeout, PlaywrightError):
                 pass
             
             await asyncio.sleep(random.uniform(1, 2))
@@ -441,7 +457,7 @@ class SearchEngine:
             
             logger.debug("✓ 翻页完成")
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"翻页失败: {e}")
     
     async def execute_desktop_searches(self, page: Page, count: int, health_monitor=None) -> int:
@@ -458,8 +474,10 @@ class SearchEngine:
             try:
                 from src.ui.real_time_status import StatusManager
                 StatusManager.update_desktop_searches(i, count)
-            except Exception:
+            except ImportError:
                 pass
+            except (AttributeError, RuntimeError) as e:
+                logger.debug(f"更新状态显示失败: {e}")
             
             start_time = time.time() if health_monitor else 0
             search_success = await self.perform_single_search(page, term, health_monitor)
@@ -482,8 +500,10 @@ class SearchEngine:
         try:
             from src.ui.real_time_status import StatusManager
             StatusManager.update_desktop_searches(success_count, count)
-        except Exception:
+        except ImportError:
             pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"更新最终状态显示失败: {e}")
         
         logger.info(f"✓ 桌面搜索完成: {success_count}/{count} 成功")
         return success_count
@@ -502,8 +522,10 @@ class SearchEngine:
             try:
                 from src.ui.real_time_status import StatusManager
                 StatusManager.update_mobile_searches(i, count)
-            except Exception:
+            except ImportError:
                 pass
+            except (AttributeError, RuntimeError) as e:
+                logger.debug(f"更新状态显示失败: {e}")
             
             start_time = time.time() if health_monitor else 0
             search_success = await self.perform_single_search(page, term, health_monitor)
@@ -526,8 +548,10 @@ class SearchEngine:
         try:
             from src.ui.real_time_status import StatusManager
             StatusManager.update_mobile_searches(success_count, count)
-        except Exception:
+        except ImportError:
             pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"更新最终状态显示失败: {e}")
         
         logger.info(f"✓ 移动搜索完成: {success_count}/{count} 成功")
         return success_count

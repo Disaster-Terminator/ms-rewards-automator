@@ -9,7 +9,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import Page, BrowserContext, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +107,14 @@ class BingThemeManager:
             logger.debug(f"✓ 主题状态已保存到: {self.theme_state_file}")
             return True
             
+        except (OSError, IOError, PermissionError) as e:
+            logger.error(f"保存主题状态失败（文件操作错误）: {e}")
+            return False
+        except json.JSONEncodeError as e:
+            logger.error(f"保存主题状态失败（JSON编码错误）: {e}")
+            return False
         except Exception as e:
-            logger.error(f"保存主题状态失败: {e}")
+            logger.error(f"保存主题状态时发生意外错误: {e}")
             return False
     
     async def load_theme_state(self) -> Optional[Dict[str, Any]]:
@@ -154,8 +160,14 @@ class BingThemeManager:
             logger.debug(f"✓ 从文件加载主题状态: {theme_state.get('theme', '未知')}")
             return theme_state
             
+        except (OSError, IOError, PermissionError) as e:
+            logger.error(f"加载主题状态失败（文件操作错误）: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"加载主题状态失败（JSON解析错误）: {e}")
+            return None
         except Exception as e:
-            logger.error(f"加载主题状态失败: {e}")
+            logger.error(f"加载主题状态时发生意外错误: {e}")
             return None
     
     def _validate_theme_state(self, theme_state: Dict[str, Any]) -> bool:
@@ -193,8 +205,8 @@ class BingThemeManager:
             
             return True
             
-        except Exception as e:
-            logger.debug(f"验证主题状态时发生异常: {e}")
+        except (KeyError, TypeError, ValueError) as e:
+            logger.debug(f"验证主题状态时数据格式错误: {e}")
             return False
     
     async def restore_theme_from_state(self, page: Page) -> bool:
@@ -252,8 +264,14 @@ class BingThemeManager:
                 logger.warning(f"主题恢复失败: {saved_theme}")
                 return False
                 
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.error("从持久化状态恢复主题超时")
+            return False
+        except PlaywrightError as e:
             logger.error(f"从持久化状态恢复主题失败: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"从持久化状态恢复主题时发生意外错误: {e}")
             return False
     
     async def ensure_theme_persistence(self, page: Page, context: Optional[BrowserContext] = None) -> bool:
@@ -301,7 +319,7 @@ class BingThemeManager:
                     is_mobile = await page.evaluate("'ontouchstart' in window")
                     context_info["is_mobile"] = is_mobile
                     
-                except Exception as e:
+                except (PlaywrightTimeout, PlaywrightError) as e:
                     logger.debug(f"收集上下文信息失败: {e}")
             
             # 3. 保存主题状态
@@ -313,21 +331,27 @@ class BingThemeManager:
             # 4. 尝试在浏览器中设置持久化标记
             try:
                 await self._set_browser_persistence_markers(page, current_theme)
-            except Exception as e:
+            except (PlaywrightTimeout, PlaywrightError) as e:
                 logger.debug(f"设置浏览器持久化标记失败: {e}")
             
             # 5. 如果有上下文，尝试保存到存储状态
             if context:
                 try:
                     await self._save_theme_to_storage_state(context, current_theme)
-                except Exception as e:
+                except (PlaywrightTimeout, PlaywrightError) as e:
                     logger.debug(f"保存主题到存储状态失败: {e}")
             
             logger.debug(f"✓ 主题持久化确保完成: {current_theme}")
             return True
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.error("确保主题持久化超时")
+            return False
+        except PlaywrightError as e:
             logger.error(f"确保主题持久化失败: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"确保主题持久化时发生意外错误: {e}")
             return False
     
     async def _set_browser_persistence_markers(self, page: Page, theme: str) -> bool:
@@ -379,7 +403,10 @@ class BingThemeManager:
             logger.debug(f"✓ 浏览器持久化标记设置完成: {theme}")
             return True
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.debug("设置浏览器持久化标记超时")
+            return False
+        except PlaywrightError as e:
             logger.debug(f"设置浏览器持久化标记失败: {e}")
             return False
     
@@ -443,7 +470,10 @@ class BingThemeManager:
             logger.debug(f"✓ 主题信息已添加到存储状态: {theme}")
             return True
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.debug("保存主题到存储状态超时")
+            return False
+        except PlaywrightError as e:
             logger.debug(f"保存主题到存储状态失败: {e}")
             return False
     
@@ -836,8 +866,14 @@ class BingThemeManager:
             
             return final_theme
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.warning("检测主题超时")
+            return None
+        except PlaywrightError as e:
             logger.warning(f"检测主题失败: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"检测主题时发生意外错误: {e}")
             return None
     
     async def _detect_theme_by_css_classes(self, page: Page) -> Optional[str]:
@@ -878,7 +914,7 @@ class BingThemeManager:
                     if element:
                         logger.debug(f"找到深色主题CSS指示器: {selector}")
                         return "dark"
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     continue
             
             # 检查浅色主题指示器
@@ -888,12 +924,12 @@ class BingThemeManager:
                     if element:
                         logger.debug(f"找到浅色主题CSS指示器: {selector}")
                         return "light"
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     continue
             
             return None
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"CSS类检测失败: {e}")
             return None
     
@@ -1010,7 +1046,7 @@ class BingThemeManager:
             
             return None
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"计算样式检测失败: {e}")
             return None
     
@@ -1050,7 +1086,7 @@ class BingThemeManager:
             
             return None
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"Cookie检测失败: {e}")
             return None
     
@@ -1073,7 +1109,7 @@ class BingThemeManager:
             
             return None
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"URL参数检测失败: {e}")
             return None
     
@@ -1116,7 +1152,7 @@ class BingThemeManager:
             
             return None
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"存储检测失败: {e}")
             return None
     
@@ -1179,7 +1215,7 @@ class BingThemeManager:
             
             return None
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"Meta标签检测失败: {e}")
             return None
     
@@ -1353,13 +1389,13 @@ class BingThemeManager:
                         logger.debug("✓ URL参数设置主题成功")
                         return True
                         
-                except Exception as e:
+                except (PlaywrightTimeout, PlaywrightError) as e:
                     logger.debug(f"URL变体失败: {e}")
                     continue
             
             return False
             
-        except Exception as e:
+        except PlaywrightError as e:
             logger.debug(f"URL参数设置主题失败: {e}")
             return False
     
@@ -1405,7 +1441,7 @@ class BingThemeManager:
                     
                     await page.context.add_cookies([cookie_full])
                     
-                except Exception as e:
+                except (PlaywrightTimeout, PlaywrightError) as e:
                     logger.debug(f"设置Cookie {cookie_data['name']} 失败: {e}")
                     continue
             
@@ -1421,7 +1457,10 @@ class BingThemeManager:
             
             return False
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.debug("Cookie设置主题超时")
+            return False
+        except PlaywrightError as e:
             logger.debug(f"Cookie设置主题失败: {e}")
             return False
     
@@ -1443,7 +1482,7 @@ class BingThemeManager:
             
             return False
             
-        except Exception:
+        except (PlaywrightTimeout, PlaywrightError):
             return False
     
     async def _set_theme_by_localstorage(self, page: Page, theme: str) -> bool:
@@ -1502,7 +1541,10 @@ class BingThemeManager:
             logger.debug("✓ localStorage设置主题完成")
             return True
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.debug("localStorage设置主题超时")
+            return False
+        except PlaywrightError as e:
             logger.debug(f"localStorage设置主题失败: {e}")
             return False
     
@@ -1582,7 +1624,10 @@ class BingThemeManager:
             
             return False
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.debug("JavaScript注入设置主题超时")
+            return False
+        except PlaywrightError as e:
             logger.debug(f"JavaScript注入设置主题失败: {e}")
             return False
     
@@ -1614,7 +1659,10 @@ class BingThemeManager:
             logger.debug("✓ 强制CSS设置主题完成")
             return True
             
-        except Exception as e:
+        except PlaywrightTimeout:
+            logger.debug("强制CSS设置主题超时")
+            return False
+        except PlaywrightError as e:
             logger.debug(f"强制CSS设置主题失败: {e}")
             return False
     
@@ -1799,7 +1847,7 @@ class BingThemeManager:
                     if settings_button and await settings_button.is_visible():
                         logger.debug(f"找到设置按钮: {selector}")
                         break
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     continue
             
             if not settings_button:
@@ -1836,18 +1884,17 @@ class BingThemeManager:
                     if theme_option:
                         logger.debug(f"找到主题选项: {selector}")
                         break
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     continue
             
             if not theme_option:
                 logger.debug("未找到主题选项")
-                # 尝试通过文本查找
                 try:
                     theme_text = "Dark" if theme == "dark" else "Light"
                     theme_option = await page.get_by_text(theme_text).first
                     if theme_option:
                         logger.debug(f"通过文本找到主题选项: {theme_text}")
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     return False
             
             if not theme_option:
@@ -1894,7 +1941,7 @@ class BingThemeManager:
                     if save_button and await save_button.is_visible():
                         logger.debug(f"找到保存按钮: {selector}")
                         break
-                except Exception:
+                except (PlaywrightTimeout, PlaywrightError):
                     continue
             
             if save_button:
@@ -2442,7 +2489,7 @@ class BingThemeManager:
                 await asyncio.sleep(2)  # 等待主题应用
                 persistence_result["refresh_successful"] = True
                 logger.debug("页面刷新成功")
-            except Exception as e:
+            except (PlaywrightTimeout, PlaywrightError) as e:
                 persistence_result["refresh_successful"] = False
                 persistence_result["error"] = f"页面刷新失败: {str(e)}"
                 logger.warning(f"页面刷新失败: {e}")

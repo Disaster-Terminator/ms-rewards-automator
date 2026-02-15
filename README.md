@@ -2,7 +2,7 @@
 
 自动化完成 Microsoft Rewards 任务，轻松赚取积分。
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/Playwright-1.40+-green.svg)](https://playwright.dev/)
 [![Maintained](https://img.shields.io/badge/Maintained-Yes-brightgreen.svg)](https://github.com/yourusername/ms-rewards-automator)
 [![Open Source](https://img.shields.io/badge/Open%20Source-Yes-orange.svg)](LICENSE)

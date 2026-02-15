@@ -6,7 +6,7 @@
 import asyncio
 import logging
 from typing import Optional, Callable
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import Page, BrowserContext, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class TabManager:
         # 移除事件监听器
         try:
             self.context.remove_listener("page", self._handle_new_page)
-        except Exception:
+        except (PlaywrightError, RuntimeError):
             pass
         logger.debug("标签页监听已停止")
     
@@ -92,7 +92,7 @@ class TabManager:
                     }
                 """)
                 logger.debug("已为新页面注入防护脚本")
-            except Exception as e:
+            except (PlaywrightTimeout, PlaywrightError) as e:
                 logger.debug(f"注入防护脚本失败: {e}")
             
             # 等待页面稍微加载
@@ -102,7 +102,7 @@ class TabManager:
             try:
                 url = new_page.url
                 logger.debug(f"新标签页URL: {url}")
-            except Exception:
+            except (PlaywrightTimeout, PlaywrightError):
                 url = "about:blank"
             
             # 如果是空白页面或者不需要的页面，直接关闭
@@ -118,9 +118,8 @@ class TabManager:
             logger.debug("关闭新标签页")
             await self._safe_close_page(new_page)
             
-        except Exception as e:
+        except (PlaywrightTimeout, PlaywrightError) as e:
             logger.debug(f"处理新标签页时出错: {e}")
-            # 尝试强制关闭
             await self._safe_close_page(new_page)
     
     async def _safe_close_page(self, page: Page):
@@ -150,13 +149,13 @@ class TabManager:
                         }
                     """)
                     logger.debug("已禁用页面的 beforeunload 事件")
-                except Exception as e:
+                except (PlaywrightTimeout, PlaywrightError) as e:
                     logger.debug(f"禁用 beforeunload 事件失败: {e}")
                 
                 # 关闭页面
                 await page.close()
                 logger.debug("页面已关闭")
-        except Exception as e:
+        except (PlaywrightTimeout, PlaywrightError) as e:
             logger.debug(f"关闭页面时出错: {e}")
     
     async def click_link_in_current_tab(
@@ -193,7 +192,7 @@ class TabManager:
             try:
                 await link_element.evaluate("el => el.removeAttribute('target')")
                 await link_element.evaluate("el => el.setAttribute('target', '_self')")
-            except Exception:
+            except (PlaywrightTimeout, PlaywrightError):
                 pass
             
             # 方法2: 使用JavaScript点击而不是Playwright点击
@@ -209,7 +208,7 @@ class TabManager:
                     logger.debug("链接在当前标签页中打开成功")
                     return True
                 
-            except Exception as e:
+            except (PlaywrightTimeout, PlaywrightError) as e:
                 logger.debug(f"JavaScript点击失败: {e}")
             
             # 方法3: 直接导航到链接URL
@@ -218,11 +217,11 @@ class TabManager:
                 await page.goto(link_url, wait_until="domcontentloaded", timeout=timeout)
                 return True
                 
-            except Exception as e:
+            except (PlaywrightTimeout, PlaywrightError) as e:
                 logger.debug(f"直接导航失败: {e}")
                 return False
             
-        except Exception as e:
+        except (PlaywrightTimeout, PlaywrightError) as e:
             logger.debug(f"在当前标签页点击链接失败: {e}")
             return False
         
@@ -255,10 +254,10 @@ class TabManager:
                     try:
                         await page.close()
                         logger.debug("关闭额外页面")
-                    except Exception:
+                    except (PlaywrightTimeout, PlaywrightError):
                         pass
                         
-        except Exception as e:
+        except (PlaywrightTimeout, PlaywrightError) as e:
             logger.debug(f"关闭额外页面时出错: {e}")
     
     async def __aenter__(self):
