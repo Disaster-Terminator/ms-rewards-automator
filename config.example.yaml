@@ -52,9 +52,18 @@ notification:
 # 调度器（可选）
 scheduler:
   enabled: false
-  mode: "random"
+  timezone: "Asia/Shanghai" # 时区设置（如 America/New_York, Europe/London 等）
+  mode: "scheduled" # scheduled（定时+随机偏移，推荐）, random（随机时间范围）, fixed（固定时间）
+  run_once_on_start: true # 启动时先执行一次，再进入调度
+  # 定时+随机偏移模式（mode: scheduled）
+  scheduled_hour: 10 # 基准整点时间（如 10 表示 10:00）
+  max_offset_minutes: 30 # 最大偏移量（分钟），实际执行时间 = 基准时间 ± 偏移量
+  # 随机模式（mode: random）
   random_start_hour: 8
   random_end_hour: 22
+  # 固定模式（mode: fixed）
+  fixed_hour: 10
+  fixed_minute: 0
 
 # 日志
 logging:

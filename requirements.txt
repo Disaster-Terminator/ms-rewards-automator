@@ -10,6 +10,7 @@ beautifulsoup4>=4.12.3
 lxml>=5.3.0
 psutil>=6.1.0
 pyotp>=2.9.0
+backports.zoneinfo;python_version<"3.9"  # Python 3.8 时区支持
 
 # 测试依赖
 hypothesis>=6.125.0

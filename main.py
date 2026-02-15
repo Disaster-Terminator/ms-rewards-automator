@@ -3,14 +3,13 @@ MS Rewards Automator - 主程序入口
 支持命令行参数和调度模式
 """
 
-import asyncio
-import sys
-import os
-import signal
 import argparse
+import asyncio
 import logging
-from pathlib import Path
+import signal
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -18,11 +17,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from infrastructure.config_manager import ConfigManager
 from infrastructure.config_validator import ConfigValidator
 from infrastructure.logger import setup_logging
-from infrastructure.log_rotation import LogRotation
 
 # 导入新的架构类
 from infrastructure.ms_rewards_app import MSRewardsApp
-
 
 logger = None
 browser_sim = None
@@ -151,6 +148,18 @@ def parse_arguments():
         help="立即执行一次后进入调度"
     )
 
+    parser.add_argument(
+        "--no-schedule",
+        action="store_true",
+        help="仅执行一次，不进入调度（覆盖配置中的调度器启用）"
+    )
+
+    parser.add_argument(
+        "--schedule-only",
+        action="store_true",
+        help="跳过首次执行，直接进入调度模式"
+    )
+
     # 配置文件
     parser.add_argument(
         "--config",
@@ -193,17 +202,16 @@ async def test_notification_func(config):
 async def run_autonomous_test(args):
     """运行自主测试框架"""
     sys.path.insert(0, str(Path(__file__).parent))
-    
+
     from tests.autonomous.autonomous_test_runner import AutonomousTestRunner, TestConfig
-    from tests.autonomous.smart_scenarios import SmartTestScenarios
-    
+
     print("\n" + "=" * 70)
     print("MS Rewards Automator - 自主测试框架")
     print("=" * 70)
     print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"测试类型: {args.test_type}")
     print("=" * 70)
-    
+
     test_config = TestConfig(
         headless=True,
         auto_screenshot=True,
@@ -213,82 +221,82 @@ async def run_autonomous_test(args):
         page_timeout=30000,
         inspection_interval=3 if args.quick_test else 5
     )
-    
+
     runner = AutonomousTestRunner(
         config_path=args.config,
         test_config=test_config
     )
-    
+
     results = {
         "session_id": runner.screenshot_manager.session_id,
         "tests": {},
         "reports": {}
     }
-    
+
     try:
         if not await runner.initialize():
             print("❌ 初始化失败")
             return 1
-        
+
         if not await runner.create_browser():
             print("❌ 创建浏览器失败")
             return 1
-        
+
         storage_state = runner.config.get("account.storage_state_path")
         if not await runner.create_context(storage_state):
             print("❌ 创建上下文失败")
             return 1
-        
+
         test_map = {
             "login": ("登录状态检测", runner._test_login_status),
             "bing_access": ("Bing访问测试", runner._test_bing_access),
             "search": ("搜索功能测试", runner._test_search_function),
             "points": ("积分检测测试", runner._test_points_detection),
         }
-        
+
         if args.test_type == "full":
             for test_key, (test_name, test_func) in test_map.items():
                 results["tests"][test_key] = await runner.run_test(test_name, test_func)
         else:
             test_name, test_func = test_map[args.test_type]
             results["tests"][args.test_type] = await runner.run_test(test_name, test_func)
-        
+
     except KeyboardInterrupt:
         print("\n用户中断测试")
         results["interrupted"] = True
-        
+
     except Exception as e:
         print(f"❌ 测试执行失败: {e}")
         import traceback
         traceback.print_exc()
         results["error"] = str(e)
-        
+
     finally:
         await runner.cleanup()
-    
+
     results["reports"] = runner.generate_reports()
-    
+
     print("\n" + "=" * 70)
     print("测试结果摘要")
     print("=" * 70)
-    
+
     passed = sum(1 for v in results["tests"].values() if v)
     total = len(results["tests"])
-    
+
     for test_name, test_result in results["tests"].items():
         status = "✅ 通过" if test_result else "❌ 失败"
         print(f"  {test_name}: {status}")
-    
+
     print("\n" + "-" * 70)
     print(f"总计: {total} | 通过: {passed} | 失败: {total - passed}")
-    
+
     if results.get("reports"):
         print("\n报告文件:")
         for report_type, path in results["reports"].items():
             print(f"  {report_type}: {path}")
-    
+
     print("=" * 70)
-    
+
     return 0 if passed == total else 1
 
 
@@ -372,8 +380,16 @@ async def main():
     if args.autonomous_test:
         return await run_autonomous_test(args)
 
+    # 判断调度器是否启用
+    scheduler_enabled = config.get("scheduler.enabled", False)
+
+    # --no-schedule 参数覆盖配置
+    if args.no_schedule:
+        scheduler_enabled = False
+        logger.info("⚡ --no-schedule 参数已设置，跳过调度模式")
+
     # 调度模式
-    if args.schedule:
+    if scheduler_enabled:
         logger.info("启动调度模式...")
         from infrastructure.scheduler import TaskScheduler
         scheduler = TaskScheduler(config)
@@ -383,15 +399,16 @@ async def main():
             app = MSRewardsApp(config, args)
             await app.run()
 
-        # 如果指定了 --schedule-now，立即执行一次
-        if args.schedule_now:
-            logger.info("\n⚡ 立即执行一次任务（测试模式）...")
-            logger.info("=" * 70)
-            await scheduled_task()
-            logger.info("=" * 70)
-            logger.info("✓ 立即执行完成，现在进入正常调度模式\n")
+        # --schedule-only 跳过首次执行，直接进入调度
+        run_once_first = not args.schedule_only
+        if args.schedule_only:
+            logger.info("⚡ --schedule-only 参数已设置，跳过首次执行，直接进入调度")
 
-        await scheduler.run_scheduled_task(scheduled_task)
+        # 兼容旧的 --schedule-now 参数（等同于默认行为）
+        if args.schedule_now:
+            logger.info("⚡ --schedule-now 参数已设置（现在这是默认行为）")
+
+        await scheduler.run_scheduled_task(scheduled_task, run_once_first=run_once_first)
     else:
         # 立即执行 - 使用新的架构
         app = MSRewardsApp(config, args)

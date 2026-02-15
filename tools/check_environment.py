@@ -76,6 +76,33 @@ def check_package_imports():
     return True
 
 
+def check_timezone_support():
+    """检查时区支持（zoneinfo）"""
+    print("\n检查时区支持...")
+    
+    version = sys.version_info
+    
+    if version.major > 3 or (version.major == 3 and version.minor >= 9):
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("Asia/Shanghai")
+            print(f"✓ zoneinfo 可用（Python {version.major}.{version.minor} 内置）")
+            return True
+        except ImportError as e:
+            print(f"❌ zoneinfo 导入失败: {e}")
+            return False
+    else:
+        try:
+            from backports.zoneinfo import ZoneInfo
+            tz = ZoneInfo("Asia/Shanghai")
+            print(f"✓ backports.zoneinfo 可用（Python {version.major}.{version.minor} 兼容）")
+            return True
+        except ImportError:
+            print(f"⚠ Python {version.major}.{version.minor} 需要 backports.zoneinfo")
+            print("  安装命令: pip install backports.zoneinfo")
+            return False
+
+
 def check_playwright_browsers():
     """检查 Playwright 浏览器是否已安装"""
     print("\n检查 Playwright 浏览器...")
@@ -190,6 +217,7 @@ def main():
     checks = [
         ("Python 版本", check_python_version),
         ("Python 包", check_package_imports),
+        ("时区支持", check_timezone_support),
         ("Playwright 浏览器", check_playwright_browsers),
         ("项目结构", check_project_structure),
         ("配置文件", check_config_file),
