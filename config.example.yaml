@@ -25,12 +25,12 @@ login:
   # 方式2: 自动登录（可选，不推荐）
   # - 填写下方 email, password, totp_secret
   # - 注意：经常被微软拒绝，成功率不高
-  # - ⚠️ 重要：如果账号开启了 2FA，totp_secret 必须填写！
+  # - 提示：微软账号通常需要 2FA 验证，请填写 totp_secret
   auto_login:
     enabled: false # 是否启用自动登录
     email: "" # Microsoft 账号
     password: "" # 密码
-    totp_secret: "" # 2FA 密钥（如果账号开启了 2FA，此项必填）
+    totp_secret: "" # 2FA 密钥（从验证器应用获取）
 
 # 任务系统
 task_system:
