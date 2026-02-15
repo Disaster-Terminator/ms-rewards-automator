@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 from .screenshot_manager import ScreenshotManager
 from .page_inspector import PageInspector, DetectedIssue, IssueSeverity
 from .diagnostic_engine import DiagnosticEngine, DiagnosisResult
-from .test_reporter import TestReporter, TestStep
+from .reporter import TestReporter, TestStep
 
 logger = logging.getLogger(__name__)
 
