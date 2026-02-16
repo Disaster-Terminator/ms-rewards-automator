@@ -2,12 +2,13 @@
 
 ## 一、项目概述
 
-MS Rewards Automator Web 前端是一个基于 React + TypeScript + Vite + TailwindCSS 构建的现代化 Web 界面，用于管理和监控 Microsoft Rewards 自动化任务。
+MS Rewards Automator 前端是一个基于 **Tauri 2.0** 构建的桌面应用，采用 React + TypeScript + Vite + TailwindCSS 技术栈，提供原生桌面体验。
 
 ### 技术栈
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
+| Tauri | 2.x | 桌面应用框架 |
 | React | 18.x | UI 框架 |
 | TypeScript | 5.x | 类型安全 |
 | Vite | 5.x | 构建工具 |
@@ -15,15 +16,23 @@ MS Rewards Automator Web 前端是一个基于 React + TypeScript + Vite + Tailw
 | Zustand | 4.x | 状态管理 |
 | Axios | 1.x | HTTP 客户端 |
 | Lucide React | 0.x | 图标库 |
+| Sonner | 1.x | Toast 通知 |
+| Framer Motion | 11.x | 动画库 |
 
 ### 项目结构
 
 ```
 frontend/
-├── src/
+├── src/                        # React 前端源码
 │   ├── api/                    # API 调用模块
-│   │   └── index.ts            # API 函数和 WebSocket 连接
+│   │   └── index.ts            # API 函数、WebSocket、Tauri 事件
 │   ├── components/             # UI 组件
+│   │   ├── ui/                 # 基础 UI 组件
+│   │   │   ├── button.tsx      # 按钮组件
+│   │   │   ├── card.tsx        # 卡片组件
+│   │   │   ├── skeleton.tsx    # 骨架屏组件
+│   │   │   ├── sonner.tsx      # Toast 通知组件
+│   │   │   └── index.ts        # 统一导出
 │   │   ├── Layout.tsx          # 页面布局
 │   │   ├── Sidebar.tsx         # 侧边栏导航
 │   │   └── Header.tsx          # 顶部状态栏
@@ -35,59 +44,161 @@ frontend/
 │   │   └── History.tsx         # 历史记录
 │   ├── store/                  # 状态管理
 │   │   └── index.ts            # Zustand store
+│   ├── lib/
+│   │   └── utils.ts            # 工具函数
 │   ├── App.tsx                 # 根组件
 │   ├── main.tsx                # 入口文件
 │   └── index.css               # 全局样式
-├── public/                     # 静态资源
-├── package.json                # 依赖配置
-├── vite.config.ts              # Vite 配置
+│
+├── src-tauri/                  # Tauri 后端 (Rust)
+│   ├── src/
+│   │   ├── lib.rs              # Tauri 应用入口
+│   │   └── main.rs             # Rust main 函数
+│   ├── Cargo.toml              # Rust 依赖配置
+│   ├── tauri.conf.json         # Tauri 配置文件
+│   ├── capabilities/           # 权限配置
+│   └── icons/                  # 应用图标
+│
+├── package.json                # npm 依赖
 ├── tailwind.config.js          # TailwindCSS 配置
+├── vite.config.ts              # Vite 构建配置
 └── tsconfig.json               # TypeScript 配置
 ```
+
+---
 
 ## 二、开发环境设置
 
 ### 前置要求
 
 - Node.js 18.x 或更高版本
-- npm 9.x 或更高版本
+- Rust 1.70+ (Tauri 依赖)
 - Python 3.10+ (后端依赖)
 
 ### 安装步骤
 
 ```bash
-# 1. 进入前端目录
+# 1. 安装前端依赖
 cd frontend
-
-# 2. 安装依赖
 npm install
 
-# 3. 启动开发服务器
-npm run dev
+# 2. 启动 Python 后端 (开发模式需要手动启动)
+conda activate ms-rewards-bot
+python web_server.py --host 127.0.0.1 --port 8000
+
+# 3. 启动 Tauri 开发模式
+npm run tauri:dev
 ```
 
-开发服务器将在 `http://localhost:3000` 启动，并自动代理 API 请求到后端。
+开发服务器将在 `http://localhost:3000` 启动，Tauri 窗口会自动打开。
 
 ### 构建生产版本
 
 ```bash
-# 构建前端
-npm run build
-
-# 预览构建结果
-npm run preview
+# 构建 Tauri 应用
+npm run tauri:build
 ```
 
-## 三、后端 API 服务
+构建产物位于 `src-tauri/target/release/bundle/` 目录。
 
-### 启动后端
+---
 
-```bash
-# 在项目根目录
-python web_server.py
+## 三、Tauri 架构
+
+### 3.1 进程通信
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Tauri 主进程 (Rust)                      │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  lib.rs                                              │   │
+│  │  - 动态端口分配 (portpicker)                          │   │
+│  │  - Sidecar 进程管理                                   │   │
+│  │  - 事件发射 (py-log, py-error)                        │   │
+│  │  - 窗口生命周期管理                                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           │                                 │
+│                           │ IPC (invoke / emit)             │
+│                           ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              WebView2 (前端渲染)                      │   │
+│  │  React + TypeScript + Vite                          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ HTTP / WebSocket
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Python 后端 (FastAPI)                       │
+│  - REST API 端点                                            │
+│  - WebSocket 实时通信                                        │
+│  - 任务调度与执行                                            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-后端服务将在 `http://localhost:8000` 启动。
+### 3.2 动态端口分配
+
+生产模式下，Tauri 使用 `portpicker` 自动分配可用端口：
+
+```rust
+// src-tauri/src/lib.rs
+use portpicker::pick_unused_port;
+
+let port = pick_unused_port().expect("No free port");
+BACKEND_PORT.store(port, Ordering::SeqCst);
+```
+
+前端通过 Tauri 命令获取端口：
+
+```typescript
+// src/api/index.ts
+const port = await invoke<number>('get_backend_port');
+```
+
+### 3.3 Sidecar 进程管理
+
+生产模式下，Python 后端作为 Sidecar 进程启动：
+
+```rust
+// 仅在发布模式启动 Sidecar
+#[cfg(not(debug_assertions))]
+{
+    let shell = app.shell();
+    let (mut rx, child) = shell.sidecar("backend")?.spawn()?;
+    
+    // 监听后端输出
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            if let CommandEvent::Stdout(line) = event {
+                app.emit("py-log", line)?;
+            }
+        }
+    });
+}
+```
+
+### 3.4 Tauri 事件系统
+
+前端监听 Rust 发出的事件：
+
+```typescript
+// src/api/index.ts
+import { listen } from '@tauri-apps/api/event';
+
+// 监听 Python 日志
+await listen<string>('py-log', (event) => {
+    console.log('Python:', event.payload);
+});
+
+// 监听后端终止
+await listen<void>('backend-terminated', () => {
+    toast.error('后端进程已终止');
+});
+```
+
+---
+
+## 四、后端 API 服务
 
 ### API 端点
 
@@ -124,116 +235,113 @@ python web_server.py
 { type: "task_event", event: string, message: string, details: object }
 ```
 
-## 四、开发注意事项
+---
 
-### 4.1 样式规范
+## 五、状态管理
 
-项目使用 TailwindCSS，遵循以下规范：
-
-```css
-/* 使用预定义的颜色变量 */
-.text-primary-400    /* 主色调 */
-.text-success-400    /* 成功状态 */
-.text-warning-400    /* 警告状态 */
-.text-danger-400     /* 错误状态 */
-.text-dark-400       /* 次要文本 */
-
-/* 使用预定义的组件类 */
-.card                /* 卡片容器 */
-.btn-primary         /* 主按钮 */
-.btn-secondary       /* 次要按钮 */
-.input               /* 输入框 */
-.badge-success       /* 成功徽章 */
-```
-
-### 4.2 状态管理
-
-使用 Zustand 进行状态管理，遵循以下规范：
+### Store 结构
 
 ```typescript
-// 在 store/index.ts 中定义状态
+// src/store/index.ts
 interface Store {
-  // 状态
+  // 任务状态
   taskStatus: TaskStatus | null
+  
+  // 健康状态
   health: Health | null
   
-  // 操作
+  // 配置
+  config: Config | null
+  
+  // 主题
+  darkMode: boolean
+  
+  // 后端状态
+  backendReady: boolean
+  backendPort: number | null
+  lastHeartbeat: number | null
+  
+  // 操作方法
   setTaskStatus: (status: TaskStatus) => void
   setHealth: (health: Health) => void
+  toggleDarkMode: () => void
+  // ...
 }
-
-// 在组件中使用
-const { taskStatus, setTaskStatus } = useStore()
 ```
 
-### 4.3 API 调用
+### 心跳机制
+
+前端定期检测后端存活状态：
 
 ```typescript
-// 使用 async/await 处理 API 调用
-const handleStart = async () => {
-  try {
-    await startTask(options)
-  } catch (error) {
-    console.error('Failed to start task:', error)
+// src/api/index.ts
+export function startHeartbeat() {
+  setInterval(async () => {
+    try {
+      const health = await fetchHealth();
+      useStore.getState().setHealth(health);
+      useStore.getState().setLastHeartbeat(Date.now());
+    } catch {
+      useStore.getState().setBackendReady(false);
+    }
+  }, 5000);
+}
+```
+
+---
+
+## 六、UI 组件
+
+### 6.1 Toast 通知 (Sonner)
+
+```tsx
+import { toast } from 'sonner';
+
+// 成功通知
+toast.success('任务启动成功');
+
+// 错误通知
+toast.error('连接后端失败');
+
+// 带操作的通知
+toast('配置已保存', {
+  action: {
+    label: '撤销',
+    onClick: () => console.log('撤销')
   }
-}
+});
 ```
 
-### 4.4 WebSocket 连接
+### 6.2 骨架屏 (Skeleton)
 
-```typescript
-// 在组件挂载时连接
-useEffect(() => {
-  connectWebSocket()
-  return () => disconnectWebSocket()
-}, [])
+```tsx
+import { Skeleton } from '@/components/ui';
 
-// WebSocket 会自动更新 store 中的状态
+// 基础骨架
+<Skeleton className="h-4 w-48" />
+
+// 卡片骨架
+<div className="space-y-3">
+  <Skeleton className="h-4 w-3/4" />
+  <Skeleton className="h-4 w-1/2" />
+  <Skeleton className="h-4 w-2/3" />
+</div>
 ```
 
-## 五、功能模块说明
+### 6.3 Toggle 开关
 
-### 5.1 仪表盘 (Dashboard)
+```tsx
+// 使用 flexbox 居中指示器
+<div className="w-10 h-6 rounded-full flex items-center">
+  <div className="w-4 h-4 rounded-full transition-all" />
+</div>
+```
 
-- 显示当前积分和今日获得积分
-- 显示桌面/移动搜索进度（默认桌面30次、移动20次）
-- 显示运行时间和健康状态
-- 显示任务提示（未完成任务、错误、积分获取失败等）
+---
 
-### 5.2 任务控制 (Tasks)
+## 七、主题系统
 
-- 选择执行模式 (正常/用户/开发)
-- 配置执行选项 (无头模式、仅桌面/移动、跳过任务)
-- 启动/停止任务
-- 实时显示任务进度和积分变化
-
-### 5.3 配置管理 (Config)
-
-- 搜索设置 (搜索次数、间隔时间)
-- 浏览器设置 (类型、无头模式)
-- 登录设置 (自动登录、2FA)
-- 通知设置 (Telegram)
-- 调度器设置
-- 监控设置
-
-### 5.4 日志查看 (Logs)
-
-- 实时日志流
-- 按级别过滤 (INFO/WARNING/ERROR/DEBUG)
-- 关键词搜索
-- 导出日志
-
-### 5.5 历史记录 (History)
-
-- 执行历史列表
-- 积分趋势图表
-- 统计数据 (总积分、日均、搜索次数)
-
-## 六、主题系统
-
-### 6.1 暗色/亮色模式
-
-项目支持暗色和亮色两种主题模式，通过 Zustand store 管理：
+### 暗色/亮色模式
 
 ```typescript
 // 切换主题
@@ -241,12 +349,9 @@ const { darkMode, toggleDarkMode } = useStore()
 toggleDarkMode()
 ```
 
-### 6.2 主题适配规范
+### 条件样式
 
-所有组件应支持暗色/亮色模式切换：
-
-```typescript
-// 使用 clsx 进行条件样式
+```tsx
 <div className={clsx(
   'rounded-xl p-5 border',
   darkMode 
@@ -255,7 +360,7 @@ toggleDarkMode()
 )}>
 ```
 
-### 6.3 颜色映射
+### 颜色映射
 
 | 暗色模式 | 亮色模式 | 用途 |
 |---------|---------|------|
@@ -263,119 +368,98 @@ toggleDarkMode()
 | `bg-surface-300/80` | `bg-white` | 卡片背景 |
 | `text-dark-100` | `text-gray-900` | 主要文本 |
 | `text-dark-400` | `text-gray-500` | 次要文本 |
-| `bg-dark-700` | `bg-gray-200` | 进度条背景 |
 
-## 七、常见问题
+---
 
-### Q: 前端无法连接后端？
+## 八、窗口效果
 
-检查以下几点：
+### Mica 效果 (Windows 11)
 
-1. 后端服务是否已启动 (`python web_server.py`)
-2. 后端端口是否正确 (默认 8000)
-3. 防火墙是否阻止连接
+```json
+// tauri.conf.json
+{
+  "app": {
+    "windows": [{
+      "transparent": true,
+      "shadow": true,
+      "windowEffects": {
+        "effects": ["mica"],
+        "state": "active"
+      }
+    }]
+  }
+}
+```
 
-### Q: WebSocket 连接失败？
+### 拖拽区域
 
-1. 确保后端 WebSocket 端点 `/ws` 可访问
-2. 检查浏览器控制台是否有错误
-3. WebSocket 会自动重连，等待几秒
+```tsx
+// Header.tsx
+<div data-tauri-drag-region className="flex items-center gap-3">
+  {/* 可拖拽区域 */}
+</div>
+```
 
-### Q: 构建失败？
+---
 
-1. 检查 TypeScript 类型错误
-2. 确保所有依赖已安装 (`npm install`)
-3. 清除缓存重新构建 (`rm -rf node_modules && npm install`)
+## 九、常见问题
 
-### Q: 样式不生效？
+### Q: 开发模式下前端无法连接后端?
 
-1. 确保 TailwindCSS 类名正确
-2. 检查 `tailwind.config.js` 中的 content 配置
-3. 重启开发服务器
+确保 Python 后端在 `localhost:8000` 运行。开发模式下 Tauri 不启动 Sidecar，需要手动启动后端。
 
-## 八、部署指南
+### Q: Tauri 编译失败?
 
-### 8.1 构建前端
+1. 确保已安装 Rust: `rustc --version`
+2. 清理缓存: `cd src-tauri && cargo clean`
+3. 重新编译: `cargo check`
+
+### Q: 如何调试 Rust 代码?
+
+使用 `println!` 或 `eprintln!` 输出到控制台，或使用 `log` crate 配合 `tauri-plugin-log`。
+
+### Q: Sidecar 启动失败?
+
+检查 `src-tauri/binaries/` 目录下是否存在对应的二进制文件。
+
+---
+
+## 十、部署指南
+
+### 构建发布版本
 
 ```bash
 cd frontend
-npm run build
+npm run tauri:build
 ```
 
-构建产物将生成在 `frontend/dist` 目录。
+### 构建产物
 
-### 8.2 启动生产服务
+| 文件 | 说明 |
+|------|------|
+| `.msi` | Windows 安装包 |
+| `.exe` | 便携版可执行文件 |
+| `.nsis.zip` | NSIS 安装包 |
 
-```bash
-python web_server.py --host 0.0.0.0 --port 8000
+### 自动更新
+
+Tauri 支持自动更新功能，配置 `tauri.conf.json`:
+
+```json
+{
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://your-domain.com/updates/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": "your-public-key"
+    }
+  }
+}
 ```
 
-后端会自动服务前端静态文件。
+---
 
-### 8.3 环境变量
+## 相关文档
 
-可以通过环境变量配置：
-
-```bash
-# 设置监听地址
-export HOST=0.0.0.0
-export PORT=8000
-
-python web_server.py
-```
-
-## 九、已知问题
-
-### 9.1 停止任务功能问题
-
-**现象**：停止任务按钮无法点击，任务启动后 `is_running` 状态未正确更新。
-
-**原因**：`task_service.py` 中 `asyncio.current_task()` 在 `start_task` 函数开始时调用，但此时任务尚未真正开始执行。需要在任务真正开始后获取 task 引用。
-
-**临时解决方案**：
-- 后端需要修复 `task_service.py` 中的任务跟踪逻辑
-- 确保 `is_running` 状态通过 WebSocket 正确广播到前端
-
-### 9.2 积分获取失败
-
-**现象**：前端显示"当前积分获取失败"。
-
-**原因**：`main` 分支的积分获取模块选择器可能存在问题，导致无法正确获取积分数据。
-
-**影响范围**：影响前端仪表盘的积分显示和任务提示功能。
-
-**解决方案**：需要在 `main` 分支修复积分获取逻辑后再同步到前端分支。
-
-### 9.3 进度显示问题
-
-**现象**：任务进度显示为 "0 / 0"。
-
-**已修复**：使用 `||` 运算符替代 `??` 运算符，确保 0 值能正确触发默认值回退。
-
-```typescript
-// 修复前（错误）
-total={taskStatus?.desktop_searches_total ?? config?.search.desktop_count ?? 30}
-
-// 修复后（正确）
-total={taskStatus?.desktop_searches_total || config?.search.desktop_count || 30}
-```
-
-## 十、扩展开发
-
-### 添加新页面
-
-1. 在 `src/pages/` 创建新组件
-2. 在 `src/App.tsx` 添加路由
-3. 在 `src/components/Sidebar.tsx` 添加导航项
-
-### 添加新 API
-
-1. 在 `src/api/index.ts` 添加 API 函数
-2. 在 `src/store/index.ts` 添加状态类型
-3. 在后端 `src/api/routes.py` 添加端点
-
-### 添加新组件
-
-1. 在 `src/components/` 创建组件文件
-2. 使用 TailwindCSS 类进行样式
-3. 通过 props 和 store 进行数据交互
+- [Tauri 架构文档](./TAURI_ARCHITECTURE.md)
+- [验收方案](./FRONTEND_ACCEPTANCE.md)
+- [用户指南](./guides/用户指南.md)

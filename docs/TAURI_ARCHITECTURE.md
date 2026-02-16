@@ -15,6 +15,7 @@
 | 安装包体积 | N/A | ~10MB |
 | 内存占用 | 高 (依赖 Chrome) | 极低 (系统原生 WebView2) |
 | 视觉效果 | 中等 | 高级 (支持毛玻璃/透明度) |
+| 进程管理 | 手动管理 | 自动 Sidecar 管理 |
 
 ---
 
@@ -32,6 +33,8 @@ frontend/
 │   │   │   ├── badge.tsx     # 徽章组件
 │   │   │   ├── tooltip.tsx   # 工具提示组件
 │   │   │   ├── scroll-area.tsx # 滚动区域组件
+│   │   │   ├── skeleton.tsx  # 骨架屏组件
+│   │   │   ├── sonner.tsx    # Toast 通知组件
 │   │   │   ├── animated.tsx  # Framer Motion 动画组件
 │   │   │   └── index.ts      # 统一导出
 │   │   ├── Layout.tsx        # 页面布局
@@ -48,7 +51,7 @@ frontend/
 │   ├── store/
 │   │   └── index.ts          # Zustand 状态管理
 │   └── api/
-│       └── index.ts          # API 请求封装
+│       └── index.ts          # API 请求封装 + Tauri 事件
 │
 ├── src-tauri/                # Tauri 后端 (Rust)
 │   ├── src/
@@ -95,6 +98,160 @@ React 动画库，用于：
 - 页面过渡动画
 - 列表项入场动画
 - 交互动效 (悬停、点击)
+
+---
+
+## 进程通信架构
+
+### 架构图
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Tauri 主进程 (Rust)                      │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  lib.rs                                              │   │
+│  │  - 动态端口分配 (portpicker)                          │   │
+│  │  - Sidecar 进程管理                                   │   │
+│  │  - 事件发射 (py-log, py-error, backend-terminated)    │   │
+│  │  - 窗口生命周期管理                                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           │                                 │
+│                           │ IPC (invoke / emit)             │
+│                           ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              WebView2 (前端渲染)                      │   │
+│  │  React + TypeScript + Vite                          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ HTTP / WebSocket
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Python 后端 (FastAPI)                       │
+│  - REST API 端点                                            │
+│  - WebSocket 实时通信                                        │
+│  - 任务调度与执行                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 动态端口分配
+
+生产模式下自动分配可用端口，避免端口冲突：
+
+```rust
+// src-tauri/src/lib.rs
+use portpicker::pick_unused_port;
+use std::sync::atomic::{AtomicU16, Ordering};
+
+static BACKEND_PORT: AtomicU16 = AtomicU16::new(0);
+
+fn allocate_port() -> u16 {
+    let port = pick_unused_port().expect("No free port available");
+    BACKEND_PORT.store(port, Ordering::SeqCst);
+    port
+}
+
+#[tauri::command]
+fn get_backend_port() -> u16 {
+    let port = BACKEND_PORT.load(Ordering::SeqCst);
+    if port == 0 { 8000 } else { port }
+}
+```
+
+### Sidecar 进程管理
+
+生产模式自动启动 Python 后端，开发模式使用固定端口：
+
+```rust
+// 仅在发布模式启动 Sidecar
+#[cfg(not(debug_assertions))]
+{
+    let shell = app.shell();
+    let (mut rx, child) = shell.sidecar("backend")?.spawn()?;
+    
+    // 存储子进程引用
+    *BACKEND_CHILD.lock().unwrap() = Some(child);
+    
+    // 监听后端输出
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    app.emit("py-log", line)?;
+                }
+                CommandEvent::Stderr(line) => {
+                    app.emit("py-error", line)?;
+                }
+                CommandEvent::Error(err) => {
+                    app.emit("py-error", err)?;
+                }
+                CommandEvent::Terminated(_) => {
+                    app.emit("backend-terminated", ())?;
+                }
+                _ => {}
+            }
+        }
+        Ok::<_, Box<dyn std::error::Error>>(())
+    });
+}
+
+// 开发模式使用固定端口
+#[cfg(debug_assertions)]
+{
+    BACKEND_PORT.store(8000, Ordering::SeqCst);
+}
+```
+
+### Tauri 事件系统
+
+前端监听 Rust 发出的事件：
+
+```typescript
+// src/api/index.ts
+import { listen } from '@tauri-apps/api/event';
+
+export async function initializeTauriEvents() {
+  // 监听 Python 日志
+  await listen<string>('py-log', (event) => {
+    console.log('[Python]', event.payload);
+  });
+
+  // 监听 Python 错误
+  await listen<string>('py-error', (event) => {
+    console.error('[Python Error]', event.payload);
+    toast.error(event.payload);
+  });
+
+  // 监听后端终止
+  await listen<void>('backend-terminated', () => {
+    toast.error('后端进程已终止');
+    useStore.getState().setBackendReady(false);
+  });
+}
+```
+
+---
+
+## 心跳机制
+
+前端定期检测后端存活状态：
+
+```typescript
+// src/api/index.ts
+export function startHeartbeat() {
+  setInterval(async () => {
+    try {
+      const health = await fetchHealth();
+      useStore.getState().setHealth(health);
+      useStore.getState().setLastHeartbeat(Date.now());
+      useStore.getState().setBackendReady(true);
+    } catch (error) {
+      useStore.getState().setBackendReady(false);
+      console.warn('Heartbeat failed:', error);
+    }
+  }, 5000);
+}
+```
 
 ---
 
@@ -151,6 +308,44 @@ import { Badge } from '@/components/ui'
 <Badge variant="success">成功</Badge>
 <Badge variant="warning">警告</Badge>
 <Badge variant="destructive">错误</Badge>
+```
+
+### Toast 通知 (Sonner)
+
+```tsx
+import { toast } from 'sonner'
+
+// 基础通知
+toast('操作完成')
+
+// 成功通知
+toast.success('任务启动成功')
+
+// 错误通知
+toast.error('连接失败')
+
+// 带操作的通知
+toast('配置已保存', {
+  action: {
+    label: '撤销',
+    onClick: () => console.log('撤销')
+  }
+})
+```
+
+### 骨架屏 (Skeleton)
+
+```tsx
+import { Skeleton } from '@/components/ui'
+
+// 基础骨架
+<Skeleton className="h-4 w-48" />
+
+// 卡片骨架
+<div className="space-y-3">
+  <Skeleton className="h-4 w-3/4" />
+  <Skeleton className="h-4 w-1/2" />
+</div>
 ```
 
 ### Framer Motion 动画
@@ -246,38 +441,6 @@ python scripts/build_backend.py
 }
 ```
 
-### 步骤 4: 更新 Rust 代码
-
-编辑 `frontend/src-tauri/src/lib.rs`，添加 Sidecar 启动逻辑：
-
-```rust
-use tauri_plugin_shell::ShellExt;
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .setup(|app| {
-            // 仅在发布模式启动 Sidecar
-            #[cfg(not(debug_assertions))]
-            {
-                let shell = app.shell();
-                let (mut rx, child) = shell.sidecar("backend")?.spawn()?;
-                
-                // 监听后端输出
-                tauri::async_runtime::spawn(async move {
-                    while let Some(event) = rx.recv().await {
-                        // 处理事件
-                    }
-                });
-            }
-            Ok(())
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-```
-
 ---
 
 ## 配色方案
@@ -312,10 +475,41 @@ pub fn run() {
       "minHeight": 600,
       "center": true,
       "resizable": true,
-      "shadow": true
+      "shadow": true,
+      "transparent": true,
+      "windowEffects": {
+        "effects": ["mica"],
+        "state": "active"
+      }
     }]
   }
 }
+```
+
+### Mica 效果 (Windows 11)
+
+启用 Windows 11 的 Mica 毛玻璃效果：
+
+```json
+{
+  "transparent": true,
+  "shadow": true,
+  "windowEffects": {
+    "effects": ["mica"],
+    "state": "active"
+  }
+}
+```
+
+### 拖拽区域
+
+自定义窗口拖拽区域：
+
+```tsx
+// Header.tsx
+<div data-tauri-drag-region className="flex items-center gap-3">
+  {/* 可拖拽区域 */}
+</div>
 ```
 
 ---
@@ -342,6 +536,14 @@ pub fn run() {
 
 修改 `tailwind.config.js` 中的 `colors` 配置。
 
+### Q: Sidecar 启动失败?
+
+检查 `src-tauri/binaries/` 目录下是否存在对应的二进制文件。
+
+### Q: 动态端口如何工作?
+
+生产模式下，Tauri 使用 `portpicker` 自动分配可用端口，前端通过 `get_backend_port()` 命令获取端口。
+
 ---
 
 ## 相关文档
@@ -350,3 +552,4 @@ pub fn run() {
 - [Shadcn/UI 文档](https://ui.shadcn.com/)
 - [Framer Motion 文档](https://www.framer.com/motion/)
 - [TailwindCSS 文档](https://tailwindcss.com/docs)
+- [Sonner 文档](https://sonner.emilkowal.ski/)
