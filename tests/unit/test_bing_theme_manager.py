@@ -52,10 +52,10 @@ class TestBingThemeManager:
         assert manager.config == mock_config
     
     def test_init_without_config(self):
-        """测试不使用配置初始化"""
+        """测试不使用配置初始化 - 默认禁用"""
         manager = BingThemeManager()
         
-        assert manager.enabled is True
+        assert manager.enabled is False
         assert manager.preferred_theme == "dark"
         assert manager.force_theme is True
         assert manager.config is None

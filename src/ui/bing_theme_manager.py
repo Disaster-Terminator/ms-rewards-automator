@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 from playwright.async_api import Page, BrowserContext, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
@@ -25,7 +26,7 @@ class BingThemeManager:
             config: 配置管理器实例
         """
         self.config = config
-        self.enabled = config.get("bing_theme.enabled", True) if config else True
+        self.enabled = config.get("bing_theme.enabled", False) if config else False
         self.preferred_theme = config.get("bing_theme.theme", "dark") if config else "dark"
         self.force_theme = config.get("bing_theme.force_theme", True) if config else True
         
@@ -196,7 +197,7 @@ class BingThemeManager:
             
             # 检查时间戳是否合理（不能太旧）
             timestamp = theme_state.get("timestamp", 0)
-            current_time = asyncio.get_running_loop().time()
+            current_time = time.time()
             max_age = 30 * 24 * 3600  # 30天
             
             if current_time - timestamp > max_age:
