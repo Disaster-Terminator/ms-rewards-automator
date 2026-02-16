@@ -7,10 +7,13 @@ import asyncio
 import logging
 import time
 import threading
-from typing import List, Optional, AsyncGenerator
+from typing import List, Optional, AsyncGenerator, TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime
 import queue
+
+if TYPE_CHECKING:
+    from api.websocket import ConnectionManager
 
 
 logger = logging.getLogger(__name__)
@@ -31,11 +34,22 @@ class LogService:
         self._stop_event = threading.Event()
         self._watcher_thread: Optional[threading.Thread] = None
         self._subscribers: List[asyncio.Queue] = []
+        self._connection_manager: Optional['ConnectionManager'] = None
+        self._async_loop: Optional[asyncio.AbstractEventLoop] = None
+    
+    def set_connection_manager(self, manager: 'ConnectionManager'):
+        """设置 WebSocket 连接管理器"""
+        self._connection_manager = manager
     
     def start_log_watcher(self):
         """启动日志监视器"""
         if self._watcher_thread and self._watcher_thread.is_alive():
             return
+        
+        try:
+            self._async_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._async_loop = None
         
         self._stop_event.clear()
         self._watcher_thread = threading.Thread(target=self._watch_log_file, daemon=True)
@@ -62,8 +76,10 @@ class LogService:
                 while not self._stop_event.is_set():
                     line = f.readline()
                     if line:
-                        self._log_queue.put(line.strip())
-                        self._notify_subscribers(line.strip())
+                        line_stripped = line.strip()
+                        self._log_queue.put(line_stripped)
+                        self._notify_subscribers(line_stripped)
+                        self._broadcast_to_websocket(line_stripped)
                     else:
                         time.sleep(0.1)
                         
@@ -77,6 +93,18 @@ class LogService:
                 q.put_nowait(line)
             except asyncio.QueueFull:
                 pass
+    
+    def _broadcast_to_websocket(self, line: str):
+        """广播日志到 WebSocket"""
+        if self._connection_manager and self._async_loop and not self._stop_event.is_set():
+            try:
+                future = asyncio.run_coroutine_threadsafe(
+                    self._connection_manager.broadcast_log(line),
+                    self._async_loop
+                )
+                future.result(timeout=1.0)
+            except Exception as e:
+                logger.debug(f"广播日志失败: {e}")
     
     def get_recent_logs(self, lines: int = 100) -> List[str]:
         """

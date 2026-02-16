@@ -10,6 +10,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+    ]
+)
+
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,12 +26,9 @@ from fastapi.responses import FileResponse
 
 from api.app import lifespan
 from api.routes import router as api_router
-from api.websocket import ConnectionManager
 
 
 logger = logging.getLogger(__name__)
-
-connection_manager = ConnectionManager()
 
 
 def create_web_app() -> FastAPI:
@@ -52,15 +57,39 @@ def create_web_app() -> FastAPI:
     
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
+        from api.app import connection_manager
+        if not connection_manager:
+            await websocket.close(code=1011, reason="Server not ready")
+            return
+            
         await connection_manager.connect(websocket)
         try:
             while True:
-                data = await websocket.receive_text()
-                await connection_manager.send_personal_message(
-                    {"type": "echo", "data": data}, 
-                    websocket
-                )
+                try:
+                    data = await asyncio.wait_for(
+                        websocket.receive_text(), 
+                        timeout=60.0
+                    )
+                    try:
+                        import json
+                        message = json.loads(data)
+                        if message.get("type") == "ping":
+                            await connection_manager.send_personal_message(
+                                {"type": "pong", "timestamp": __import__('datetime').datetime.now().isoformat()}, 
+                                websocket
+                            )
+                    except json.JSONDecodeError:
+                        pass
+                except asyncio.TimeoutError:
+                    await connection_manager.send_personal_message(
+                        {"type": "ping", "timestamp": __import__('datetime').datetime.now().isoformat()}, 
+                        websocket
+                    )
         except WebSocketDisconnect:
+            pass
+        except Exception as e:
+            logger.error(f"WebSocket error: {e}")
+        finally:
             await connection_manager.disconnect(websocket)
     
     frontend_dist = Path(__file__).parent / "frontend" / "dist"

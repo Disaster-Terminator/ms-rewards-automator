@@ -39,6 +39,8 @@ async def lifespan(app: FastAPI):
     health_service = HealthService()
     task_service = TaskService(connection_manager, config_service)
     
+    log_service.set_connection_manager(connection_manager)
+    
     app.state.task_service = task_service
     app.state.config_service = config_service
     app.state.log_service = log_service
@@ -47,13 +49,13 @@ async def lifespan(app: FastAPI):
     
     log_service.start_log_watcher()
     
-    logger.info("API 服务已启动")
+    logger.info("API 服务已启动，WebSocket 连接管理器已初始化")
     
     yield
     
     logger.info("正在关闭 API 服务...")
     
-    if task_service:
+    if task_service and task_service.is_running:
         await task_service.stop_task()
     
     if log_service:

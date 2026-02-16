@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { 
   Coins, 
   Monitor, 
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store'
-import { initializeData, connectWebSocket, disconnectWebSocket, refreshData } from '../api'
+import { refreshData } from '../api'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -139,18 +139,10 @@ export default function Dashboard() {
     dataLoading,
     dataError,
     darkMode,
+    backendReady,
   } = useStore()
 
   const [isRefreshing, setIsRefreshing] = useState(false)
-
-  useEffect(() => {
-    initializeData()
-    connectWebSocket()
-    
-    return () => {
-      disconnectWebSocket()
-    }
-  }, [])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -187,8 +179,8 @@ export default function Dashboard() {
     >
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div>
-          <h1 className={cn('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-light-900')}>仪表盘</h1>
-          <p className={cn('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>MS Rewards Automator 运行状态概览</p>
+          <h1 className="page-title">仪表盘</h1>
+          <p className="page-subtitle">MS Rewards Automator 运行状态概览</p>
         </div>
         <div className="flex items-center gap-3">
           <div className={cn('flex items-center gap-2 text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
@@ -222,6 +214,30 @@ export default function Dashboard() {
                   <div>
                     <div className="text-danger-500 font-medium">连接错误</div>
                     <div className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>{dataError}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {!backendReady && !dataError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="border-warning-500/30 bg-warning-500/5">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <RefreshCw className="text-warning-500 animate-spin" size={20} />
+                  <div>
+                    <div className="text-warning-500 font-medium">正在连接后端服务...</div>
+                    <div className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                      请稍候，后端服务正在启动中
+                    </div>
                   </div>
                 </div>
               </CardContent>

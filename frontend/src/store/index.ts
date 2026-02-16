@@ -14,7 +14,7 @@ export interface TaskStatus {
   points_gained: number
   error_count: number
   warning_count: number
-  start_time: string | null
+  start_time: number | null
   elapsed_seconds: number
 }
 

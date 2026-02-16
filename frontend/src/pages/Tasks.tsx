@@ -13,7 +13,8 @@ import {
   Zap,
   AlertCircle,
   Timer,
-  Coins
+  Coins,
+  CheckCircle
 } from 'lucide-react'
 import { useStore } from '../store'
 import { startTask, stopTask, fetchStatus } from '../api'
@@ -185,8 +186,9 @@ function ProgressSection({
 }
 
 export default function Tasks() {
-  const { taskStatus, config, darkMode } = useStore()
+  const { taskStatus, config, darkMode, backendReady } = useStore()
   const [loading, setLoading] = useState(false)
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [options, setOptions] = useState({
     mode: 'normal',
     headless: false,
@@ -199,12 +201,24 @@ export default function Tasks() {
     fetchStatus()
   }, [])
 
+  useEffect(() => {
+    if (actionFeedback) {
+      const timer = setTimeout(() => setActionFeedback(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [actionFeedback])
+
   const handleStart = async () => {
     setLoading(true)
+    setActionFeedback(null)
     try {
-      await startTask(options)
-    } catch (error) {
+      const result = await startTask(options)
+      setActionFeedback({ type: 'success', message: result.message || '任务已启动' })
+      await fetchStatus()
+    } catch (error: any) {
       console.error('Failed to start task:', error)
+      const errorMsg = error?.response?.data?.detail || error?.message || '启动任务失败'
+      setActionFeedback({ type: 'error', message: errorMsg })
     } finally {
       setLoading(false)
     }
@@ -212,10 +226,15 @@ export default function Tasks() {
 
   const handleStop = async () => {
     setLoading(true)
+    setActionFeedback(null)
     try {
-      await stopTask()
-    } catch (error) {
+      const result = await stopTask()
+      setActionFeedback({ type: 'success', message: result.message || '任务已停止' })
+      await fetchStatus()
+    } catch (error: any) {
       console.error('Failed to stop task:', error)
+      const errorMsg = error?.response?.data?.detail || error?.message || '停止任务失败'
+      setActionFeedback({ type: 'error', message: errorMsg })
     } finally {
       setLoading(false)
     }
@@ -237,8 +256,8 @@ export default function Tasks() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={clsx('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-gray-900')}>任务控制</h1>
-          <p className={clsx('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-gray-500')}>配置并启动 MS Rewards 自动任务</p>
+          <h1 className="page-title">任务控制</h1>
+          <p className="page-subtitle">配置并启动 MS Rewards 自动任务</p>
         </div>
         <div className={clsx(
           'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300',
@@ -344,10 +363,10 @@ export default function Tasks() {
           <div className="mt-6 flex gap-3">
             <button
               onClick={handleStart}
-              disabled={taskStatus?.is_running || loading}
+              disabled={taskStatus?.is_running || loading || !backendReady}
               className={clsx(
                 'flex-1 btn-primary',
-                (taskStatus?.is_running || loading) && 'opacity-50 cursor-not-allowed'
+                (taskStatus?.is_running || loading || !backendReady) && 'opacity-50 cursor-not-allowed'
               )}
             >
               {loading ? (
@@ -370,6 +389,28 @@ export default function Tasks() {
               停止任务
             </button>
           </div>
+          
+          {!backendReady && (
+            <div className={clsx(
+              'mt-4 p-3 rounded-lg flex items-center gap-2',
+              darkMode ? 'bg-warning-500/10 text-warning-400 border border-warning-500/20' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+            )}>
+              <AlertCircle size={16} />
+              <span className="text-sm">后端服务未连接，请等待服务启动...</span>
+            </div>
+          )}
+          
+          {actionFeedback && (
+            <div className={clsx(
+              'mt-4 p-3 rounded-lg flex items-center gap-2',
+              actionFeedback.type === 'success' 
+                ? darkMode ? 'bg-success-500/10 text-success-400 border border-success-500/20' : 'bg-green-50 text-green-700 border border-green-200'
+                : darkMode ? 'bg-danger-500/10 text-danger-400 border border-danger-500/20' : 'bg-red-50 text-red-700 border border-red-200'
+            )}>
+              {actionFeedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+              <span className="text-sm">{actionFeedback.message}</span>
+            </div>
+          )}
         </div>
 
         <div className={clsx('card', darkMode ? '' : 'bg-white border-gray-200 shadow-sm')}>

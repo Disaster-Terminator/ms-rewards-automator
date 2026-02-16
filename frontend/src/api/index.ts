@@ -2,23 +2,27 @@ import axios from 'axios'
 import { useStore, TaskStatus, Health, Points, Config, HistoryItem } from '../store'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
+const isDev = typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)
 
 let API_BASE = '/api'
 let dynamicPort: number | null = null
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null
+let isConnecting = false
+let connectionPromise: Promise<void> | null = null
 
 const getApiBase = async (): Promise<string> => {
-  if (isTauri) {
+  if (isTauri && !isDev) {
     if (dynamicPort) {
       return `http://localhost:${dynamicPort}/api`
     }
     
     try {
       const { invoke } = await import('@tauri-apps/api/core')
-      dynamicPort = await invoke<number>('get_backend_port')
-      const store = useStore.getState()
-      store.setBackendPort(dynamicPort)
-      if (dynamicPort) {
+      const port = await invoke<number>('get_backend_port')
+      if (port && port !== 8000) {
+        dynamicPort = port
+        const store = useStore.getState()
+        store.setBackendPort(dynamicPort)
         return `http://localhost:${dynamicPort}/api`
       }
     } catch (e) {
@@ -32,7 +36,7 @@ const getApi = async () => {
   const base = await getApiBase()
   return axios.create({
     baseURL: base,
-    timeout: 10000,
+    timeout: 15000,
   })
 }
 
@@ -71,14 +75,16 @@ export const startTask = async (options: {
   desktop_only?: boolean
   mobile_only?: boolean
   skip_daily_tasks?: boolean
-}): Promise<void> => {
+}): Promise<{ message: string; status: string }> => {
   const api = await getApi()
-  await api.post('/task/start', options)
+  const response = await api.post('/task/start', options)
+  return response.data
 }
 
-export const stopTask = async (): Promise<void> => {
+export const stopTask = async (): Promise<{ message: string; status: string }> => {
   const api = await getApi()
-  await api.post('/task/stop')
+  const response = await api.post('/task/stop')
+  return response.data
 }
 
 export const fetchHistory = async (days: number = 7): Promise<HistoryItem[]> => {
@@ -101,6 +107,7 @@ export const fetchDashboard = async () => {
 
 let heartbeatFailures = 0
 const MAX_HEARTBEAT_FAILURES = 3
+const HEARTBEAT_INTERVAL = 3000
 
 export const startHeartbeat = () => {
   if (heartbeatInterval) {
@@ -110,27 +117,29 @@ export const startHeartbeat = () => {
   heartbeatInterval = setInterval(async () => {
     try {
       const api = await getApi()
-      await api.get('/health')
+      const response = await api.get('/health')
       const store = useStore.getState()
       store.setLastHeartbeat(new Date().toISOString())
       store.setBackendReady(true)
       store.setDataError(null)
+      store.setHealth(response.data)
       heartbeatFailures = 0
     } catch (error) {
       heartbeatFailures++
       const store = useStore.getState()
       store.setBackendReady(false)
       
+      console.warn(`Heartbeat failed (${heartbeatFailures}/${MAX_HEARTBEAT_FAILURES})`)
+      
       if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
+        console.log('Max heartbeat failures reached, attempting reconnect...')
         store.setWsConnected(false)
-        if (ws && ws.readyState !== WebSocket.CONNECTING) {
-          ws.close()
-        }
-        connectWebSocket()
+        disconnectWebSocket()
+        scheduleReconnect()
         heartbeatFailures = 0
       }
     }
-  }, 5000)
+  }, HEARTBEAT_INTERVAL)
 }
 
 export const stopHeartbeat = () => {
@@ -144,100 +153,140 @@ let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempts = 0
 const MAX_RECONNECT_DELAY = 30000
+const INITIAL_RECONNECT_DELAY = 500
 
 const scheduleReconnect = () => {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer)
   }
   
-  const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
+  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
   reconnectAttempts++
   
-  reconnectTimer = setTimeout(() => {
-    console.log(`Attempting to reconnect WebSocket (attempt ${reconnectAttempts})...`)
-    connectWebSocket()
+  console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts})`)
+  
+  reconnectTimer = setTimeout(async () => {
+    await connectWebSocket()
   }, delay)
 }
 
-export const connectWebSocket = async () => {
-  if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return
-
-  let wsUrl: string
-  let port = dynamicPort
-  
-  if (isTauri) {
-    if (!port) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core')
-        port = await invoke<number>('get_backend_port')
-        dynamicPort = port
-        useStore.getState().setBackendPort(port)
-      } catch (e) {
-        console.warn('Failed to get backend port:', e)
-      }
-    }
-    wsUrl = `ws://localhost:${port || 8000}/ws`
-  } else {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    wsUrl = `${protocol}//${window.location.host}/ws`
+export const connectWebSocket = async (): Promise<void> => {
+  if (isConnecting && connectionPromise) {
+    return connectionPromise
   }
-
-  try {
-    ws = new WebSocket(wsUrl)
-  } catch (error) {
-    console.error('Failed to create WebSocket:', error)
-    scheduleReconnect()
+  
+  if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
     return
   }
-
-  ws.onopen = () => {
-    console.log('WebSocket connected')
-    useStore.getState().setWsConnected(true)
-    reconnectAttempts = 0
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
-  }
-
-  ws.onclose = () => {
-    console.log('WebSocket disconnected')
-    useStore.getState().setWsConnected(false)
-    scheduleReconnect()
-  }
-
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error)
-  }
-
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      const store = useStore.getState()
-
-      switch (data.type) {
-        case 'status_update':
-          store.setTaskStatus(data.data)
-          break
-        case 'health_update':
-          store.setHealth(data.data)
-          break
-        case 'points_update':
-          store.setPoints(data.data)
-          break
-        case 'log':
-          if (data.data) {
-            store.addLog(data.data)
+  
+  isConnecting = true
+  
+  connectionPromise = new Promise(async (resolve) => {
+    let wsUrl: string
+    
+    if (isTauri && !isDev) {
+      let port = dynamicPort
+      if (!port) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core')
+          const p = await invoke<number>('get_backend_port')
+          if (p && p !== 8000) {
+            port = p
+            dynamicPort = port
+            useStore.getState().setBackendPort(port)
           }
-          break
-        case 'task_event':
-          console.log('Task event:', data.event, data.message)
-          break
+        } catch (e) {
+          console.warn('Failed to get backend port:', e)
+        }
       }
-    } catch (error) {
-      console.error('Failed to parse WebSocket message:', error)
+      wsUrl = `ws://localhost:${port || 8000}/ws`
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      wsUrl = `${protocol}//${window.location.host}/ws`
     }
-  }
+
+    console.log('Connecting to WebSocket:', wsUrl)
+
+    try {
+      ws = new WebSocket(wsUrl)
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error)
+      scheduleReconnect()
+      isConnecting = false
+      resolve()
+      return
+    }
+
+    const connectionTimeout = setTimeout(() => {
+      if (ws?.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket connection timeout')
+        ws?.close()
+        scheduleReconnect()
+        isConnecting = false
+        resolve()
+      }
+    }, 10000)
+
+    ws.onopen = () => {
+      clearTimeout(connectionTimeout)
+      console.log('WebSocket connected')
+      useStore.getState().setWsConnected(true)
+      reconnectAttempts = 0
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+      isConnecting = false
+      resolve()
+    }
+
+    ws.onclose = (event) => {
+      clearTimeout(connectionTimeout)
+      console.log('WebSocket disconnected:', event.code, event.reason)
+      useStore.getState().setWsConnected(false)
+      isConnecting = false
+      scheduleReconnect()
+      resolve()
+    }
+
+    ws.onerror = (error) => {
+      clearTimeout(connectionTimeout)
+      console.error('WebSocket error:', error)
+      isConnecting = false
+      resolve()
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        const store = useStore.getState()
+
+        switch (data.type) {
+          case 'status_update':
+            store.setTaskStatus(data.data)
+            break
+          case 'health_update':
+            store.setHealth(data.data)
+            break
+          case 'points_update':
+            store.setPoints(data.data)
+            break
+          case 'log':
+            if (data.data) {
+              store.addLog(data.data)
+            }
+            break
+          case 'task_event':
+            console.log('Task event:', data.event, data.message)
+            break
+        }
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error)
+      }
+    }
+  })
+  
+  return connectionPromise
 }
 
 export const disconnectWebSocket = () => {
@@ -246,9 +295,13 @@ export const disconnectWebSocket = () => {
     reconnectTimer = null
   }
   if (ws) {
+    ws.onclose = null
+    ws.onerror = null
     ws.close()
     ws = null
   }
+  isConnecting = false
+  connectionPromise = null
 }
 
 export const initializeTauriEvents = async () => {
@@ -275,6 +328,7 @@ export const initializeTauriEvents = async () => {
       if (event.payload !== 0) {
         store.setDataError('后端进程异常退出，请重启应用')
       }
+      scheduleReconnect()
     })
     
     console.log('Tauri event listeners initialized')
@@ -312,6 +366,7 @@ export const initializeData = async () => {
     store.setDataError('无法连接到服务器，请检查服务是否正常运行')
     store.setDataLoading(false)
     store.setBackendReady(false)
+    throw error
   }
 }
 

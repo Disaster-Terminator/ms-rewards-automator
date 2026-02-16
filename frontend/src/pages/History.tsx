@@ -217,8 +217,8 @@ export default function History() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={clsx('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-light-900')}>历史记录</h1>
-          <p className={clsx('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>查看任务执行历史和积分统计</p>
+          <h1 className="page-title">历史记录</h1>
+          <p className="page-subtitle">查看任务执行历史和积分统计</p>
         </div>
         <div className="flex items-center gap-3">
           <select

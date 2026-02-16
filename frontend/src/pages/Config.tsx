@@ -257,8 +257,8 @@ export default function ConfigPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={clsx('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-light-900')}>配置管理</h1>
-          <p className={clsx('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>管理应用程序的各项设置</p>
+          <h1 className="page-title">配置管理</h1>
+          <p className="page-subtitle">管理应用程序的各项设置</p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={loadConfig} className="btn-secondary">

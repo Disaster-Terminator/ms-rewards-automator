@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from infrastructure.config_manager import ConfigManager
 from infrastructure.ms_rewards_app import MSRewardsApp
+from ui.real_time_status import StatusManager
 
 
 logger = logging.getLogger(__name__)
@@ -144,7 +145,42 @@ class TaskService:
             {"mode": mode, "headless": headless}
         )
         
+        await self._broadcast_status_update()
+        
         self._task = asyncio.current_task()
+        
+        def operation_callback(operation: str):
+            self.status["current_operation"] = operation
+            asyncio.create_task(self._broadcast_status_update())
+        
+        def progress_callback(progress: int, total: int):
+            self.status["progress"] = progress
+            self.status["total_steps"] = total
+            asyncio.create_task(self._broadcast_status_update())
+        
+        def desktop_search_callback(completed: int, total: int):
+            self.status["desktop_searches_completed"] = completed
+            self.status["desktop_searches_total"] = total
+            asyncio.create_task(self._broadcast_status_update())
+        
+        def mobile_search_callback(completed: int, total: int):
+            self.status["mobile_searches_completed"] = completed
+            self.status["mobile_searches_total"] = total
+            asyncio.create_task(self._broadcast_status_update())
+        
+        def points_callback(current: int, initial: int):
+            self.status["current_points"] = current
+            self.status["initial_points"] = initial
+            self.status["points_gained"] = current - initial if initial else 0
+            asyncio.create_task(self._broadcast_points_update())
+        
+        StatusManager.set_callbacks({
+            'operation': operation_callback,
+            'progress': progress_callback,
+            'desktop_searches': desktop_search_callback,
+            'mobile_searches': mobile_search_callback,
+            'points': points_callback,
+        })
         
         try:
             config = ConfigManager("config.yaml")
@@ -166,27 +202,6 @@ class TaskService:
             
             args = Args()
             app = MSRewardsApp(config, args)
-            
-            def status_callback(operation: str, progress: int, total: int):
-                self.status["current_operation"] = operation
-                self.status["progress"] = progress
-                self.status["total_steps"] = total
-                asyncio.create_task(self._broadcast_status_update())
-            
-            def search_callback(device: str, completed: int, total: int):
-                if device == "desktop":
-                    self.status["desktop_searches_completed"] = completed
-                    self.status["desktop_searches_total"] = total
-                else:
-                    self.status["mobile_searches_completed"] = completed
-                    self.status["mobile_searches_total"] = total
-                asyncio.create_task(self._broadcast_status_update())
-            
-            def points_callback(current: int, initial: int):
-                self.status["current_points"] = current
-                self.status["initial_points"] = initial
-                self.status["points_gained"] = current - initial if initial else 0
-                asyncio.create_task(self._broadcast_points_update())
             
             exit_code = await app.run()
             

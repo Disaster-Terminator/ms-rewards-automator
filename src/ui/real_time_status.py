@@ -307,6 +307,20 @@ class StatusManager:
     
     _instance = None
     _display = None
+    _callbacks = {
+        'operation': None,
+        'progress': None,
+        'desktop_searches': None,
+        'mobile_searches': None,
+        'points': None,
+    }
+    
+    @classmethod
+    def set_callbacks(cls, callbacks: dict):
+        """设置回调函数"""
+        for key, callback in callbacks.items():
+            if key in cls._callbacks:
+                cls._callbacks[key] = callback
     
     @classmethod
     def get_instance(cls, config=None):
@@ -343,30 +357,55 @@ class StatusManager:
         """更新操作状态"""
         if cls._display:
             cls._display.update_operation(operation)
+        if cls._callbacks['operation']:
+            try:
+                cls._callbacks['operation'](operation)
+            except Exception as e:
+                logger.debug(f"操作回调执行失败: {e}")
     
     @classmethod
     def update_progress(cls, current: int, total: int):
         """更新进度"""
         if cls._display:
             cls._display.update_progress(current, total)
+        if cls._callbacks['progress']:
+            try:
+                cls._callbacks['progress'](current, total)
+            except Exception as e:
+                logger.debug(f"进度回调执行失败: {e}")
     
     @classmethod
     def update_desktop_searches(cls, completed: int, total: int):
         """更新桌面搜索进度"""
         if cls._display:
             cls._display.update_desktop_searches(completed, total)
+        if cls._callbacks['desktop_searches']:
+            try:
+                cls._callbacks['desktop_searches'](completed, total)
+            except Exception as e:
+                logger.debug(f"桌面搜索回调执行失败: {e}")
     
     @classmethod
     def update_mobile_searches(cls, completed: int, total: int):
         """更新移动搜索进度"""
         if cls._display:
             cls._display.update_mobile_searches(completed, total)
+        if cls._callbacks['mobile_searches']:
+            try:
+                cls._callbacks['mobile_searches'](completed, total)
+            except Exception as e:
+                logger.debug(f"移动搜索回调执行失败: {e}")
     
     @classmethod
     def update_points(cls, current: int, initial: int = None):
         """更新积分信息"""
         if cls._display:
             cls._display.update_points(current, initial)
+        if cls._callbacks['points']:
+            try:
+                cls._callbacks['points'](current, initial)
+            except Exception as e:
+                logger.debug(f"积分回调执行失败: {e}")
     
     @classmethod
     def show_completion(cls):

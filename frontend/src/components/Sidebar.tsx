@@ -48,15 +48,15 @@ export default function Sidebar() {
       <motion.aside
         variants={sidebarVariants}
         animate={sidebarCollapsed ? 'collapsed' : 'expanded'}
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className={cn(
-          'fixed left-0 top-0 h-full border-r z-50 flex flex-col backdrop-blur-md',
-          darkMode ? 'bg-surface-300/70 border-dark-600/50' : 'bg-white/70 border-gray-200'
+          'fixed left-0 top-0 h-full border-r z-50 flex flex-col backdrop-blur-xl',
+          darkMode ? 'bg-surface/70 border-border' : 'bg-white/70 border-border-light'
         )}
       >
         <div className={cn(
           'flex items-center justify-between h-14 px-3 border-b',
-          darkMode ? 'border-dark-600/50' : 'border-gray-200'
+          darkMode ? 'border-border' : 'border-border-light'
         )}>
           <AnimatePresence mode="wait">
             {!sidebarCollapsed && (
@@ -67,17 +67,17 @@ export default function Sidebar() {
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-2.5"
               >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center shadow-glow-primary">
                   <span className="text-dark-900 font-bold text-sm">MS</span>
                 </div>
                 <div className="flex flex-col">
                   <span className={cn(
                     'font-semibold text-sm leading-tight',
-                    darkMode ? 'text-dark-100' : 'text-gray-900'
+                    darkMode ? 'text-foreground' : 'text-foreground-light'
                   )}>Rewards</span>
                   <span className={cn(
                     'text-xs',
-                    darkMode ? 'text-dark-400' : 'text-gray-500'
+                    darkMode ? 'text-muted' : 'text-muted-foreground'
                   )}>Automator</span>
                 </div>
               </motion.div>
@@ -90,8 +90,8 @@ export default function Sidebar() {
             className={cn(
               'p-1.5 rounded-lg transition-colors',
               darkMode 
-                ? 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/50' 
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
+                ? 'text-muted hover:text-foreground hover:bg-surface' 
+                : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200',
               sidebarCollapsed && 'mx-auto'
             )}
           >
@@ -106,12 +106,12 @@ export default function Sidebar() {
               to={item.path}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group',
                   isActive
                     ? colorClasses[item.color].active
                     : darkMode 
-                      ? 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/30'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
+                      ? 'text-muted hover:text-foreground hover:bg-surface/50'
+                      : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200',
                   sidebarCollapsed && 'justify-center px-2'
                 )
               }
@@ -160,7 +160,7 @@ export default function Sidebar() {
 
         <div className={cn(
           'p-2 border-t',
-          darkMode ? 'border-dark-600/50' : 'border-gray-200'
+          darkMode ? 'border-border' : 'border-border-light'
         )}>
           <AnimatePresence mode="wait">
             {!sidebarCollapsed ? (
@@ -172,17 +172,17 @@ export default function Sidebar() {
                 className="space-y-2"
               >
                 <div className={cn(
-                  'flex items-center justify-between px-3 py-2 rounded-lg',
-                  darkMode ? 'bg-dark-600/20' : 'bg-gray-100'
+                  'flex items-center justify-between px-3 py-2 rounded-xl',
+                  darkMode ? 'bg-surface/50' : 'bg-light-100'
                 )}>
                   <div className="flex items-center gap-2">
                     <Activity size={14} className={cn(
                       'transition-colors',
-                      wsConnected ? 'text-success-400' : darkMode ? 'text-dark-500' : 'text-gray-400'
+                      wsConnected ? 'text-success-400' : darkMode ? 'text-muted' : 'text-muted-foreground'
                     )} />
                     <span className={cn(
                       'text-xs',
-                      darkMode ? 'text-dark-400' : 'text-gray-500'
+                      darkMode ? 'text-muted' : 'text-muted-foreground'
                     )}>WebSocket</span>
                   </div>
                   <motion.div 
@@ -193,7 +193,7 @@ export default function Sidebar() {
                     transition={{ duration: 0.3 }}
                     className={cn(
                       'w-2 h-2 rounded-full',
-                      wsConnected && 'shadow-lg shadow-success-400/50'
+                      wsConnected && 'shadow-glow-success'
                     )}
                   />
                 </div>
@@ -204,13 +204,13 @@ export default function Sidebar() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="px-3 py-2 rounded-lg bg-success-500/10 border border-success-500/20"
+                      className="px-3 py-2 rounded-xl bg-success-500/10 border border-success-500/20"
                     >
                       <div className="flex items-center gap-2">
                         <motion.div 
                           animate={{ scale: [1, 1.2, 1] }}
                           transition={{ duration: 1, repeat: Infinity }}
-                          className="w-2 h-2 bg-success-400 rounded-full shadow-lg shadow-success-400/50" 
+                          className="w-2 h-2 bg-success-400 rounded-full shadow-glow-success" 
                         />
                         <span className="text-xs text-success-400 font-medium">任务运行中</span>
                       </div>
@@ -220,7 +220,7 @@ export default function Sidebar() {
                 
                 <div className={cn(
                   'text-xs text-center py-1',
-                  darkMode ? 'text-dark-500' : 'text-gray-400'
+                  darkMode ? 'text-muted' : 'text-muted-foreground'
                 )}>
                   v1.0.0
                 </div>
@@ -239,14 +239,14 @@ export default function Sidebar() {
                   transition={{ duration: 0.3 }}
                   className={cn(
                     'w-2 h-2 rounded-full',
-                    wsConnected ? 'bg-success-400 shadow-lg shadow-success-400/50' : darkMode ? 'bg-dark-500' : 'bg-gray-400'
+                    wsConnected ? 'bg-success-400 shadow-glow-success' : darkMode ? 'bg-muted' : 'bg-muted-foreground'
                   )}
                 />
                 {taskStatus?.is_running && (
                   <motion.div 
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
-                    className="w-2 h-2 bg-success-400 rounded-full" 
+                    className="w-2 h-2 bg-success-400 rounded-full shadow-glow-success" 
                   />
                 )}
               </motion.div>

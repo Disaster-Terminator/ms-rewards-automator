@@ -39,7 +39,7 @@ class TaskStatusResponse(BaseModel):
     points_gained: int
     error_count: int
     warning_count: int
-    start_time: Optional[str]
+    start_time: Optional[float]
     elapsed_seconds: float
 
 
@@ -88,13 +88,19 @@ class PointsResponse(BaseModel):
 
 def get_services(request: Request):
     """获取服务实例"""
-    return {
-        "task_service": request.app.state.task_service,
-        "config_service": request.app.state.config_service,
-        "log_service": request.app.state.log_service,
-        "health_service": request.app.state.health_service,
-        "connection_manager": request.app.state.connection_manager,
+    services = {
+        "task_service": getattr(request.app.state, 'task_service', None),
+        "config_service": getattr(request.app.state, 'config_service', None),
+        "log_service": getattr(request.app.state, 'log_service', None),
+        "health_service": getattr(request.app.state, 'health_service', None),
+        "connection_manager": getattr(request.app.state, 'connection_manager', None),
     }
+    
+    for name, service in services.items():
+        if service is None:
+            raise HTTPException(status_code=503, detail=f"服务未就绪: {name}")
+    
+    return services
 
 
 @router.get("/status", response_model=TaskStatusResponse)
@@ -110,21 +116,27 @@ async def get_task_status(request: Request):
 @router.post("/task/start")
 async def start_task(request: Request, task_request: TaskStartRequest):
     """启动任务"""
-    services = get_services(request)
-    task_service = services["task_service"]
-    
-    if task_service.is_running:
-        raise HTTPException(status_code=400, detail="任务正在运行中")
-    
-    asyncio.create_task(task_service.start_task(
-        mode=task_request.mode,
-        headless=task_request.headless,
-        desktop_only=task_request.desktop_only,
-        mobile_only=task_request.mobile_only,
-        skip_daily_tasks=task_request.skip_daily_tasks,
-    ))
-    
-    return {"message": "任务已启动", "status": "starting"}
+    try:
+        services = get_services(request)
+        task_service = services["task_service"]
+        
+        if task_service.is_running:
+            raise HTTPException(status_code=400, detail="任务正在运行中")
+        
+        asyncio.create_task(task_service.start_task(
+            mode=task_request.mode,
+            headless=task_request.headless,
+            desktop_only=task_request.desktop_only,
+            mobile_only=task_request.mobile_only,
+            skip_daily_tasks=task_request.skip_daily_tasks,
+        ))
+        
+        return {"message": "任务已启动", "status": "starting"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"启动任务失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"启动任务失败: {str(e)}")
 
 
 @router.post("/task/stop")

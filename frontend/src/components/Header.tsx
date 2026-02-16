@@ -74,23 +74,23 @@ export default function Header() {
     <header 
       data-tauri-drag-region
       className={clsx(
-      'h-14 backdrop-blur-md border-b flex items-center justify-between px-5 sticky top-0 z-40 transition-all duration-300',
+      'h-14 backdrop-blur-xl border-b flex items-center justify-between px-5 sticky top-0 z-40 transition-all duration-300',
       sidebarCollapsed ? 'ml-16' : 'ml-60',
       darkMode 
-        ? 'bg-surface-300/70 border-dark-600/50' 
-        : 'bg-white/70 border-gray-200'
+        ? 'bg-surface/60 border-border' 
+        : 'bg-white/60 border-border-light'
     )}>
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-2.5">
           <div className={clsx(
             'w-2 h-2 rounded-full transition-all duration-300',
             isRunning 
-              ? 'bg-success-400 shadow-lg shadow-success-400/50 animate-pulse-soft' 
-              : darkMode ? 'bg-dark-500' : 'bg-gray-400'
+              ? 'bg-success-400 shadow-glow-success animate-pulse-soft' 
+              : darkMode ? 'bg-muted' : 'bg-muted-foreground'
           )} />
           <span className={clsx(
             'text-sm font-medium transition-colors',
-            isRunning ? 'text-success-400' : darkMode ? 'text-dark-400' : 'text-gray-500'
+            isRunning ? 'text-success-400' : darkMode ? 'text-muted' : 'text-muted-foreground'
           )}>
             {isRunning ? '运行中' : '空闲'}
           </span>
@@ -100,14 +100,14 @@ export default function Header() {
           <div className="flex items-center gap-4 animate-fade-in">
             <span className={clsx(
               'text-sm max-w-[200px] truncate',
-              darkMode ? 'text-dark-300' : 'text-gray-600'
+              darkMode ? 'text-muted' : 'text-muted-foreground'
             )}>
               {taskStatus.current_operation}
             </span>
             <div className="flex items-center gap-2">
               <div className={clsx(
                 'w-20 h-1.5 rounded-full overflow-hidden',
-                darkMode ? 'bg-dark-700' : 'bg-gray-200'
+                darkMode ? 'bg-surface-elevated' : 'bg-light-300'
               )}>
                 <div 
                   className="h-full bg-gradient-to-r from-primary-500 to-cyan-500 rounded-full transition-all duration-300"
@@ -116,7 +116,7 @@ export default function Header() {
               </div>
               <span className={clsx(
                 'text-xs font-mono',
-                darkMode ? 'text-dark-400' : 'text-gray-500'
+                darkMode ? 'text-muted' : 'text-muted-foreground'
               )}>
                 {taskStatus.progress}/{taskStatus.total_steps}
               </span>
@@ -128,7 +128,7 @@ export default function Header() {
       <div className="flex items-center gap-4">
         <div className={clsx(
           'flex items-center gap-2 text-xs',
-          darkMode ? 'text-dark-400' : 'text-gray-500'
+          darkMode ? 'text-muted' : 'text-muted-foreground'
         )}>
           <Clock size={12} />
           <span>{formatLastUpdate(lastDataUpdate)}</span>
@@ -136,20 +136,20 @@ export default function Header() {
 
         <div className={clsx(
           'w-px h-5',
-          darkMode ? 'bg-dark-600/50' : 'bg-gray-200'
+          darkMode ? 'bg-border' : 'bg-border-light'
         )} />
 
         <div className="flex items-center gap-2">
           <div className={clsx(
-            'flex items-center gap-1.5 px-2 py-1 rounded-md',
+            'flex items-center gap-1.5 px-2 py-1 rounded-lg',
             wsConnected 
               ? 'bg-success-500/10' 
-              : darkMode ? 'bg-dark-600/30' : 'bg-gray-100'
+              : darkMode ? 'bg-surface/50' : 'bg-light-100'
           )}>
-            <Circle size={8} className={wsConnected ? 'text-success-400 fill-success-400' : darkMode ? 'text-dark-500' : 'text-gray-400'} />
+            <Circle size={8} className={wsConnected ? 'text-success-400 fill-success-400' : darkMode ? 'text-muted' : 'text-muted-foreground'} />
             <span className={clsx(
               'text-xs',
-              darkMode ? 'text-dark-300' : 'text-gray-600'
+              darkMode ? 'text-muted' : 'text-muted-foreground'
             )}>
               {wsConnected ? '已连接' : '离线'}
             </span>
@@ -157,7 +157,7 @@ export default function Header() {
           
           {overallHealth !== 'healthy' && overallHealth !== 'unknown' && (
             <div className={clsx(
-              'flex items-center gap-1.5 px-2 py-1 rounded-md',
+              'flex items-center gap-1.5 px-2 py-1 rounded-lg',
               overallHealth === 'error' ? 'bg-danger-500/10' : 'bg-warning-500/10'
             )}>
               <Circle size={8} className={clsx(
@@ -166,7 +166,7 @@ export default function Header() {
               )} />
               <span className={clsx(
                 'text-xs',
-                darkMode ? 'text-dark-300' : 'text-gray-600'
+                darkMode ? 'text-muted' : 'text-muted-foreground'
               )}>
                 {overallHealth === 'error' ? '异常' : '警告'}
               </span>
@@ -176,16 +176,16 @@ export default function Header() {
 
         <div className={clsx(
           'w-px h-5',
-          darkMode ? 'bg-dark-600/50' : 'bg-gray-200'
+          darkMode ? 'bg-border' : 'bg-border-light'
         )} />
 
         <button 
           onClick={handleRefresh}
           className={clsx(
-            'p-2 rounded-lg transition-all duration-200',
+            'p-2 rounded-xl transition-all duration-200',
             darkMode 
-              ? 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/50' 
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              ? 'text-muted hover:text-foreground hover:bg-surface' 
+              : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
           )}
           title="刷新数据"
         >
@@ -193,10 +193,10 @@ export default function Header() {
         </button>
 
         <button className={clsx(
-          'relative p-2 rounded-lg transition-all duration-200',
+          'relative p-2 rounded-xl transition-all duration-200',
           darkMode 
-            ? 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/50' 
-            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+            ? 'text-muted hover:text-foreground hover:bg-surface' 
+            : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
         )}>
           <Bell size={16} />
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-danger-400 rounded-full" />
@@ -205,10 +205,10 @@ export default function Header() {
         <button 
           onClick={toggleDarkMode}
           className={clsx(
-            'p-2 rounded-lg transition-all duration-200',
+            'p-2 rounded-xl transition-all duration-200',
             darkMode 
-              ? 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/50' 
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              ? 'text-muted hover:text-foreground hover:bg-surface' 
+              : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
           )}
           title={darkMode ? '切换到亮色模式' : '切换到暗色模式'}
         >
@@ -217,11 +217,11 @@ export default function Header() {
 
         <div className={clsx(
           'w-px h-5',
-          darkMode ? 'bg-dark-600/50' : 'bg-gray-200'
+          darkMode ? 'bg-border' : 'bg-border-light'
         )} />
 
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-primary-500/20">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center shadow-glow-primary">
             <Zap size={14} className="text-dark-900" />
           </div>
         </div>

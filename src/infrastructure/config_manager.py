@@ -368,6 +368,30 @@ class ConfigManager:
         
         return value
     
+    def set(self, key: str, value: Any) -> None:
+        """
+        设置配置项，支持嵌套键（如 'search.desktop_count'）
+        
+        Args:
+            key: 配置键，支持点号分隔的嵌套键
+            value: 配置值
+        """
+        keys = key.split('.')
+        config = self.config
+        
+        for k in keys[:-1]:
+            if k not in config:
+                config[k] = {}
+            config = config[k]
+        
+        config[keys[-1]] = value
+        
+        if self.app:
+            try:
+                self.app = type(self.app).from_dict(self.config)
+            except Exception:
+                pass
+    
     def validate_config(self, auto_fix: bool = False) -> bool:
         """
         验证配置文件的完整性和有效性（增强版）
