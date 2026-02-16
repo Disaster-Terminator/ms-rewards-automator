@@ -4,8 +4,9 @@ TOTP 2FA Handler.
 Handles Time-based One-Time Password (TOTP) two-factor authentication.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
 import pyotp
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 
@@ -63,7 +64,7 @@ class Totp2FAHandler(StateHandler):
         'h1:has-text("Enter the code")',  # 标题检测
     ]
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is the TOTP 2FA page.
 
@@ -96,7 +97,7 @@ class Totp2FAHandler(StateHandler):
         
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle TOTP 2FA by generating and entering code.
         

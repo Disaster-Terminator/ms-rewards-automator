@@ -5,8 +5,11 @@
 
 import asyncio
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from playwright.async_api import Page, ElementHandle
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +52,7 @@ class ElementDetector:
         ".b_algo a[href]",
     ]
     
-    def __init__(self, config=None):
+    def __init__(self, config: Optional['ConfigManager'] = None):
         """
         初始化元素检测器
         
@@ -57,8 +60,8 @@ class ElementDetector:
             config: 配置管理器实例
         """
         self.config = config
-        self.detection_timeout = 10000  # 默认检测超时时间
-        self.retry_count = 3           # 默认重试次数
+        self.detection_timeout: int = 10000  # 默认检测超时时间
+        self.retry_count: int = 3           # 默认重试次数
         
         # 使用类常量作为实例属性，便于测试
         self.search_box_selectors = self.SEARCH_BOX_SELECTORS.copy()

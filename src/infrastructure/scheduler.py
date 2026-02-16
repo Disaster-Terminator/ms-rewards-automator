@@ -8,7 +8,10 @@ import logging
 import random
 import sys
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Callable, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
 
 # Python 3.9+ 使用内置 zoneinfo，Python 3.8 使用 backports
 if sys.version_info >= (3, 9):
@@ -25,7 +28,7 @@ logger = logging.getLogger(__name__)
 class TaskScheduler:
     """任务调度器类"""
 
-    def __init__(self, config):
+    def __init__(self, config: 'ConfigManager'):
         """
         初始化任务调度器
         
@@ -35,41 +38,42 @@ class TaskScheduler:
         self.config = config
 
         # 调度配置
-        self.enabled = config.get("scheduler.enabled", False)
-        self.mode = config.get("scheduler.mode", "scheduled")  # "scheduled", "random", "fixed"
-        self.run_once_on_start = config.get("scheduler.run_once_on_start", True)
+        self.enabled: bool = config.get("scheduler.enabled", False)
+        self.mode: str = config.get("scheduler.mode", "scheduled")  # "scheduled", "random", "fixed"
+        self.run_once_on_start: bool = config.get("scheduler.run_once_on_start", True)
 
         # 时区配置
-        self.timezone_str = config.get("scheduler.timezone", "Asia/Shanghai")
+        self.timezone_str: str = config.get("scheduler.timezone", "Asia/Shanghai")
+        self.timezone: Optional[Any] = None
         try:
             if ZoneInfo is not None:
                 self.timezone = ZoneInfo(self.timezone_str)
             else:
                 logger.warning("zoneinfo 不可用，使用系统本地时区")
                 logger.warning("Python 3.8 用户请安装: pip install backports.zoneinfo")
-                self.timezone = None
         except Exception as e:
             logger.warning(f"无效时区 '{self.timezone_str}'，使用默认时区: {e}")
-            self.timezone = ZoneInfo("Asia/Shanghai") if ZoneInfo else None
+            if ZoneInfo is not None:
+                self.timezone = ZoneInfo("Asia/Shanghai")
             self.timezone_str = "Asia/Shanghai"
 
         # 定时+随机偏移模式配置（推荐）
-        self.scheduled_hour = config.get("scheduler.scheduled_hour", 10)  # 整点时间
-        self.max_offset_minutes = config.get("scheduler.max_offset_minutes", 30)  # 最大偏移量（分钟）
+        self.scheduled_hour: int = config.get("scheduler.scheduled_hour", 10)  # 整点时间
+        self.max_offset_minutes: int = config.get("scheduler.max_offset_minutes", 30)  # 最大偏移量（分钟）
 
         # 随机模式配置（旧）
-        self.random_start_hour = config.get("scheduler.random_start_hour", 8)
-        self.random_end_hour = config.get("scheduler.random_end_hour", 22)
+        self.random_start_hour: int = config.get("scheduler.random_start_hour", 8)
+        self.random_end_hour: int = config.get("scheduler.random_end_hour", 22)
 
         # 固定模式配置（旧）
-        self.fixed_hour = config.get("scheduler.fixed_hour", 10)
-        self.fixed_minute = config.get("scheduler.fixed_minute", 0)
+        self.fixed_hour: int = config.get("scheduler.fixed_hour", 10)
+        self.fixed_minute: int = config.get("scheduler.fixed_minute", 0)
 
         # 测试模式
-        self.test_delay_seconds = config.get("scheduler.test_delay_seconds", 0)
+        self.test_delay_seconds: int = config.get("scheduler.test_delay_seconds", 0)
 
-        self.running = False
-        self.next_run_time = None
+        self.running: bool = False
+        self.next_run_time: Optional[datetime] = None
 
         logger.info(f"任务调度器初始化完成 (enabled={self.enabled}, mode={self.mode}, timezone={self.timezone_str})")
 

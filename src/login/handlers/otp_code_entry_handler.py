@@ -5,7 +5,8 @@ Handles pages where Microsoft asks for email/SMS verification code.
 Attempts to bypass and return to password login.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 
@@ -42,7 +43,7 @@ class OtpCodeEntryHandler(StateHandler):
     ]
 
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is OTP code entry page.
         
@@ -59,7 +60,7 @@ class OtpCodeEntryHandler(StateHandler):
         
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Attempt to bypass OTP code entry and return to password login.
         

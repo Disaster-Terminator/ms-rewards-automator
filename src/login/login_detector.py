@@ -15,8 +15,11 @@ import asyncio
 import logging
 import time
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from playwright.async_api import Page
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +99,7 @@ class LoginDetector:
         "nav button:has-text('Log in')",
     ]
     
-    def __init__(self, config=None):
+    def __init__(self, config: Optional['ConfigManager'] = None):
         """初始化登录检测器"""
         self.config = config
         self.cache = LoginStatusCache()

@@ -4,7 +4,8 @@ Stay Signed In Handler.
 Handles the "Stay signed in?" prompt after successful authentication.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 
@@ -36,7 +37,7 @@ class StaySignedInHandler(StateHandler):
         '[data-testid="kmsiImage"]',  # Image fallback
     ]
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is the "Stay signed in?" page.
         
@@ -73,7 +74,7 @@ class StaySignedInHandler(StateHandler):
         
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle "Stay signed in?" prompt by clicking Yes.
         

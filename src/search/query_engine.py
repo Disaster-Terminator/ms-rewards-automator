@@ -6,8 +6,11 @@ import asyncio
 import random
 import logging
 import time
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING, Any
 from collections import OrderedDict
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +63,7 @@ class QueryEngine:
     Intelligent query engine that aggregates queries from multiple sources
     """
     
-    def __init__(self, config):
+    def __init__(self, config: 'ConfigManager'):
         """
         Initialize query engine
         
@@ -68,7 +71,7 @@ class QueryEngine:
             config: ConfigManager instance
         """
         self.config = config
-        self.sources = []
+        self.sources: List[Any] = []
         self.cache = QueryCache(ttl=config.get("query_engine.cache_ttl", 3600))
         self.logger = logging.getLogger(__name__)
         

@@ -19,6 +19,7 @@ from playwright.async_api import Page
 
 if TYPE_CHECKING:
     from infrastructure.config_manager import ConfigManager
+    from login.login_state_machine import LoginState
 
 
 class StateHandler(ABC):

@@ -4,7 +4,8 @@ Password Input Handler.
 Handles the password input state in Microsoft login flow.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 from ..edge_popup_handler import EdgePopupHandler
@@ -49,7 +50,7 @@ class PasswordInputHandler(StateHandler):
         'button:has-text("No")',
     ]
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is the password input page.
 
@@ -72,7 +73,7 @@ class PasswordInputHandler(StateHandler):
 
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle password input by filling password and clicking sign in.
         
@@ -149,7 +150,7 @@ class PasswordInputHandler(StateHandler):
         self.logger.info("Password input handled successfully")
         return True
     
-    async def _handle_stay_signed_in_prompt(self, page: Any) -> None:
+    async def _handle_stay_signed_in_prompt(self, page: Page) -> None:
         """
         Handle the "Stay signed in?" prompt if it appears.
         
