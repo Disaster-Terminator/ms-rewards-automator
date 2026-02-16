@@ -326,8 +326,6 @@ class AccountManager:
         Returns:
             是否登录成功
         """
-        import asyncio
-
         logger.info("=" * 60)
         logger.info("请在浏览器中手动登录")
         logger.info("=" * 60)
@@ -470,7 +468,9 @@ class AccountManager:
             # 检查是否仍在登录流程中
             # 排除 OAuth 回调页面（这些页面虽然包含 auth，但实际是登录完成的标志）
             is_oauth_callback = (
-                "complete-client-signin" in current_url or "oauth-silent" in current_url
+                "complete-client-signin" in current_url
+                or "oauth-silent" in current_url
+                or "ppsecure/post.srf" in current_url  # Windows Hello 登录完成后的回调页面
             )
             is_in_login_flow = (
                 any(keyword in current_url for keyword in login_keywords) and not is_oauth_callback
@@ -604,7 +604,6 @@ class AccountManager:
             return False
         except Exception as e:
             logger.error(f"自动登录异常: {e}", exc_info=True)
-            return False
             return False
 
     def get_storage_state_path(self) -> str:

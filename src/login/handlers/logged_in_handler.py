@@ -4,7 +4,7 @@ Logged In Handler.
 Detects when user is successfully logged in.
 """
 
-from typing import Any
+from playwright.async_api import Page
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
@@ -39,9 +39,10 @@ class LoggedInHandler(StateHandler):
         "complete-sso-with-redirect",
         "oauth-silent",
         "oauth20",  # 通用 OAuth 回调路径（例如 oauth20_authorize.srf 等）
+        "ppsecure/post.srf",  # Windows Hello 登录完成后的回调页面
     ]
 
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if user is logged in.
 
@@ -72,7 +73,7 @@ class LoggedInHandler(StateHandler):
 
         return False
 
-    async def handle(self, page: Any, credentials: dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: dict[str, str]) -> bool:
         """
         Handle logged in state (no action needed).
 

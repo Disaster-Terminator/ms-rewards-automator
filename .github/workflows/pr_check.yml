@@ -18,8 +18,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: "3.10"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -31,7 +31,7 @@ jobs:
         run: |
           PR_TITLE="${{ github.event.pull_request.title }}"
           echo "PR Title: $PR_TITLE"
-          
+
           if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:\ .+ ]]; then
             echo "::error::PR title must follow Conventional Commits format: type(scope): description"
             echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
@@ -72,14 +72,14 @@ jobs:
             "secret\s*=\s*['\"][^'\"]+['\"]"
             "token\s*=\s*['\"][^'\"]+['\"]"
           )
-          
+
           FOUND=0
           for pattern in "${SENSITIVE_PATTERNS[@]}"; do
             if git diff -U0 origin/main...HEAD | grep -iE "$pattern" | grep -v "your_" | grep -v "example" | grep -v "xxx"; then
               FOUND=1
             fi
           done
-          
+
           if [ $FOUND -eq 1 ]; then
             echo "::warning::Possible sensitive data detected. Please review your changes."
           else
