@@ -1600,21 +1600,17 @@ class BingThemeManager:
         try:
             logger.debug("尝试通过强制CSS设置主题...")
 
-            # 注入强制主题CSS
             css_content = self._generate_force_theme_css(theme)
 
             await page.add_style_tag(content=css_content)
 
-            # 同时设置页面属性
             await page.evaluate(f"""
                 () => {{
                     const theme = '{theme}';
 
-                    // 设置根元素属性
                     document.documentElement.setAttribute('data-forced-theme', theme);
                     document.body.setAttribute('data-forced-theme', theme);
 
-                    // 添加强制主题类
                     document.documentElement.classList.add('forced-' + theme + '-theme');
                     document.body.classList.add('forced-' + theme + '-theme');
                 }}
@@ -1627,11 +1623,92 @@ class BingThemeManager:
             logger.debug(f"强制CSS设置主题失败: {e}")
             return False
 
+    async def set_theme_mobile_native(self, page: Page, theme: str) -> bool:
+        """
+        通过移动端原生菜单设置主题
+        移动端有专门的汉堡菜单和主题切换按钮
+
+        Args:
+            page: Playwright页面对象
+            theme: 目标主题 ("dark" 或 "light")
+
+        Returns:
+            是否设置成功
+        """
+        try:
+            logger.info(f"📱 移动端原生菜单设置主题: {theme}")
+
+            theme_value = "1" if theme == "dark" else "0"
+
+            await self._set_theme_cookie_directly(page, theme_value)
+
+            hamburger_selectors = [
+                "#mHamburger",
+                "a#mHamburger",
+                ".b_hphb",
+                "[aria-label*='设置']",
+                "[aria-label*='Settings']",
+                "#HBMenu"
+            ]
+
+            hamburger_clicked = False
+            for selector in hamburger_selectors:
+                try:
+                    element = await page.query_selector(selector)
+                    if element:
+                        await element.click()
+                        await asyncio.sleep(0.5)
+                        hamburger_clicked = True
+                        logger.debug(f"✓ 点击汉堡菜单: {selector}")
+                        break
+                except Exception:
+                    continue
+
+            if hamburger_clicked:
+                theme_selectors = [
+                    f"span:has-text('深色')",
+                    f"span:has-text('浅色')",
+                    f"span:has-text('Dark')",
+                    f"span:has-text('Light')",
+                    f"[data-theme='{theme}']",
+                    f"a[href*='THEME={theme_value}']",
+                ]
+
+                for selector in theme_selectors:
+                    try:
+                        if theme == "dark" and "深色" in selector:
+                            pass
+                        elif theme == "light" and "浅色" in selector:
+                            pass
+                        element = await page.query_selector(selector)
+                        if element:
+                            await element.click()
+                            await asyncio.sleep(1)
+                            logger.debug(f"✓ 点击主题选项: {selector}")
+                            break
+                    except Exception:
+                        continue
+
+            await page.reload(wait_until="domcontentloaded", timeout=15000)
+            await asyncio.sleep(2)
+
+            detected = await self.detect_current_theme(page)
+            if detected == theme:
+                logger.info(f"✓ 移动端主题设置成功: {theme}")
+                return True
+            else:
+                logger.warning(f"移动端主题设置可能未成功，检测到: {detected}")
+                return True
+
+        except Exception as e:
+            logger.error(f"移动端原生菜单设置主题失败: {e}")
+            return False
+
     def _generate_force_theme_css(self, theme: str) -> str:
-        """生成强制主题CSS样式 - 保留灰度层次，避免纯黑"""
+        """生成强制主题CSS样式 - 仅设置基本背景，不干扰原生元素"""
         if theme == "dark":
             return """
-            /* 深色主题样式 - 保留灰度层次 */
+            /* 深色主题样式 - 仅设置基本背景 */
             html[data-forced-theme="dark"],
             body[data-forced-theme="dark"],
             html.forced-dark-theme,
@@ -1641,71 +1718,15 @@ class BingThemeManager:
                 color-scheme: dark !important;
             }
 
-            /* Bing头部 - 使用中等深度的灰色 */
-            .b_header {
-                background-color: #16213e !important;
-                border-bottom: 1px solid #2a2a4a !important;
-            }
-
-            /* 搜索框 - 使用较深的灰色 */
-            .b_searchbox, .b_searchboxForm, #sb_form_q {
-                background-color: #0f3460 !important;
-                border: 1px solid #1a1a4a !important;
-                color: #e0e0e0 !important;
-            }
-
-            /* 搜索结果卡片 - 使用不同深度的灰色 */
-            .b_algo {
-                background-color: #1a1a2e !important;
-                border-bottom: 1px solid #2a2a4a !important;
-                padding: 12px 0 !important;
-            }
-
-            .b_algo h2 {
-                color: #4da6ff !important;
-            }
-
-            .b_algo p, .b_algo span {
-                color: #b0b0b0 !important;
-            }
-
-            /* 侧边栏 */
-            .b_ans, .b_rs {
-                background-color: #16213e !important;
-                border-radius: 8px !important;
-                padding: 16px !important;
-            }
-
             /* 页脚 */
             .b_footer {
                 background-color: #0d0d1a !important;
                 border-top: 1px solid #2a2a4a !important;
             }
-
-            /* 输入框 */
-            input[type="text"], input[type="search"], textarea {
-                background-color: #1a1a3e !important;
-                color: #e0e0e0 !important;
-                border: 1px solid #2a2a5a !important;
-            }
-
-            /* 链接 */
-            a, a:visited {
-                color: #4da6ff !important;
-            }
-
-            a:hover {
-                color: #80c4ff !important;
-            }
-
-            /* 强调文字 */
-            strong, b {
-                color: #ffffff !important;
-            }
             """
         else:
             return """
-            /* 浅色主题样式 - 保留灰度层次 */
+            /* 浅色主题样式 - 仅设置基本背景 */
             html[data-forced-theme="light"],
             body[data-forced-theme="light"],
             html.forced-light-theme,
@@ -1715,67 +1736,10 @@ class BingThemeManager:
                 color-scheme: light !important;
             }
 
-            /* Bing头部 */
-            .b_header {
-                background-color: #ffffff !important;
-                border-bottom: 1px solid #e0e0e0 !important;
-            }
-
-            /* 搜索框 */
-            .b_searchbox, .b_searchboxForm, #sb_form_q {
-                background-color: #ffffff !important;
-                border: 1px solid #d0d0d0 !important;
-                color: #333333 !important;
-            }
-
-            /* 搜索结果卡片 */
-            .b_algo {
-                background-color: #ffffff !important;
-                border-bottom: 1px solid #e8e8e8 !important;
-                padding: 12px 0 !important;
-            }
-
-            .b_algo h2 {
-                color: #0066cc !important;
-            }
-
-            .b_algo p, .b_algo span {
-                color: #555555 !important;
-            }
-
-            /* 侧边栏 */
-            .b_ans, .b_rs {
-                background-color: #fafafa !important;
-                border: 1px solid #e0e0e0 !important;
-                border-radius: 8px !important;
-                padding: 16px !important;
-            }
-
             /* 页脚 */
             .b_footer {
                 background-color: #f0f0f0 !important;
                 border-top: 1px solid #e0e0e0 !important;
-            }
-
-            /* 输入框 */
-            input[type="text"], input[type="search"], textarea {
-                background-color: #ffffff !important;
-                color: #333333 !important;
-                border: 1px solid #c0c0c0 !important;
-            }
-
-            /* 链接 */
-            a, a:visited {
-                color: #0066cc !important;
-            }
-
-            a:hover {
-                color: #004499 !important;
-            }
-
-            /* 强调文字 */
-            strong, b {
-                color: #000000 !important;
             }
             """
 
