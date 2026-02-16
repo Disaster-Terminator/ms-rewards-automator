@@ -216,7 +216,7 @@ class HumanBehaviorSimulator:
         page: Any,
         target_x: float,
         target_y: float,
-        steps: int = None
+        steps: Optional[int] = None
     ) -> None:
         """
         Move mouse to target position with natural Bezier curve movement.

@@ -4,7 +4,8 @@ Get A Code Handler.
 Handles the "Get a code" 2FA method that requires manual intervention.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 
@@ -25,7 +26,7 @@ class GetACodeHandler(StateHandler):
         'text=Enter the code we sent to',
     ]
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is "Get a code" page.
         
@@ -46,7 +47,7 @@ class GetACodeHandler(StateHandler):
         
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle "Get a code" by logging instructions for manual intervention.
         

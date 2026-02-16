@@ -4,7 +4,8 @@ Email Input Handler.
 Handles the email input state in Microsoft login flow.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 from ..edge_popup_handler import EdgePopupHandler
@@ -47,7 +48,7 @@ class EmailInputHandler(StateHandler):
         'button:has-text("下一步")',
     ]
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is the email input page.
 
@@ -70,7 +71,7 @@ class EmailInputHandler(StateHandler):
 
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle email input by filling email and clicking next.
         

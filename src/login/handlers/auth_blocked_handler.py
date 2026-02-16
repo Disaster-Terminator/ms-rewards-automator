@@ -5,8 +5,9 @@ Handles Microsoft's "Please retry with a different device" error page.
 This occurs when Microsoft's anti-automation system blocks the login attempt.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
 import asyncio
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 
@@ -35,7 +36,7 @@ class AuthBlockedHandler(StateHandler):
         self.max_retries = 3
         self.base_delay = 10  # seconds
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is the auth blocked page.
         
@@ -56,7 +57,7 @@ class AuthBlockedHandler(StateHandler):
         
         return False
 
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle auth blocked by implementing retry logic.
         

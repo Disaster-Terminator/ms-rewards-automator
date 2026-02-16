@@ -10,6 +10,7 @@ import signal
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -21,12 +22,12 @@ from infrastructure.logger import setup_logging
 # 导入新的架构类
 from infrastructure.ms_rewards_app import MSRewardsApp
 
-logger = None
-browser_sim = None
-notificator = None
+logger: Optional[logging.Logger] = None
+browser_sim: Any = None
+notificator: Any = None
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """解析命令行参数"""
     parser = argparse.ArgumentParser(
         description="MS Rewards Automator - 自动化完成 Microsoft Rewards 任务",
@@ -170,7 +171,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-async def test_notification_func(config):
+async def test_notification_func(config: ConfigManager) -> None:
     """测试通知功能"""
     global logger
     from infrastructure.notificator import Notificator
@@ -199,7 +200,7 @@ async def test_notification_func(config):
         print("❌ 测试通知发送失败，请检查配置")
 
 
-async def run_autonomous_test(args):
+async def run_autonomous_test(args: argparse.Namespace) -> int:
     """运行自主测试框架"""
     sys.path.insert(0, str(Path(__file__).parent))
 
@@ -227,7 +228,7 @@ async def run_autonomous_test(args):
         test_config=test_config
     )
 
-    results = {
+    results: Dict[str, Any] = {
         "session_id": runner.screenshot_manager.session_id,
         "tests": {},
         "reports": {}
@@ -300,16 +301,24 @@ async def run_autonomous_test(args):
     return 0 if passed == total else 1
 
 
-def signal_handler(signum, frame):
+def signal_handler(signum: int, frame: Any) -> None:
     """信号处理器"""
     global browser_sim
-    logger.info("\n收到中断信号，正在清理...")
-    if browser_sim:
-        asyncio.create_task(browser_sim.close())
-    sys.exit(0)
+    try:
+        if logger:
+            logger.info("\n收到中断信号，正在清理...")
+        if browser_sim:
+            try:
+                asyncio.create_task(browser_sim.close())
+            except Exception:
+                pass
+    except Exception:
+        pass
+    finally:
+        sys.exit(0)
 
 
-async def main():
+async def main() -> Optional[int]:
     """主函数"""
     global logger
 
@@ -374,7 +383,7 @@ async def main():
     # 测试通知
     if args.test_notification:
         await test_notification_func(config)
-        return
+        return 0
 
     # 自主测试模式
     if args.autonomous_test:
@@ -409,6 +418,7 @@ async def main():
             logger.info("⚡ --schedule-now 参数已设置（现在这是默认行为）")
 
         await scheduler.run_scheduled_task(scheduled_task, run_once_first=run_once_first)
+        return 0
     else:
         # 立即执行 - 使用新的架构
         app = MSRewardsApp(config, args)
@@ -429,7 +439,9 @@ async def main():
             StatusManager.start(config)
 
         await app.run()
+        return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code if exit_code is not None else 0)

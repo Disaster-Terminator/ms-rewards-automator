@@ -280,7 +280,7 @@ class LoginStateMachine:
     
     async def handle_login(
         self,
-        page: Any,
+        page: Page,
         credentials: Dict[str, str],
         max_transitions: Optional[int] = None,
         timeout: Optional[int] = None

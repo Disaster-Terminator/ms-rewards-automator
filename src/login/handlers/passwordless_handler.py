@@ -4,7 +4,8 @@ Passwordless Handler.
 Handles Microsoft's passwordless authentication flow.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict
+from playwright.async_api import Page
 from ..state_handler import StateHandler
 from ..login_state_machine import LoginState
 from ..edge_popup_handler import EdgePopupHandler
@@ -61,7 +62,7 @@ class PasswordlessHandler(StateHandler):
         'button[id="idA_PWD_SwitchToPassword"]',
     ]
     
-    async def can_handle(self, page: Any) -> bool:
+    async def can_handle(self, page: Page) -> bool:
         """
         Check if current page is passwordless prompt.
 
@@ -108,7 +109,7 @@ class PasswordlessHandler(StateHandler):
         
         return False
     
-    async def handle(self, page: Any, credentials: Dict[str, str]) -> bool:
+    async def handle(self, page: Page, credentials: Dict[str, str]) -> bool:
         """
         Handle passwordless by clicking "Use password instead".
         

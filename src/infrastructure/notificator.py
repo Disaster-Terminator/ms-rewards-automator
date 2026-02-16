@@ -6,8 +6,11 @@
 import logging
 import aiohttp
 import json
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from infrastructure.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ logger = logging.getLogger(__name__)
 class Notificator:
     """通知推送器类"""
     
-    def __init__(self, config):
+    def __init__(self, config: 'ConfigManager'):
         """
         初始化通知推送器
         
@@ -25,17 +28,17 @@ class Notificator:
         self.config = config
         
         # 通知配置
-        self.enabled = config.get("notification.enabled", False)
-        self.telegram_enabled = config.get("notification.telegram.enabled", False)
-        self.telegram_bot_token = config.get("notification.telegram.bot_token", "")
-        self.telegram_chat_id = config.get("notification.telegram.chat_id", "")
+        self.enabled: bool = config.get("notification.enabled", False)
+        self.telegram_enabled: bool = config.get("notification.telegram.enabled", False)
+        self.telegram_bot_token: str = config.get("notification.telegram.bot_token", "")
+        self.telegram_chat_id: str = config.get("notification.telegram.chat_id", "")
         
-        self.serverchan_enabled = config.get("notification.serverchan.enabled", False)
-        self.serverchan_key = config.get("notification.serverchan.key", "")
+        self.serverchan_enabled: bool = config.get("notification.serverchan.enabled", False)
+        self.serverchan_key: str = config.get("notification.serverchan.key", "")
         
-        self.whatsapp_enabled = config.get("notification.whatsapp.enabled", False)
-        self.whatsapp_phone = config.get("notification.whatsapp.phone", "")
-        self.whatsapp_apikey = config.get("notification.whatsapp.apikey", "")
+        self.whatsapp_enabled: bool = config.get("notification.whatsapp.enabled", False)
+        self.whatsapp_phone: str = config.get("notification.whatsapp.phone", "")
+        self.whatsapp_apikey: str = config.get("notification.whatsapp.apikey", "")
         
         logger.info(f"通知推送器初始化完成 (enabled={self.enabled})")
         if self.telegram_enabled:
