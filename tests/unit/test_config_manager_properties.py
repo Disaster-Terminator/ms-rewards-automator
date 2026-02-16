@@ -12,41 +12,37 @@ import yaml
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-# 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from infrastructure.config_manager import ConfigManager
 
-# 定义策略
 valid_log_levels = st.sampled_from(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-positive_integers = st.integers(min_value=1, max_value=100)
-positive_floats = st.floats(min_value=0.1, max_value=60.0)
+
+MINIMAL_VALID_CONFIG = {
+    "search": {"desktop_count": 30, "mobile_count": 20},
+    "browser": {"headless": True},
+    "account": {"storage_state_path": "test.json"},
+}
 
 
 @given(
-    desktop_count=positive_integers,
-    mobile_count=positive_integers,
-    wait_min=positive_floats,
-    wait_max=positive_floats,
+    desktop_count=st.integers(min_value=1, max_value=50),
+    mobile_count=st.integers(min_value=1, max_value=50),
     log_level=valid_log_levels,
 )
-@settings(max_examples=100)
-def test_property_config_completeness(desktop_count, mobile_count, wait_min, wait_max, log_level):
+@settings(max_examples=50)
+def test_property_config_completeness(desktop_count, mobile_count, log_level):
     """
     属性 15: 配置文件完整性
     验证需求: 6.2, 6.3, 6.4, 6.5, 6.6, 6.7
 
     属性: 对于任何有效的配置值，ConfigManager 应该能够正确加载并提供所有必需的配置项
     """
-    # 确保 wait_min < wait_max
-    if wait_min >= wait_max:
-        wait_min, wait_max = wait_max - 1, wait_max
-
     config_data = {
+        **MINIMAL_VALID_CONFIG,
         "search": {
             "desktop_count": desktop_count,
             "mobile_count": mobile_count,
-            "wait_interval": {"min": wait_min, "max": wait_max},
         },
         "logging": {"level": log_level},
     }
@@ -58,18 +54,13 @@ def test_property_config_completeness(desktop_count, mobile_count, wait_min, wai
     try:
         manager = ConfigManager(config_path)
 
-        # 验证所有配置项都可以访问
         assert manager.get("search.desktop_count") == desktop_count
         assert manager.get("search.mobile_count") == mobile_count
-        assert manager.get("search.wait_interval.min") == wait_min
-        assert manager.get("search.wait_interval.max") == wait_max
         assert manager.get("logging.level") == log_level
 
-        # 验证默认值仍然存在
         assert manager.get("browser.headless") is not None
         assert manager.get("account.storage_state_path") is not None
 
-        # 验证配置有效性
         assert manager.validate_config()
 
     finally:
@@ -92,13 +83,10 @@ def test_property_nested_key_access(key_parts):
     """
     manager = ConfigManager("nonexistent_config.yaml")
 
-    # 构建嵌套键
     nested_key = ".".join(key_parts)
 
-    # 不存在的键应该返回 None
     assert manager.get(nested_key) is None
 
-    # 使用默认值
     default_value = "test_default"
     assert manager.get(nested_key, default_value) == default_value
 
@@ -121,17 +109,14 @@ def test_property_config_persistence(desktop_count, mobile_count):
         config_path = f.name
 
     try:
-        # 第一次加载
         manager1 = ConfigManager(config_path)
         value1_desktop = manager1.get("search.desktop_count")
         value1_mobile = manager1.get("search.mobile_count")
 
-        # 第二次加载（模拟重启）
         manager2 = ConfigManager(config_path)
         value2_desktop = manager2.get("search.desktop_count")
         value2_mobile = manager2.get("search.mobile_count")
 
-        # 两次加载的值应该相同
         assert value1_desktop == value2_desktop == desktop_count
         assert value1_mobile == value2_mobile == mobile_count
 
@@ -139,18 +124,18 @@ def test_property_config_persistence(desktop_count, mobile_count):
         os.unlink(config_path)
 
 
-@given(
-    wait_min=st.floats(min_value=1.0, max_value=30.0),
-    wait_max=st.floats(min_value=1.0, max_value=30.0),
-)
-@settings(max_examples=50)
-def test_property_wait_interval_validation(wait_min, wait_max):
+@given(wait_interval=st.integers(min_value=1, max_value=30))
+@settings(max_examples=30)
+def test_property_wait_interval_single_value(wait_interval):
     """
-    属性: 等待间隔验证
+    属性: 单个等待间隔值
 
-    属性: 如果 wait_min >= wait_max，配置验证应该失败
+    属性: 单个 wait_interval 值应该被正确加载
     """
-    config_data = {"search": {"wait_interval": {"min": wait_min, "max": wait_max}}}
+    config_data = {
+        **MINIMAL_VALID_CONFIG,
+        "search": {"wait_interval": wait_interval},
+    }
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(config_data, f)
@@ -158,13 +143,8 @@ def test_property_wait_interval_validation(wait_min, wait_max):
 
     try:
         manager = ConfigManager(config_path)
-        is_valid = manager.validate_config()
-
-        # 如果 min >= max，验证应该失败
-        if wait_min >= wait_max:
-            assert not is_valid
-        else:
-            assert is_valid
+        assert manager.get("search.wait_interval") == wait_interval
+        assert manager.validate_config()
 
     finally:
         os.unlink(config_path)

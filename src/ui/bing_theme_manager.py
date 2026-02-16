@@ -180,6 +180,8 @@ class BingThemeManager:
         Returns:
             是否有效
         """
+        import time
+
         try:
             # 检查必需字段
             required_fields = ["theme", "timestamp", "version"]
@@ -196,7 +198,7 @@ class BingThemeManager:
 
             # 检查时间戳是否合理（不能太旧）
             timestamp = theme_state.get("timestamp", 0)
-            current_time = asyncio.get_running_loop().time()
+            current_time = time.time()
             max_age = 30 * 24 * 3600  # 30天
 
             if current_time - timestamp > max_age:
