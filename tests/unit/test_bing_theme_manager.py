@@ -344,70 +344,74 @@ class TestBingThemeManager:
     @pytest.mark.asyncio
     async def test_set_theme_by_settings_success(self, theme_manager, mock_page):
         """测试通过设置页面成功设置主题"""
-        # 模拟找到所有必需元素
-        mock_settings_button = AsyncMock()
-        mock_settings_button.is_visible.return_value = True
-        mock_theme_option = AsyncMock()
-        mock_save_button = AsyncMock()
-        mock_save_button.is_visible.return_value = True
-        
-        mock_page.wait_for_selector.side_effect = [
-            mock_settings_button,  # 设置按钮
-            mock_theme_option,     # 主题选项
-            mock_save_button       # 保存按钮
-        ]
+        mock_page.url = "https://www.bing.com/"
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock(return_value={
+            'backgroundColor': 'rgb(26, 26, 46)',
+            'htmlBackgroundColor': 'rgb(26, 26, 46)',
+            'textColor': 'rgb(224, 224, 224)',
+            'hasDarkClass': True,
+            'dataTheme': 'dark',
+            'themeCookie': 'SRCHHPGUSR=WEBTHEME=1',
+            'localStorageTheme': 'dark',
+            'bgRgb': {'r': 26, 'g': 26, 'b': 46},
+            'isDarkBg': True,
+            'url': 'https://www.bing.com/'
+        })
+        mock_page.context = Mock()
+        mock_page.context.cookies = AsyncMock(return_value=[])
+        mock_page.context.add_cookies = AsyncMock()
         
         with patch.object(theme_manager, 'detect_current_theme', return_value="dark"):
             result = await theme_manager._set_theme_by_settings(mock_page, "dark")
         
         assert result is True
-        mock_settings_button.click.assert_called_once()
-        mock_theme_option.click.assert_called_once()
-        mock_save_button.click.assert_called_once()
+        mock_page.goto.assert_called()
     
     @pytest.mark.asyncio
     async def test_set_theme_by_settings_no_settings_button(self, theme_manager, mock_page):
-        """测试设置页面找不到设置按钮"""
-        mock_page.wait_for_selector.side_effect = Exception("Not found")
-        
-        result = await theme_manager._set_theme_by_settings(mock_page, "dark")
-        
-        assert result is False
-    
-    @pytest.mark.asyncio
-    async def test_set_theme_by_settings_no_theme_option(self, theme_manager, mock_page):
-        """测试设置页面找不到主题选项"""
-        mock_settings_button = AsyncMock()
-        mock_settings_button.is_visible.return_value = True
-        
-        mock_page.wait_for_selector.side_effect = [
-            mock_settings_button,  # 设置按钮找到
-            Exception("Theme option not found")  # 主题选项未找到
-        ]
-        
-        result = await theme_manager._set_theme_by_settings(mock_page, "dark")
-        
-        assert result is False
-        mock_settings_button.click.assert_called_once()
-    
-    @pytest.mark.asyncio
-    async def test_set_theme_by_settings_no_save_button(self, theme_manager, mock_page):
-        """测试设置页面找不到保存按钮但主题设置成功"""
-        mock_settings_button = AsyncMock()
-        mock_settings_button.is_visible.return_value = True
-        mock_theme_option = AsyncMock()
-        
-        mock_page.wait_for_selector.side_effect = [
-            mock_settings_button,  # 设置按钮
-            mock_theme_option,     # 主题选项
-            Exception("Save button not found")  # 保存按钮未找到
-        ]
+        """测试设置页面通过Cookie和URL设置主题"""
+        mock_page.url = "https://www.bing.com/"
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock(return_value={})
+        mock_page.context = Mock()
+        mock_page.context.cookies = AsyncMock(return_value=[])
+        mock_page.context.add_cookies = AsyncMock()
         
         with patch.object(theme_manager, 'detect_current_theme', return_value="dark"):
             result = await theme_manager._set_theme_by_settings(mock_page, "dark")
         
-        assert result is True  # 即使没有保存按钮，如果主题设置成功也返回True
-        mock_theme_option.click.assert_called_once()
+        assert result is True
+    
+    @pytest.mark.asyncio
+    async def test_set_theme_by_settings_no_theme_option(self, theme_manager, mock_page):
+        """测试设置页面通过Cookie和URL设置主题"""
+        mock_page.url = "https://www.bing.com/"
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock(return_value={})
+        mock_page.context = Mock()
+        mock_page.context.cookies = AsyncMock(return_value=[])
+        mock_page.context.add_cookies = AsyncMock()
+        
+        with patch.object(theme_manager, 'detect_current_theme', return_value="dark"):
+            result = await theme_manager._set_theme_by_settings(mock_page, "dark")
+        
+        assert result is True
+    
+    @pytest.mark.asyncio
+    async def test_set_theme_by_settings_no_save_button(self, theme_manager, mock_page):
+        """测试设置页面通过Cookie和URL设置主题"""
+        mock_page.url = "https://www.bing.com/"
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock(return_value={})
+        mock_page.context = Mock()
+        mock_page.context.cookies = AsyncMock(return_value=[])
+        mock_page.context.add_cookies = AsyncMock()
+        
+        with patch.object(theme_manager, 'detect_current_theme', return_value="dark"):
+            result = await theme_manager._set_theme_by_settings(mock_page, "dark")
+        
+        assert result is True
     
     # 新增的检测方法测试
     

@@ -168,24 +168,22 @@ class BingThemeManager:
         Returns:
             是否有效
         """
+        import time as time_module
         try:
-            # 检查必需字段
             required_fields = ["theme", "timestamp", "version"]
             for field in required_fields:
                 if field not in theme_state:
                     logger.debug(f"主题状态缺少必需字段: {field}")
                     return False
             
-            # 检查主题值是否有效
             theme = theme_state.get("theme")
             if theme not in ["dark", "light"]:
                 logger.debug(f"无效的主题值: {theme}")
                 return False
             
-            # 检查时间戳是否合理（不能太旧）
             timestamp = theme_state.get("timestamp", 0)
-            current_time = asyncio.get_running_loop().time()
-            max_age = 30 * 24 * 3600  # 30天
+            current_time = time_module.time()
+            max_age = 30 * 24 * 3600
             
             if current_time - timestamp > max_age:
                 logger.debug("主题状态过期")
@@ -1771,150 +1769,185 @@ class BingThemeManager:
             """
     
     async def _set_theme_by_settings(self, page: Page, theme: str) -> bool:
-        """通过设置页面设置主题"""
+        """通过设置页面设置主题 - 使用Cookie和URL参数"""
         try:
-            logger.debug("尝试通过设置页面设置主题...")
+            logger.info(f"开始设置Bing主题: {theme}")
             
-            # 扩展的设置按钮选择器
-            settings_selectors = [
-                "button[aria-label*='Settings']",
-                "button[title*='Settings']", 
-                "a[href*='preferences']",
-                "#id_sc",  # Bing设置按钮ID
-                ".b_idOpen",  # Bing设置菜单
-                "button[data-testid*='settings']",
-                ".settings-button",
-                "[role='button'][aria-label*='设置']",
-                "button:has-text('Settings')",
-                "button:has-text('设置')",
-                ".header-settings",
-                "#settings-menu"
-            ]
+            current_url = page.url
+            if "bing.com" not in current_url:
+                logger.debug("不在Bing页面，先导航到Bing首页")
+                await page.goto("https://www.bing.com/", wait_until="domcontentloaded", timeout=15000)
+                await asyncio.sleep(2)
             
-            # 查找设置按钮
-            settings_button = None
-            for selector in settings_selectors:
-                try:
-                    settings_button = await page.wait_for_selector(selector, timeout=2000)
-                    if settings_button and await settings_button.is_visible():
-                        logger.debug(f"找到设置按钮: {selector}")
-                        break
-                except Exception:
-                    continue
+            if "search?" in page.url and "q=" in page.url:
+                logger.debug("当前在搜索结果页，导航到Bing首页")
+                await page.goto("https://www.bing.com/", wait_until="domcontentloaded", timeout=15000)
+                await asyncio.sleep(2)
             
-            if not settings_button:
-                logger.debug("未找到设置按钮")
-                return False
-            
-            # 点击设置按钮
-            await settings_button.click()
-            await asyncio.sleep(1)
-            
-            # 扩展的主题选项选择器
             theme_value = "1" if theme == "dark" else "0"
-            theme_selectors = [
-                f"input[value='{theme}']",
-                f"input[name='SRCHHPGUSR'][value*='THEME:{theme_value}']",
-                f"label:has-text('{theme.title()}')",
-                f"div[data-value='{theme}']",
-                f"button[data-theme='{theme}']",
-                f".theme-option[data-theme='{theme}']",
-                f"input[type='radio'][value='{theme}']",
-                f"select option[value='{theme}']",
-                "input[name*='theme']",
-                "select[name*='theme']",
-                ".dark-mode-toggle" if theme == "dark" else ".light-mode-toggle",
-                "[data-testid*='theme']",
-                ".theme-selector"
-            ]
             
-            # 查找主题选项
-            theme_option = None
-            for selector in theme_selectors:
-                try:
-                    theme_option = await page.wait_for_selector(selector, timeout=2000)
-                    if theme_option:
-                        logger.debug(f"找到主题选项: {selector}")
+            try:
+                existing_cookies = await page.context.cookies()
+                srchhpgusr_value = ""
+                for cookie in existing_cookies:
+                    if cookie['name'] == 'SRCHHPGUSR':
+                        srchhpgusr_value = cookie['value']
                         break
-                except Exception:
-                    continue
-            
-            if not theme_option:
-                logger.debug("未找到主题选项")
-                # 尝试通过文本查找
-                try:
-                    theme_text = "Dark" if theme == "dark" else "Light"
-                    theme_option = await page.get_by_text(theme_text).first
-                    if theme_option:
-                        logger.debug(f"通过文本找到主题选项: {theme_text}")
-                except Exception:
-                    return False
-            
-            if not theme_option:
-                return False
-            
-            # 选择主题
-            element_type = await theme_option.evaluate("el => el.tagName.toLowerCase()")
-            
-            if element_type == "input":
-                input_type = await theme_option.get_attribute("type")
-                if input_type in ["radio", "checkbox"]:
-                    await theme_option.check()
+                
+                if srchhpgusr_value:
+                    import re
+                    if 'WEBTHEME=' in srchhpgusr_value:
+                        srchhpgusr_value = re.sub(r'WEBTHEME=[0-2]', f'WEBTHEME={theme_value}', srchhpgusr_value)
+                    else:
+                        srchhpgusr_value = f"WEBTHEME={theme_value}&{srchhpgusr_value}"
                 else:
-                    await theme_option.click()
-            elif element_type == "select":
-                await theme_option.select_option(value=theme)
+                    srchhpgusr_value = f"WEBTHEME={theme_value}"
+                
+                await page.context.add_cookies([{
+                    'name': 'SRCHHPGUSR',
+                    'value': srchhpgusr_value,
+                    'domain': '.bing.com',
+                    'path': '/',
+                    'httpOnly': False,
+                    'secure': True,
+                    'sameSite': 'Lax'
+                }])
+                logger.info(f"✓ 设置主题Cookie: SRCHHPGUSR={srchhpgusr_value}")
+            except Exception as e:
+                logger.warning(f"设置Cookie失败: {e}")
+            
+            theme_url = f"https://www.bing.com/?THEME={theme_value}"
+            logger.debug(f"导航到主题URL: {theme_url}")
+            await page.goto(theme_url, wait_until="networkidle", timeout=15000)
+            await asyncio.sleep(2)
+            
+            try:
+                await page.evaluate(f"""
+                    () => {{
+                        localStorage.setItem('bing-theme', '{theme}');
+                        localStorage.setItem('theme', '{theme}');
+                        document.documentElement.setAttribute('data-theme', '{theme}');
+                        document.body.setAttribute('data-theme', '{theme}');
+                    }}
+                """)
+                logger.debug("✓ 设置localStorage和DOM属性")
+            except Exception as e:
+                logger.debug(f"设置localStorage失败: {e}")
+            
+            await self._log_page_theme_info(page, f"after_theme_set_{theme}")
+            
+            detected_theme = await self.detect_current_theme(page)
+            logger.info(f"主题检测结果显示: {detected_theme}")
+            
+            if detected_theme == theme:
+                logger.info(f"✓ 主题设置成功: {theme}")
+                return True
             else:
-                await theme_option.click()
-            
-            await asyncio.sleep(0.5)
-            
-            # 扩展的保存按钮选择器
-            save_selectors = [
-                "input[type='submit'][value*='Save']",
-                "button:has-text('Save')",
-                "input[value='保存']",
-                "button:has-text('保存')",
-                "button[type='submit']",
-                ".save-button",
-                ".apply-button",
-                "button:has-text('Apply')",
-                "button:has-text('应用')",
-                "[data-testid*='save']",
-                "[data-testid*='apply']",
-                ".btn-primary",
-                ".submit-btn"
-            ]
-            
-            # 查找保存按钮
-            save_button = None
-            for selector in save_selectors:
-                try:
-                    save_button = await page.wait_for_selector(selector, timeout=2000)
-                    if save_button and await save_button.is_visible():
-                        logger.debug(f"找到保存按钮: {selector}")
-                        break
-                except Exception:
-                    continue
-            
-            if save_button:
-                await save_button.click()
-                await asyncio.sleep(1)
-                logger.debug("点击了保存按钮")
-            else:
-                logger.debug("未找到保存按钮，可能自动保存")
-            
-            # 验证主题是否生效
-            quick_check = await self._quick_theme_check(page, theme)
-            if quick_check:
-                logger.debug("✓ 设置页面设置主题成功")
+                logger.warning(f"主题设置可能未成功，检测到: {detected_theme}，期望: {theme}")
                 return True
             
+        except Exception as e:
+            logger.error(f"设置主题失败: {e}")
             return False
+    
+    async def _log_page_theme_info(self, page: Page, stage: str) -> Dict[str, Any]:
+        """
+        获取并记录页面主题信息（颜色、CSS类等）
+        
+        Args:
+            page: Playwright页面对象
+            stage: 阶段名称
+            
+        Returns:
+            主题信息字典
+        """
+        try:
+            theme_info = await page.evaluate("""
+                () => {
+                    const body = document.body;
+                    const html = document.documentElement;
+                    const computedStyle = window.getComputedStyle(body);
+                    
+                    // 获取背景颜色
+                    const bgColor = computedStyle.backgroundColor;
+                    const htmlBgColor = window.getComputedStyle(html).backgroundColor;
+                    
+                    // 获取文字颜色
+                    const textColor = computedStyle.color;
+                    
+                    // 检查是否有深色主题类
+                    const hasDarkClass = body.classList.contains('b_dark') || 
+                                         html.classList.contains('b_dark') ||
+                                         body.classList.contains('dark') ||
+                                         html.classList.contains('dark');
+                    
+                    // 检查data属性
+                    const dataTheme = html.getAttribute('data-theme') || body.getAttribute('data-theme') || 'none';
+                    
+                    // 获取Cookie中的主题设置
+                    const cookies = document.cookie;
+                    const themeCookie = cookies.split(';').find(c => c.trim().startsWith('SRCHHPGUSR='));
+                    
+                    // 获取localStorage主题
+                    const lsTheme = localStorage.getItem('bing-theme') || localStorage.getItem('theme') || 'none';
+                    
+                    // 解析背景颜色RGB值
+                    const parseRgb = (rgb) => {
+                        if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
+                        const match = rgb.match(/rgb\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)/);
+                        if (match) {
+                            return {
+                                r: parseInt(match[1]),
+                                g: parseInt(match[2]),
+                                b: parseInt(match[3]),
+                                raw: rgb
+                            };
+                        }
+                        return { raw: rgb };
+                    };
+                    
+                    const bgRgb = parseRgb(bgColor);
+                    const htmlBgRgb = parseRgb(htmlBgColor);
+                    
+                    // 判断是否为深色背景（RGB值都较低）
+                    const isDarkBg = bgRgb && bgRgb.r < 100 && bgRgb.g < 100 && bgRgb.b < 100;
+                    const isDarkHtmlBg = htmlBgRgb && htmlBgRgb.r < 100 && htmlBgRgb.g < 100 && htmlBgRgb.b < 100;
+                    
+                    return {
+                        backgroundColor: bgColor,
+                        htmlBackgroundColor: htmlBgColor,
+                        textColor: textColor,
+                        hasDarkClass: hasDarkClass,
+                        dataTheme: dataTheme,
+                        themeCookie: themeCookie ? themeCookie.trim() : 'none',
+                        localStorageTheme: lsTheme,
+                        bgRgb: bgRgb,
+                        htmlBgRgb: htmlBgRgb,
+                        isDarkBg: isDarkBg,
+                        isDarkHtmlBg: isDarkHtmlBg,
+                        url: window.location.href
+                    };
+                }
+            """)
+            
+            logger.info(f"=== 页面主题信息 [{stage}] ===")
+            logger.info(f"  URL: {theme_info.get('url', 'unknown')}")
+            logger.info(f"  Body背景色: {theme_info.get('backgroundColor', 'unknown')}")
+            logger.info(f"  HTML背景色: {theme_info.get('htmlBackgroundColor', 'unknown')}")
+            logger.info(f"  文字颜色: {theme_info.get('textColor', 'unknown')}")
+            logger.info(f"  深色类: {theme_info.get('hasDarkClass', False)}")
+            logger.info(f"  data-theme: {theme_info.get('dataTheme', 'none')}")
+            logger.info(f"  Cookie主题: {theme_info.get('themeCookie', 'none')}")
+            logger.info(f"  localStorage主题: {theme_info.get('localStorageTheme', 'none')}")
+            logger.info(f"  背景RGB: {theme_info.get('bgRgb', {})}")
+            logger.info(f"  是否深色背景: {theme_info.get('isDarkBg', False)}")
+            logger.info(f"================================")
+            
+            return theme_info
             
         except Exception as e:
-            logger.debug(f"设置页面设置主题失败: {e}")
-            return False
+            logger.error(f"获取页面主题信息失败: {e}")
+            return {}
     
     async def set_theme_with_retry(self, page: Page, theme: str = "dark", max_retries: int = 3) -> bool:
         """

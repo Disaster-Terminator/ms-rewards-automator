@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -103,10 +104,11 @@ class TestBingThemePersistence:
     @pytest.mark.asyncio
     async def test_load_theme_state(self, theme_manager, temp_theme_file):
         """测试加载主题状态"""
+        import time
         # 准备测试数据
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {"test": "data"},
@@ -193,7 +195,7 @@ class TestBingThemePersistence:
         # 准备保存的状态
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {},
@@ -224,7 +226,7 @@ class TestBingThemePersistence:
         # 准备保存的状态
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {},
@@ -291,7 +293,7 @@ class TestBingThemePersistence:
         # 准备测试数据
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {},
@@ -326,7 +328,7 @@ class TestBingThemePersistence:
         
         # 设置缓存
         theme_manager._theme_state_cache = {"test": "cache"}
-        theme_manager._last_cache_update = asyncio.get_running_loop().time()
+        theme_manager._last_cache_update = time.time()
         
         result = await theme_manager.cleanup_theme_persistence()
         assert result is True

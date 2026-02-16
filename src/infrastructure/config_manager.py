@@ -155,8 +155,8 @@ DEV_MODE_OVERRIDES = {
         "enabled": True,
     },
     "bing_theme": {
-        "enabled": False,
-        "persistence_enabled": False,
+        "enabled": True,
+        "persistence_enabled": True,
     },
     "task_system": {
         "enabled": False,
@@ -195,8 +195,8 @@ USER_MODE_OVERRIDES = {
         "enabled": True,
     },
     "bing_theme": {
-        "enabled": False,
-        "persistence_enabled": False,
+        "enabled": True,
+        "persistence_enabled": True,
     },
     "task_system": {
         "enabled": False,
