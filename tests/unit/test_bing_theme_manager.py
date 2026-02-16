@@ -281,19 +281,14 @@ class TestBingThemeManager:
     
     @pytest.mark.asyncio
     async def test_ensure_theme_before_search_needs_change(self, theme_manager, mock_page):
-        """测试需要更改主题时的搜索前检查"""
-        # 模拟持久化被禁用，这样只会调用一次 set_theme
+        """测试需要更改主题时的搜索前检查（主动设置模式）"""
         theme_manager.persistence_enabled = False
         
-        with patch.object(theme_manager, 'detect_current_theme', new_callable=AsyncMock, return_value="light"):
-            with patch.object(theme_manager, 'set_theme', new_callable=AsyncMock, return_value=True) as mock_set:
-                result = await theme_manager.ensure_theme_before_search(mock_page)
+        with patch.object(theme_manager, 'proactive_set_theme', new_callable=AsyncMock, return_value=True) as mock_proactive:
+            result = await theme_manager.ensure_theme_before_search(mock_page)
         
         assert result is True
-        # 应该至少调用一次 set_theme
-        assert mock_set.call_count >= 1
-        # 验证调用参数
-        mock_set.assert_any_call(mock_page, "dark")
+        mock_proactive.assert_called_once_with(mock_page, "dark")
     
     @pytest.mark.asyncio
     async def test_ensure_theme_before_search_exception(self, theme_manager, mock_page):
@@ -1127,27 +1122,24 @@ class TestBingThemeManagerFailureHandling:
     
     @pytest.mark.asyncio
     async def test_ensure_theme_before_search_with_fallback(self, theme_manager, mock_page):
-        """测试搜索前主题检查使用降级策略"""
-        # 禁用持久化以简化测试
+        """测试搜索前主题检查（主动设置模式）"""
         theme_manager.persistence_enabled = False
         
-        with patch.object(theme_manager, 'detect_current_theme', new_callable=AsyncMock, return_value="light"):
-            with patch.object(theme_manager, 'set_theme', new_callable=AsyncMock, return_value=False):
-                with patch.object(theme_manager, 'set_theme_with_fallback', new_callable=AsyncMock, return_value=True) as mock_fallback:
-                    result = await theme_manager.ensure_theme_before_search(mock_page)
+        with patch.object(theme_manager, 'proactive_set_theme', new_callable=AsyncMock, return_value=True) as mock_proactive:
+            result = await theme_manager.ensure_theme_before_search(mock_page)
         
         assert result is True
-        mock_fallback.assert_called_once_with(mock_page, "dark")
+        mock_proactive.assert_called_once_with(mock_page, "dark")
     
     @pytest.mark.asyncio
     async def test_ensure_theme_before_search_all_fail_continue(self, theme_manager, mock_page):
         """测试搜索前主题检查全部失败但继续搜索"""
-        with patch.object(theme_manager, 'detect_current_theme', return_value="light"):
-            with patch.object(theme_manager, 'set_theme', return_value=False):
-                with patch.object(theme_manager, 'set_theme_with_fallback', return_value=False):
-                    result = await theme_manager.ensure_theme_before_search(mock_page)
+        theme_manager.persistence_enabled = False
         
-        # 即使所有主题设置都失败，也应该返回True以继续搜索
+        with patch.object(theme_manager, 'proactive_set_theme', new_callable=AsyncMock, return_value=False):
+            result = await theme_manager.ensure_theme_before_search(mock_page)
+        
+        # 即使主题设置失败，也应该返回True以继续搜索
         assert result is True
     
     @pytest.mark.asyncio

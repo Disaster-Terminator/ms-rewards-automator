@@ -2127,8 +2127,8 @@ class BingThemeManager:
 
     async def ensure_theme_before_search(self, page: Page, context: BrowserContext | None = None) -> bool:
         """
-        在搜索前确保主题设置正确，包含完善的失败处理和会话间持久化
-        这是任务6.2.2的集成功能：在搜索前确保主题持久化
+        在搜索前确保主题设置正确（主动设置模式）
+        这是任务6.2.2的集成功能：主动设置主题而非被动检测
 
         Args:
             page: Playwright页面对象
@@ -2137,65 +2137,184 @@ class BingThemeManager:
         Returns:
             是否成功（失败不会阻止搜索继续）
         """
-        if not self.enabled or not self.force_theme:
+        if not self.enabled:
+            logger.debug("主题管理已禁用")
             return True
 
         try:
-            logger.debug("搜索前检查主题设置和持久化...")
+            logger.info(f"🎨 主动设置Bing主题: {self.preferred_theme}")
 
-            # 1. 首先检测当前主题
-            current_theme = await self.detect_current_theme(page)
-            logger.debug(f"当前检测到的主题: {current_theme}, 期望主题: {self.preferred_theme}")
+            if context:
+                await self._preset_theme_cookie_in_context(context, self.preferred_theme)
+                logger.debug("✓ 已在上下文中预设主题Cookie")
 
-            # 2. 如果主题已经正确，直接返回（避免不必要的操作）
-            if current_theme == self.preferred_theme:
-                logger.debug(f"主题已正确设置为: {current_theme}")
-                # 确保持久化状态是最新的（只在主题正确时保存）
+            success = await self.proactive_set_theme(page, self.preferred_theme)
+
+            if success:
+                logger.info(f"✓ 主题设置成功: {self.preferred_theme}")
                 if self.persistence_enabled:
                     await self.ensure_theme_persistence(page, context)
                 return True
-
-            # 3. 主题不匹配，需要设置
-            logger.info(f"主题不匹配 (当前: {current_theme}, 期望: {self.preferred_theme})，尝试设置")
-
-            # 首先尝试标准设置
-            success = await self.set_theme(page, self.preferred_theme)
-            if success:
-                logger.debug("搜索前主题设置成功")
-                # 验证设置是否真的生效
-                await asyncio.sleep(0.5)
-                verified_theme = await self.detect_current_theme(page)
-                if verified_theme == self.preferred_theme:
-                    logger.debug(f"主题设置验证成功: {verified_theme}")
-                    # 保存正确的主题状态
-                    if self.persistence_enabled:
-                        await self.ensure_theme_persistence(page, context)
-                    return True
-                else:
-                    logger.warning(f"主题设置验证失败: 期望{self.preferred_theme}, 实际{verified_theme}")
-
-            # 如果标准设置失败，尝试降级策略
-            logger.debug("标准主题设置失败，尝试降级策略...")
-            fallback_success = await self.set_theme_with_fallback(page, self.preferred_theme)
-            if fallback_success:
-                logger.debug("搜索前主题降级设置成功")
-                # 验证降级设置
-                await asyncio.sleep(0.5)
-                verified_theme = await self.detect_current_theme(page)
-                if verified_theme == self.preferred_theme:
-                    logger.debug(f"降级主题设置验证成功: {verified_theme}")
-                    # 保存正确的主题状态
-                    if self.persistence_enabled:
-                        await self.ensure_theme_persistence(page, context)
-                    return True
-
-            # 所有方法都失败，记录警告但不阻止搜索
-            logger.warning(f"搜索前主题设置完全失败，将继续搜索 (当前主题: {current_theme})")
-            return True  # 不阻止搜索继续
+            else:
+                logger.warning(f"主题设置失败，将使用当前主题继续搜索")
+                return True
 
         except Exception as e:
-            logger.warning(f"搜索前主题检查异常: {e}，将继续搜索")
-            return True  # 异常不应该阻止搜索继续
+            logger.warning(f"搜索前主题设置异常: {e}，将继续搜索")
+            return True
+
+    async def proactive_set_theme(self, page: Page, theme: str) -> bool:
+        """
+        主动设置主题（不依赖检测结果，直接设置）
+        这是重新设计的核心方法：主动设置而非被动检测
+
+        Args:
+            page: Playwright页面对象
+            theme: 目标主题 ("dark" 或 "light")
+
+        Returns:
+            是否设置成功
+        """
+        try:
+            logger.info(f"🎯 开始主动设置主题: {theme}")
+
+            theme_value = "1" if theme == "dark" else "0"
+
+            current_url = page.url
+            if "bing.com" not in current_url:
+                logger.debug("不在Bing页面，先导航到Bing首页")
+                await page.goto("https://www.bing.com/", wait_until="domcontentloaded", timeout=15000)
+                await asyncio.sleep(1)
+
+            if "search?" in page.url and "q=" in page.url:
+                logger.debug("当前在搜索结果页，导航到Bing首页设置主题")
+                await page.goto("https://www.bing.com/", wait_until="domcontentloaded", timeout=15000)
+                await asyncio.sleep(1)
+
+            logger.info(f"步骤1: 设置SRCHHPGUSR Cookie (WEBTHEME={theme_value})")
+            cookie_success = await self._set_theme_cookie_directly(page, theme_value)
+            if cookie_success:
+                logger.info("  ✓ Cookie设置成功")
+            else:
+                logger.warning("  ✗ Cookie设置失败")
+
+            logger.info(f"步骤2: 导航到带主题参数的URL")
+            theme_url = f"https://www.bing.com/?THEME={theme_value}"
+            await page.goto(theme_url, wait_until="networkidle", timeout=15000)
+            await asyncio.sleep(1)
+            logger.info(f"  ✓ 已导航到: {theme_url}")
+
+            logger.info(f"步骤3: 设置LocalStorage和DOM属性")
+            await page.evaluate(f"""
+                () => {{
+                    localStorage.setItem('bing-theme', '{theme}');
+                    localStorage.setItem('theme', '{theme}');
+                    localStorage.setItem('theme-preference', '{theme}');
+                    document.documentElement.setAttribute('data-theme', '{theme}');
+                    document.body.setAttribute('data-theme', '{theme}');
+                    document.documentElement.setAttribute('data-bs-theme', '{theme}');
+                }}
+            """)
+            logger.info("  ✓ LocalStorage和DOM属性已设置")
+
+            logger.info(f"步骤4: 注入强制主题CSS样式")
+            css_content = self._generate_force_theme_css(theme)
+            await page.add_style_tag(content=css_content)
+            logger.info("  ✓ CSS样式已注入")
+
+            logger.info(f"步骤5: 验证主题设置结果")
+            await asyncio.sleep(0.5)
+            detected_theme = await self.detect_current_theme(page)
+            logger.info(f"  检测到的主题: {detected_theme}")
+
+            if detected_theme == theme:
+                logger.info(f"✅ 主题设置验证成功: {theme}")
+                return True
+            else:
+                logger.warning(f"⚠️ 主题检测不一致 (期望: {theme}, 检测: {detected_theme})，但CSS已强制应用")
+                await self._log_page_theme_info(page, f"proactive_set_{theme}")
+                return True
+
+        except Exception as e:
+            logger.error(f"主动设置主题失败: {e}")
+            return False
+
+    async def _set_theme_cookie_directly(self, page: Page, theme_value: str) -> bool:
+        """
+        直接设置主题Cookie
+
+        Args:
+            page: Playwright页面对象
+            theme_value: 主题值 ("1" for dark, "0" for light)
+
+        Returns:
+            是否设置成功
+        """
+        try:
+            existing_cookies = await page.context.cookies()
+            srchhpgusr_value = ""
+            for cookie in existing_cookies:
+                if cookie['name'] == 'SRCHHPGUSR':
+                    srchhpgusr_value = cookie['value']
+                    break
+
+            if srchhpgusr_value:
+                import re
+                if 'WEBTHEME=' in srchhpgusr_value:
+                    srchhpgusr_value = re.sub(r'WEBTHEME=[0-2]', f'WEBTHEME={theme_value}', srchhpgusr_value)
+                else:
+                    srchhpgusr_value = f"WEBTHEME={theme_value}&{srchhpgusr_value}"
+            else:
+                srchhpgusr_value = f"WEBTHEME={theme_value}"
+
+            await page.context.add_cookies([{
+                'name': 'SRCHHPGUSR',
+                'value': srchhpgusr_value,
+                'domain': '.bing.com',
+                'path': '/',
+                'httpOnly': False,
+                'secure': True,
+                'sameSite': 'Lax'
+            }])
+
+            logger.debug(f"设置Cookie: SRCHHPGUSR={srchhpgusr_value}")
+            return True
+
+        except Exception as e:
+            logger.error(f"设置主题Cookie失败: {e}")
+            return False
+
+    async def _preset_theme_cookie_in_context(self, context: BrowserContext, theme: str) -> bool:
+        """
+        在浏览器上下文中预设主题Cookie
+        用于在创建上下文时统一桌面和移动主题
+
+        Args:
+            context: 浏览器上下文
+            theme: 目标主题
+
+        Returns:
+            是否设置成功
+        """
+        try:
+            theme_value = "1" if theme == "dark" else "0"
+
+            await context.add_cookies([{
+                'name': 'SRCHHPGUSR',
+                'value': f'WEBTHEME={theme_value}',
+                'domain': '.bing.com',
+                'path': '/',
+                'httpOnly': False,
+                'secure': True,
+                'sameSite': 'Lax'
+            }])
+
+            logger.debug(f"✓ 已在上下文中预设主题Cookie: WEBTHEME={theme_value}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"预设主题Cookie失败: {e}")
+            return False
 
     def get_theme_config(self) -> dict[str, Any]:
         """

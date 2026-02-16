@@ -335,6 +335,25 @@ class BrowserSimulator:
         # 应用反检测脚本
         await self.apply_stealth(context)
         
+        # 预设主题Cookie（在创建页面之前，确保桌面和移动端主题一致）
+        try:
+            from ui.bing_theme_manager import BingThemeManager
+            theme_manager = BingThemeManager(self.config)
+            if theme_manager.enabled:
+                theme_value = "1" if theme_manager.preferred_theme == "dark" else "0"
+                await context.add_cookies([{
+                    'name': 'SRCHHPGUSR',
+                    'value': f'WEBTHEME={theme_value}',
+                    'domain': '.bing.com',
+                    'path': '/',
+                    'httpOnly': False,
+                    'secure': True,
+                    'sameSite': 'Lax'
+                }])
+                logger.info(f"✓ 已在上下文中预设主题Cookie: WEBTHEME={theme_value} ({theme_manager.preferred_theme})")
+        except Exception as e:
+            logger.debug(f"预设主题Cookie失败: {e}")
+        
         # 创建主页面
         main_page = await context.new_page()
         
