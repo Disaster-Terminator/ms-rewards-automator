@@ -71,8 +71,11 @@ logging:
 
 # Bing主题设置
 bing_theme:
-  enabled: false
-  force_theme: false
+  enabled: true # 启用主题管理
+  theme: "dark" # 主题类型: dark 或 light
+  force_theme: true # 强制应用主题（每次搜索前主动设置）
+  persistence_enabled: true # 启用会话间主题持久化
+  theme_state_file: "logs/theme_state.json" # 主题状态文件路径
 
 # 健康监控
 monitoring:
