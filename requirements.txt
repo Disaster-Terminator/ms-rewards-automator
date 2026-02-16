@@ -21,6 +21,12 @@ pytest-benchmark>=5.0.0
 pytest-cov>=6.0.0
 faker>=35.0.0
 
+# Web API 依赖
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=14.0
+python-multipart>=0.0.18
+
 # 可视化和数据分析
 streamlit>=1.41.0
 plotly>=5.24.0
