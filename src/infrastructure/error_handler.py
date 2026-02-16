@@ -2,31 +2,35 @@
 错误处理器模块
 统一错误处理、分类、重试和恢复
 """
-from datetime import datetime
-from enum import Enum
-from typing import Any, Callable
+
 import asyncio
 import logging
 import traceback
+from collections.abc import Callable
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorType(Enum):
     """错误类型枚举"""
-    CONFIGURATION = "configuration"      # 配置错误
-    AUTHENTICATION = "authentication"    # 认证错误
-    NETWORK = "network"                  # 网络错误
+
+    CONFIGURATION = "configuration"  # 配置错误
+    AUTHENTICATION = "authentication"  # 认证错误
+    NETWORK = "network"  # 网络错误
     PAGE_INTERACTION = "page_interaction"  # 页面交互错误
-    BUSINESS_LOGIC = "business_logic"    # 业务逻辑错误
-    UNKNOWN = "unknown"                  # 未知错误
+    BUSINESS_LOGIC = "business_logic"  # 业务逻辑错误
+    UNKNOWN = "unknown"  # 未知错误
 
 
 class ErrorSeverity(Enum):
     """错误严重程度"""
-    LOW = "low"          # 低 - 可以忽略
-    MEDIUM = "medium"    # 中 - 需要记录
-    HIGH = "high"        # 高 - 需要重试
+
+    LOW = "low"  # 低 - 可以忽略
+    MEDIUM = "medium"  # 中 - 需要记录
+    HIGH = "high"  # 高 - 需要重试
     CRITICAL = "critical"  # 严重 - 需要停止
 
 
@@ -77,7 +81,9 @@ class ErrorHandler:
             return ErrorType.NETWORK, ErrorSeverity.HIGH
 
         # 页面交互错误
-        if any(keyword in error_str for keyword in ["selector", "element", "click", "type", "navigate"]):
+        if any(
+            keyword in error_str for keyword in ["selector", "element", "click", "type", "navigate"]
+        ):
             return ErrorType.PAGE_INTERACTION, ErrorSeverity.MEDIUM
 
         # Playwright 特定错误
@@ -100,9 +106,9 @@ class ErrorHandler:
         self,
         error: Exception,
         context: str = "",
-        retry_func: \g<0>Callable] = None,
+        retry_func: Callable | None = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> tuple[bool, Any]:
         """
         统一错误处理
@@ -126,13 +132,13 @@ class ErrorHandler:
             "type": error_type.value,
             "severity": severity.value,
             "message": str(error),
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
 
         self.error_history.append(error_record)
 
         if len(self.error_history) > self._max_history:
-            self.error_history = self.error_history[-self._max_history:]
+            self.error_history = self.error_history[-self._max_history :]
 
         # 记录日志
         log_message = f"错误 [{error_type.value}] [{severity.value}] {context}: {error}"
@@ -150,21 +156,12 @@ class ErrorHandler:
 
         # 如果提供了重试函数且严重程度允许重试
         if retry_func and severity in [ErrorSeverity.HIGH, ErrorSeverity.MEDIUM]:
-            return await self.retry_with_backoff(
-                retry_func,
-                context,
-                *args,
-                **kwargs
-            )
+            return await self.retry_with_backoff(retry_func, context, *args, **kwargs)
 
         return False, None
 
     async def retry_with_backoff(
-        self,
-        func: Callable,
-        context: str,
-        *args,
-        **kwargs
+        self, func: Callable, context: str, *args, **kwargs
     ) -> tuple[bool, Any]:
         """
         使用指数退避重试
@@ -183,7 +180,7 @@ class ErrorHandler:
 
                 # 计算延迟时间
                 if self.use_exponential_backoff:
-                    delay = self.retry_delay * (2 ** attempt)  # 指数退避
+                    delay = self.retry_delay * (2**attempt)  # 指数退避
                 else:
                     delay = self.retry_delay
 
@@ -224,7 +221,7 @@ class ErrorHandler:
             "security check",
             "unusual activity",
             "robot",
-            "verification"
+            "verification",
         ]
 
         content_lower = page_content.lower()
@@ -253,7 +250,7 @@ class ErrorHandler:
             "temporarily unavailable",
             "access denied",
             "账号已锁定",
-            "账号已暂停"
+            "账号已暂停",
         ]
 
         content_lower = page_content.lower()
@@ -320,7 +317,7 @@ class ErrorHandler:
             "total_errors": self.error_count,
             "error_history": self.error_history[-10:],  # 最近10个错误
             "error_types": {},
-            "error_severities": {}
+            "error_severities": {},
         }
 
         # 统计错误类型和严重程度
@@ -346,9 +343,9 @@ class ErrorHandler:
                 return True
 
         # 如果短时间内错误过多，停止执行
-        recent_errors = [e for e in self.error_history[-10:]]
+        recent_errors = list(self.error_history[-10:])
         if len(recent_errors) >= 5:
             logger.warning("短时间内错误过多，建议停止执行")
             return True
 
-        return False\n
+        return False

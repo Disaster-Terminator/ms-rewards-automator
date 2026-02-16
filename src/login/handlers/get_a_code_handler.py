@@ -3,10 +3,12 @@ Get A Code Handler.
 
 Handles the "Get a code" 2FA method that requires manual intervention.
 """
+
 from typing import Any
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class GetACodeHandler(StateHandler):
     """
@@ -19,9 +21,9 @@ class GetACodeHandler(StateHandler):
 
     # Selectors for "Get a code" page
     GET_A_CODE_INDICATORS = [
-        'text=Get a code',
-        'text=We need to verify your identity',
-        'text=Enter the code we sent to',
+        "text=Get a code",
+        "text=We need to verify your identity",
+        "text=Enter the code we sent to",
     ]
 
     async def can_handle(self, page: Any) -> bool:
@@ -59,18 +61,10 @@ class GetACodeHandler(StateHandler):
         Returns:
             False (requires manual intervention)
         """
-        self.logger.warning(
-            "=== MANUAL INTERVENTION REQUIRED ==="
-        )
-        self.logger.warning(
-            "Microsoft is requesting a verification code via email or SMS."
-        )
-        self.logger.warning(
-            "Please check your email/phone and enter the code manually."
-        )
-        self.logger.warning(
-            "The system will wait for the configured timeout period."
-        )
+        self.logger.warning("=== MANUAL INTERVENTION REQUIRED ===")
+        self.logger.warning("Microsoft is requesting a verification code via email or SMS.")
+        self.logger.warning("Please check your email/phone and enter the code manually.")
+        self.logger.warning("The system will wait for the configured timeout period.")
 
         # Wait for manual intervention timeout
         timeout = self.config.get("login.manual_intervention_timeout", 120)
@@ -91,4 +85,4 @@ class GetACodeHandler(StateHandler):
         return [
             LoginState.LOGGED_IN,
             LoginState.ERROR,
-        ]\n
+        ]

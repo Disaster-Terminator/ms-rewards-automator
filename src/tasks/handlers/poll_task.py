@@ -3,13 +3,16 @@ Poll Task Handler
 
 Handles poll tasks where the user needs to select an option and submit.
 """
+
 import asyncio
 import logging
 import random
 
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeout
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from tasks.task_base import Task, TaskMetadata
+
 
 class PollTask(Task):
     """Handler for poll tasks"""
@@ -37,11 +40,7 @@ class PollTask(Task):
         try:
             # Navigate to the poll
             self.logger.debug(f"Navigating to: {self.metadata.destination_url}")
-            await page.goto(
-                self.metadata.destination_url,
-                wait_until="networkidle",
-                timeout=30000
-            )
+            await page.goto(self.metadata.destination_url, wait_until="networkidle", timeout=30000)
 
             # Wait for poll to load
             await page.wait_for_load_state("domcontentloaded")
@@ -71,7 +70,6 @@ class PollTask(Task):
             self.logger.error(f"Error executing poll task: {e}")
             return False
 
-
     async def _select_poll_option(self, page: Page) -> bool:
         """
         Select a random poll option
@@ -86,9 +84,9 @@ class PollTask(Task):
             # Common selectors for poll options
             option_selectors = [
                 'input[type="radio"]',
-                '.poll-option',
+                ".poll-option",
                 '[class*="poll-choice"]',
-                'button[class*="option"]'
+                'button[class*="option"]',
             ]
 
             for selector in option_selectors:
@@ -125,15 +123,13 @@ class PollTask(Task):
                 'input[type="submit"]',
                 'button:has-text("Submit")',
                 'button:has-text("Vote")',
-                '[class*="submit-button"]'
+                '[class*="submit-button"]',
             ]
 
             for selector in submit_selectors:
                 try:
                     submit_button = await page.wait_for_selector(
-                        selector,
-                        timeout=3000,
-                        state="visible"
+                        selector, timeout=3000, state="visible"
                     )
                     if submit_button:
                         await submit_button.click()
@@ -149,4 +145,4 @@ class PollTask(Task):
 
         except Exception as e:
             self.logger.error(f"Error submitting poll: {e}")
-            return False\n
+            return False

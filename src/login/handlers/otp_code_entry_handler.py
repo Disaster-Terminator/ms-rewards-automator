@@ -4,10 +4,12 @@ OTP Code Entry Handler.
 Handles pages where Microsoft asks for email/SMS verification code.
 Attempts to bypass and return to password login.
 """
+
 from typing import Any
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class OtpCodeEntryHandler(StateHandler):
     """
@@ -26,20 +28,19 @@ class OtpCodeEntryHandler(StateHandler):
     OTP_PAGE_INDICATORS = [
         '[data-testid="codeEntry"]',
         'input[name="otc"][type="tel"]',  # Different from TOTP
-        'text=Enter the code we sent to',
-        'text=Enter the access code',
-        'text=输入我们发送的代码',
+        "text=Enter the code we sent to",
+        "text=Enter the access code",
+        "text=输入我们发送的代码",
     ]
 
     # Selectors to bypass OTP
     BYPASS_SELECTORS = [
         '[data-testid="viewFooter"] >> [role="button"]',  # "Use your password"
-        'text=Use your password',
-        'text=使用密码',
-        '#back-button',
+        "text=Use your password",
+        "text=使用密码",
+        "#back-button",
         'button[aria-label="Back"]',
     ]
-
 
     async def can_handle(self, page: Any) -> bool:
         """
@@ -92,4 +93,4 @@ class OtpCodeEntryHandler(StateHandler):
             LoginState.PASSWORD_INPUT,
             LoginState.PASSWORDLESS,
             LoginState.ERROR,
-        ]\n
+        ]

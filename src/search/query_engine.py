@@ -1,11 +1,12 @@
 """
 Query Engine - Intelligent query generation from multiple sources
 """
-from collections import OrderedDict
+
 import asyncio
 import logging
 import random
 import time
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class QueryCache:
         self.cache: OrderedDict = OrderedDict()
         self.logger = logging.getLogger(f"{__name__}.QueryCache")
 
-    def get(self, key: str) -> \g<0>list[str]]:
+    def get(self, key: str) -> list[str] | None:
         """Get cached queries if not expired"""
         if key in self.cache:
             queries, timestamp = self.cache[key]
@@ -77,7 +78,7 @@ class QueryEngine:
 
     def _init_sources(self) -> None:
         """Initialize query sources based on configuration"""
-        from .query_sources import LocalFileSource, BingSuggestionsSource
+        from .query_sources import BingSuggestionsSource, LocalFileSource
 
         # Always include local file source (fallback)
         try:
@@ -103,7 +104,6 @@ class QueryEngine:
                 self.logger.error(f"Failed to initialize BingSuggestionsSource: {e}")
         else:
             self.logger.info("BingSuggestionsSource disabled in config")
-
 
     async def generate_queries(self, count: int, expand: bool = True) -> list[str]:
         """
@@ -201,10 +201,14 @@ class QueryEngine:
             # Expand
             expanded = await api_client.expand_queries(
                 queries_to_expand,
-                suggestions_per_query=self.config.get("query_engine.bing_api.suggestions_per_query", 3)
+                suggestions_per_query=self.config.get(
+                    "query_engine.bing_api.suggestions_per_query", 3
+                ),
             )
 
-            self.logger.debug(f"Expanded {len(queries_to_expand)} queries to {len(expanded)} queries")
+            self.logger.debug(
+                f"Expanded {len(queries_to_expand)} queries to {len(expanded)} queries"
+            )
             return expanded
 
         except Exception as e:
@@ -253,7 +257,7 @@ class QueryEngine:
         """Check if Bing Suggestions source is available"""
         return any(source.get_source_name() == "bing_suggestions" for source in self.sources)
 
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> dict:
         """
         Get query engine statistics
 
@@ -264,5 +268,5 @@ class QueryEngine:
             "sources_count": len(self.sources),
             "sources": [source.get_source_name() for source in self.sources],
             "cache_size": len(self.cache.cache),
-            "cache_ttl": self.cache.ttl
-        }\n
+            "cache_ttl": self.cache.ttl,
+        }

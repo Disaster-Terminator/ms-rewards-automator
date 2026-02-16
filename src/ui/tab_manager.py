@@ -2,11 +2,11 @@
 标签页管理器模块
 处理新标签页的监听、关闭和导航优化
 """
-from typing import Callable
+
 import asyncio
 import logging
 
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import BrowserContext, Page
 
 logger = logging.getLogger(__name__)
 
@@ -160,10 +160,7 @@ class TabManager:
             logger.debug(f"关闭页面时出错: {e}")
 
     async def click_link_in_current_tab(
-        self,
-        page: Page,
-        link_element,
-        timeout: int = 10000
+        self, page: Page, link_element, timeout: int = 10000
     ) -> bool:
         """
         在当前标签页中点击链接，防止新标签页打开
@@ -268,4 +265,4 @@ class TabManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """异步上下文管理器出口"""
-        await self.stop_monitoring()\n
+        await self.stop_monitoring()

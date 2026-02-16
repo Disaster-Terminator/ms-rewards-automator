@@ -4,11 +4,13 @@ Auth Blocked Handler.
 Handles Microsoft's "Please retry with a different device" error page.
 This occurs when Microsoft's anti-automation system blocks the login attempt.
 """
-from typing import Any
+
 import asyncio
+from typing import Any
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class AuthBlockedHandler(StateHandler):
     """
@@ -20,11 +22,11 @@ class AuthBlockedHandler(StateHandler):
 
     # Selectors that indicate auth blocked page
     AUTH_BLOCKED_INDICATORS = [
-        'text=Please retry with a different device',
-        'text=retry with a different device',
-        'text=other authentication method',
-        'text=请使用其他设备重试',
-        'text=使用其他身份验证方法',
+        "text=Please retry with a different device",
+        "text=retry with a different device",
+        "text=other authentication method",
+        "text=请使用其他设备重试",
+        "text=使用其他身份验证方法",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -75,9 +77,7 @@ class AuthBlockedHandler(StateHandler):
         self.retry_count += 1
 
         if self.retry_count > self.max_retries:
-            self.logger.error(
-                f"Auth blocked: Max retries ({self.max_retries}) exceeded"
-            )
+            self.logger.error(f"Auth blocked: Max retries ({self.max_retries}) exceeded")
             return False
 
         # Calculate delay with exponential backoff
@@ -111,4 +111,4 @@ class AuthBlockedHandler(StateHandler):
         return [
             LoginState.EMAIL_INPUT,  # Restart login flow
             LoginState.ERROR,
-        ]\n
+        ]

@@ -1,8 +1,9 @@
 """
 Abstract base class for query sources
 """
-from abc import ABC, abstractmethod
+
 import logging
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
@@ -51,4 +52,4 @@ class QuerySource(ABC):
         Returns:
             True if available, False otherwise
         """
-        pass\n
+        pass

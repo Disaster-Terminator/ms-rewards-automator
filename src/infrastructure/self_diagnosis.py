@@ -8,11 +8,13 @@
 - 控制台日志
 - 可能原因分析
 """
-from datetime import datetime
-from typing import Any, Callable
+
 import asyncio
 import logging
 import os
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +32,12 @@ class SelfDiagnosisSystem:
             self.console_logs.append(f"[{msg.type}] {msg.text}")
             # 限制日志长度，防止内存泄漏
             if len(self.console_logs) > self._max_logs:
-                self.console_logs = self.console_logs[-self._max_logs:]
+                self.console_logs = self.console_logs[-self._max_logs :]
 
         page.on("console", handle_console)
 
     async def monitor_execution(
-        self,
-        operation: Callable,
-        timeout: int = 30,
-        operation_name: str = ""
+        self, operation: Callable, timeout: int = 30, operation_name: str = ""
     ) -> Any:
         """
         监控执行，超时自动诊断
@@ -70,7 +69,7 @@ class SelfDiagnosisSystem:
             raise TimeoutError(
                 f"Operation '{operation_name}' timeout after {timeout}s. "
                 f"See diagnosis report: {report_path}"
-            )
+            ) from None
 
     async def diagnose_timeout(self, operation_name: str) -> dict[str, Any]:
         """
@@ -94,7 +93,7 @@ class SelfDiagnosisSystem:
             "page_title": await self.page.title(),
             "console_logs": self.get_recent_console_logs(),
             "element_states": await self.check_key_elements(),
-            "possible_causes": []
+            "possible_causes": [],
         }
 
         # 分析可能原因
@@ -165,7 +164,7 @@ class SelfDiagnosisSystem:
                     states[name] = {
                         "exists": True,
                         "visible": await element.is_visible(),
-                        "enabled": await element.is_enabled()
+                        "enabled": await element.is_enabled(),
                     }
                 else:
                     states[name] = {"exists": False}
@@ -193,23 +192,21 @@ class SelfDiagnosisSystem:
 
         # 检查：元素存在但不可见
         invisible_elements = [
-            name for name, state in element_states.items()
+            name
+            for name, state in element_states.items()
             if state.get("exists") and not state.get("visible")
         ]
         if invisible_elements:
-            causes.append(
-                f"⚠ Elements exist but not visible: {', '.join(invisible_elements)}"
-            )
+            causes.append(f"⚠ Elements exist but not visible: {', '.join(invisible_elements)}")
 
         # 检查：元素存在但禁用
         disabled_elements = [
-            name for name, state in element_states.items()
+            name
+            for name, state in element_states.items()
             if state.get("exists") and state.get("visible") and not state.get("enabled")
         ]
         if disabled_elements:
-            causes.append(
-                f"⚠ Elements disabled: {', '.join(disabled_elements)}"
-            )
+            causes.append(f"⚠ Elements disabled: {', '.join(disabled_elements)}")
 
         # 检查：控制台错误
         console_logs = diagnosis.get("console_logs", "")
@@ -242,28 +239,28 @@ class SelfDiagnosisSystem:
         # 构建报告内容
         report = f"""# 登录卡住诊断报告
 
-**时间：** {diagnosis['timestamp']}
-**操作：** {diagnosis['operation']}
-**页面：** {diagnosis['page_url']}
+**时间：** {diagnosis["timestamp"]}
+**操作：** {diagnosis["operation"]}
+**页面：** {diagnosis["page_url"]}
 
 ## 截图
-![Screenshot]({diagnosis['screenshot']})
+![Screenshot]({diagnosis["screenshot"]})
 
 ## 页面状态
-- **URL:** {diagnosis['page_url']}
-- **Title:** {diagnosis['page_title']}
+- **URL:** {diagnosis["page_url"]}
+- **Title:** {diagnosis["page_title"]}
 
 ## 元素状态
 """
 
         # 添加元素状态
-        for name, state in diagnosis['element_states'].items():
-            if state.get('exists'):
-                visible = "✅ 可见" if state.get('visible') else "❌ 不可见"
-                enabled = "✅ 启用" if state.get('enabled') else "❌ 禁用"
+        for name, state in diagnosis["element_states"].items():
+            if state.get("exists"):
+                visible = "✅ 可见" if state.get("visible") else "❌ 不可见"
+                enabled = "✅ 启用" if state.get("enabled") else "❌ 禁用"
                 report += f"- **{name}:** 存在, {visible}, {enabled}\n"
             else:
-                error = state.get('error', '')
+                error = state.get("error", "")
                 error_msg = f" ({error})" if error else ""
                 report += f"- **{name}:** ❌ 不存在{error_msg}\n"
 
@@ -271,12 +268,12 @@ class SelfDiagnosisSystem:
         report += f"\n## 控制台日志\n```\n{diagnosis['console_logs']}\n```\n"
 
         # 添加可能原因
-        report += f"\n## 可能原因\n"
-        for i, cause in enumerate(diagnosis['possible_causes'], 1):
+        report += "\n## 可能原因\n"
+        for i, cause in enumerate(diagnosis["possible_causes"], 1):
             report += f"{i}. {cause}\n"
 
         # 添加建议修复
-        report += f"\n## 建议修复\n"
+        report += "\n## 建议修复\n"
         report += "1. 检查截图，确认页面状态\n"
         report += "2. 验证元素选择器是否正确\n"
         report += "3. 检查是否有弹窗或遮罩层\n"
@@ -290,4 +287,4 @@ class SelfDiagnosisSystem:
 
         logger.info(f"📄 Diagnosis report saved: {report_path}")
 
-        return report_path\n
+        return report_path

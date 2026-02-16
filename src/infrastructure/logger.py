@@ -2,15 +2,13 @@
 日志系统模块
 配置和管理应用程序日志
 """
-from datetime import datetime
-from pathlib import Path
+
 import logging
-import os
+from pathlib import Path
+
 
 def setup_logging(
-    log_level: str = "INFO",
-    log_file: \g<0>str] = "logs/automator.log",
-    console: bool = True
+    log_level: str = "INFO", log_file: str | None = "logs/automator.log", console: bool = True
 ) -> logging.Logger:
     """
     设置日志系统
@@ -37,13 +35,12 @@ def setup_logging(
 
     # 日志格式
     formatter = logging.Formatter(
-        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # 文件 handler
     if log_file:
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(getattr(logging, log_level.upper()))
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -72,4 +69,4 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         logger 实例
     """
-    return logging.getLogger(name)\n
+    return logging.getLogger(name)

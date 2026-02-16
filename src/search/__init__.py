@@ -8,4 +8,4 @@ Search module - 搜索引擎模块
 - QueryEngine: 智能查询引擎（多源查询生成）
 - SearchTermGenerator: 传统搜索词生成器
 - BingAPIClient: Bing API 客户端
-"""\n
+"""

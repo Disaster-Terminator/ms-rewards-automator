@@ -2,6 +2,7 @@
 Cookie 弹窗处理模块
 处理网站的 Cookie 同意弹窗
 """
+
 import asyncio
 import logging
 
@@ -92,4 +93,4 @@ class CookieHandler:
             # 例如：通知弹窗、广告弹窗等
 
         except Exception as e:
-            logger.debug(f"自动处理弹窗时出错: {e}")\n
+            logger.debug(f"自动处理弹窗时出错: {e}")

@@ -1,15 +1,16 @@
 """
 Task Manager for orchestrating task discovery and execution
 """
-import asyncio
+
 import logging
 import time
 
 from playwright.async_api import Page
 
 from infrastructure.config_manager import ConfigManager
-from tasks.task_base import Task, TaskMetadata, TaskExecutionReport
+from tasks.task_base import Task, TaskExecutionReport, TaskMetadata
 from tasks.task_parser import TaskParser
+
 
 class TaskManager:
     """Manager for discovering and executing Microsoft Rewards tasks"""
@@ -18,7 +19,7 @@ class TaskManager:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.parser = TaskParser(config)  # Pass config to parser
-        self.task_registry: dict[str, Type[Task]] = {}
+        self.task_registry: dict[str, type[Task]] = {}
         self._register_task_types()
 
     def _register_task_types(self):
@@ -27,19 +28,22 @@ class TaskManager:
         # For now, we'll import and register them dynamically
         try:
             from src.tasks.handlers.url_reward_task import UrlRewardTask
-            self.task_registry['urlreward'] = UrlRewardTask
+
+            self.task_registry["urlreward"] = UrlRewardTask
         except ImportError:
             self.logger.debug("UrlRewardTask handler not yet implemented")
 
         try:
             from src.tasks.handlers.quiz_task import QuizTask
-            self.task_registry['quiz'] = QuizTask
+
+            self.task_registry["quiz"] = QuizTask
         except ImportError:
             self.logger.debug("QuizTask handler not yet implemented")
 
         try:
             from src.tasks.handlers.poll_task import PollTask
-            self.task_registry['poll'] = PollTask
+
+            self.task_registry["poll"] = PollTask
         except ImportError:
             self.logger.debug("PollTask handler not yet implemented")
 
@@ -70,8 +74,7 @@ class TaskManager:
         self.logger.info(f"Created {len(tasks)} task objects")
         return tasks
 
-
-    def _create_task_from_metadata(self, metadata: TaskMetadata) -> \g<0>Task]:
+    def _create_task_from_metadata(self, metadata: TaskMetadata) -> Task | None:
         """
         Create a Task object from metadata
 
@@ -89,14 +92,14 @@ class TaskManager:
             return None
 
         # Skip tasks with specific keywords (immature implementations)
-        skip_keywords = ['拼图', 'puzzle', '问答', 'quiz', '测验', 'test']
+        skip_keywords = ["拼图", "puzzle", "问答", "quiz", "测验", "test"]
         title_lower = metadata.title.lower()
         if any(keyword in title_lower or keyword in metadata.title for keyword in skip_keywords):
             self.logger.debug(f"⏭️  跳过不成熟任务类型: {metadata.title}")
             return None
 
         # Check if task type is enabled in config
-        task_type_key = task_type.replace('urlreward', 'url_reward')  # Handle naming difference
+        task_type_key = task_type.replace("urlreward", "url_reward")  # Handle naming difference
         is_enabled = self.config.get(f"task_system.task_types.{task_type_key}", True)
 
         if not is_enabled:
@@ -115,10 +118,7 @@ class TaskManager:
             return None
 
     async def execute_tasks(
-        self,
-        page: Page,
-        tasks: list[Task],
-        skip_completed: bool = True
+        self, page: Page, tasks: list[Task], skip_completed: bool = True
     ) -> TaskExecutionReport:
         """
         Execute a list of tasks sequentially
@@ -141,8 +141,8 @@ class TaskManager:
         task_details = []
 
         # Get delay configuration
-        min_delay = self.config.get('task_system.min_delay', 2)
-        max_delay = self.config.get('task_system.max_delay', 5)
+        min_delay = self.config.get("task_system.min_delay", 2)
+        max_delay = self.config.get("task_system.max_delay", 5)
 
         for i, task in enumerate(tasks):
             task_type = task.get_type()
@@ -150,74 +150,83 @@ class TaskManager:
             task_points = task.get_points()
 
             # Enhanced logging with task type and points
-            self.logger.info(f"任务 {i+1}/{len(tasks)}: {task_title}")
+            self.logger.info(f"任务 {i + 1}/{len(tasks)}: {task_title}")
             self.logger.info(f"  📋 类型: {task_type} | 积分: {task_points}")
 
             # Skip completed tasks if configured
             if skip_completed and task.is_completed():
-                self.logger.info(f"  ⏭️  跳过（已完成）")
+                self.logger.info("  ⏭️  跳过（已完成）")
                 skipped += 1
-                task_details.append({
-                    'title': task.get_title(),
-                    'type': task.get_type(),
-                    'points': task.get_points(),
-                    'status': 'skipped',
-                    'reason': 'already_completed'
-                })
+                task_details.append(
+                    {
+                        "title": task.get_title(),
+                        "type": task.get_type(),
+                        "points": task.get_points(),
+                        "status": "skipped",
+                        "reason": "already_completed",
+                    }
+                )
                 continue
 
             # Execute task with timeout protection
             try:
                 # Set a task-level timeout (60 seconds per task)
                 import asyncio
-                success = await asyncio.wait_for(
-                    task.execute(page),
-                    timeout=60.0
-                )
+
+                success = await asyncio.wait_for(task.execute(page), timeout=60.0)
 
                 if success:
                     self.logger.info(f"  ✅ 已完成 (+{task.get_points()} 积分)")
                     completed += 1
                     points_earned += task.get_points()
-                    task_details.append({
-                        'title': task.get_title(),
-                        'type': task.get_type(),
-                        'points': task.get_points(),
-                        'status': 'completed'
-                    })
+                    task_details.append(
+                        {
+                            "title": task.get_title(),
+                            "type": task.get_type(),
+                            "points": task.get_points(),
+                            "status": "completed",
+                        }
+                    )
                 else:
-                    self.logger.warning(f"  ❌ 失败")
+                    self.logger.warning("  ❌ 失败")
                     failed += 1
-                    task_details.append({
-                        'title': task.get_title(),
-                        'type': task.get_type(),
-                        'points': task.get_points(),
-                        'status': 'failed'
-                    })
+                    task_details.append(
+                        {
+                            "title": task.get_title(),
+                            "type": task.get_type(),
+                            "points": task.get_points(),
+                            "status": "failed",
+                        }
+                    )
 
             except asyncio.TimeoutError:
-                self.logger.error(f"  ⏱️  超时（60秒）")
+                self.logger.error("  ⏱️  超时（60秒）")
                 failed += 1
-                task_details.append({
-                    'title': task.get_title(),
-                    'type': task.get_type(),
-                    'points': task.get_points(),
-                    'status': 'timeout'
-                })
+                task_details.append(
+                    {
+                        "title": task.get_title(),
+                        "type": task.get_type(),
+                        "points": task.get_points(),
+                        "status": "timeout",
+                    }
+                )
             except Exception as e:
                 self.logger.error(f"  ❌ 执行任务出错: {e}")
                 failed += 1
-                task_details.append({
-                    'title': task.get_title(),
-                    'type': task.get_type(),
-                    'points': task.get_points(),
-                    'status': 'error',
-                    'error': str(e)
-                })
+                task_details.append(
+                    {
+                        "title": task.get_title(),
+                        "type": task.get_type(),
+                        "points": task.get_points(),
+                        "status": "error",
+                        "error": str(e),
+                    }
+                )
 
             # Add delay between tasks (except after last task)
             if i < len(tasks) - 1:
                 import random
+
                 delay = random.uniform(min_delay, max_delay)
                 self.logger.debug(f"  Waiting {delay:.1f}s before next task...")
                 await asyncio.sleep(delay)
@@ -231,13 +240,13 @@ class TaskManager:
             skipped=skipped,
             points_earned=points_earned,
             execution_time=execution_time,
-            task_details=task_details
+            task_details=task_details,
         )
 
         self.logger.info(f"\n{report}")
         return report
 
-    def register_task_type(self, task_type: str, task_class: Type[Task]):
+    def register_task_type(self, task_type: str, task_class: type[Task]):
         """
         Register a new task type handler
 
@@ -246,4 +255,4 @@ class TaskManager:
             task_class: Task class to handle this type
         """
         self.task_registry[task_type] = task_class
-        self.logger.info(f"Registered task type: {task_type}")\n
+        self.logger.info(f"Registered task type: {task_type}")

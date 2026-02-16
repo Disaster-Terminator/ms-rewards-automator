@@ -1,9 +1,10 @@
 """
 Bing Suggestions API client for query expansion
 """
-from urllib.parse import quote
+
 import asyncio
 import logging
+from urllib.parse import quote
 
 import aiohttp
 
@@ -24,12 +25,16 @@ class BingAPIClient:
             config: ConfigManager instance
         """
         self.config = config
-        self.rate_limit_delay = 60 / config.get("query_engine.bing_api.rate_limit", 10)  # seconds between requests
+        self.rate_limit_delay = 60 / config.get(
+            "query_engine.bing_api.rate_limit", 10
+        )  # seconds between requests
         self.last_request_time = 0
         self.max_retries = config.get("query_engine.bing_api.max_retries", 3)
         self.timeout = config.get("query_engine.bing_api.timeout", 15)
 
-        logger.info(f"BingAPIClient initialized with rate limit: {self.rate_limit_delay:.2f}s between requests")
+        logger.info(
+            f"BingAPIClient initialized with rate limit: {self.rate_limit_delay:.2f}s between requests"
+        )
 
     async def get_suggestions(self, query: str) -> list[str]:
         """
@@ -56,8 +61,10 @@ class BingAPIClient:
                     return []
 
             except aiohttp.ClientError as e:
-                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
-                logger.warning(f"Bing API request failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+                wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                logger.warning(
+                    f"Bing API request failed (attempt {attempt + 1}/{self.max_retries}): {e}"
+                )
 
                 if attempt < self.max_retries - 1:
                     logger.debug(f"Retrying in {wait_time}s...")
@@ -87,7 +94,9 @@ class BingAPIClient:
 
         async with self._semaphore:
             session = await self._get_session()
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=self.timeout)) as response:
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=self.timeout)
+            ) as response:
                 response.raise_for_status()
                 data = await response.json()
 
@@ -110,7 +119,9 @@ class BingAPIClient:
 
         self.last_request_time = asyncio.get_running_loop().time()
 
-    async def expand_queries(self, base_queries: list[str], suggestions_per_query: int = 3) -> list[str]:
+    async def expand_queries(
+        self, base_queries: list[str], suggestions_per_query: int = 3
+    ) -> list[str]:
         """
         Expand a list of base queries using Bing suggestions
 
@@ -130,4 +141,4 @@ class BingAPIClient:
             expanded.extend(suggestions[:suggestions_per_query])
 
         logger.info(f"Expanded {len(base_queries)} queries to {len(expanded)} queries")
-        return expanded\n
+        return expanded

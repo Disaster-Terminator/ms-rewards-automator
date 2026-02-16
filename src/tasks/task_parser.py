@@ -2,13 +2,14 @@
 Task Parser for extracting task information from Microsoft Rewards dashboard
 Supports the new React-based rewards.bing.com dashboard (2025+)
 """
-from typing import Final
-import logging
-import re
 
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeout
+import logging
+
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from tasks.task_base import TaskMetadata
+
 
 class TaskParser:
     """Parser for Microsoft Rewards dashboard tasks"""
@@ -29,12 +30,12 @@ class TaskParser:
         try:
             # Navigate to rewards dashboard if not already there
             current_url = page.url
-            on_rewards_page = "rewards.microsoft.com" in current_url or "rewards.bing.com" in current_url
+            on_rewards_page = (
+                "rewards.microsoft.com" in current_url or "rewards.bing.com" in current_url
+            )
             if not on_rewards_page:
                 await page.goto(
-                    "https://rewards.bing.com/",
-                    wait_until="domcontentloaded",
-                    timeout=30000
+                    "https://rewards.bing.com/", wait_until="domcontentloaded", timeout=30000
                 )
 
             # Wait for OAuth redirect to complete (if any)
@@ -92,7 +93,11 @@ class TaskParser:
                 except PlaywrightTimeout:
                     self.logger.warning("  OAuth 自动登录超时，尝试直接导航到 dashboard...")
                     try:
-                        await page.goto("https://rewards.bing.com/dashboard", wait_until="networkidle", timeout=30000)
+                        await page.goto(
+                            "https://rewards.bing.com/dashboard",
+                            wait_until="networkidle",
+                            timeout=30000,
+                        )
                         await page.wait_for_timeout(2000)
                         new_url = page.url
                         self.logger.info(f"  导航后 URL: {new_url}")
@@ -120,7 +125,11 @@ class TaskParser:
                     self.logger.info("  页面已包含 dashboard 内容，继续执行")
                 else:
                     self.logger.warning("  页面不包含 dashboard 内容，尝试强制导航...")
-                    await page.goto("https://rewards.bing.com/dashboard", wait_until="networkidle", timeout=30000)
+                    await page.goto(
+                        "https://rewards.bing.com/dashboard",
+                        wait_until="networkidle",
+                        timeout=30000,
+                    )
                     await page.wait_for_timeout(2000)
             except Exception as e:
                 self.logger.warning(f"  内容检查失败: {e}")
@@ -147,7 +156,7 @@ class TaskParser:
             "section#offers",
             "section#snapshot",
             "section[id*='streak']",
-            "section[id*='offer']"
+            "section[id*='offer']",
         ]
         section_found = False
 
@@ -169,8 +178,14 @@ class TaskParser:
             try:
                 current_url = page.url
                 if "login" in current_url.lower() or "oauth" in current_url.lower():
-                    self.logger.warning("  Page navigated away, attempting to return to dashboard...")
-                    await page.goto("https://rewards.bing.com/dashboard", wait_until="domcontentloaded", timeout=30000)
+                    self.logger.warning(
+                        "  Page navigated away, attempting to return to dashboard..."
+                    )
+                    await page.goto(
+                        "https://rewards.bing.com/dashboard",
+                        wait_until="domcontentloaded",
+                        timeout=30000,
+                    )
                     await page.wait_for_timeout(2000)
             except Exception:
                 pass
@@ -201,7 +216,7 @@ class TaskParser:
             login_selectors = [
                 'input[name="loginfmt"]',
                 'input[type="email"]',
-                '#i0116',
+                "#i0116",
             ]
 
             for selector in login_selectors:
@@ -351,12 +366,12 @@ class TaskParser:
 
             for i, raw in enumerate(raw_tasks):
                 try:
-                    title = raw.get('title', f'Task {i + 1}')
-                    href = raw.get('href', '')
-                    points = raw.get('points', 0)
-                    task_type = raw.get('taskType', 'urlreward')
-                    completed = raw.get('completed', False)
-                    section_id = raw.get('sectionId', '')
+                    title = raw.get("title", f"Task {i + 1}")
+                    href = raw.get("href", "")
+                    points = raw.get("points", 0)
+                    task_type = raw.get("taskType", "urlreward")
+                    completed = raw.get("completed", False)
+                    section_id = raw.get("sectionId", "")
 
                     metadata = TaskMetadata(
                         task_id=f"{section_id}_{i}",
@@ -365,10 +380,12 @@ class TaskParser:
                         points=points,
                         is_completed=completed,
                         destination_url=href,
-                        promotion_type=task_type
+                        promotion_type=task_type,
                     )
                     tasks.append(metadata)
-                    self.logger.debug(f"  ✓ Parsed: {title} (type={task_type}, pts={points}, done={completed})")
+                    self.logger.debug(
+                        f"  ✓ Parsed: {title} (type={task_type}, pts={points}, done={completed})"
+                    )
                 except Exception as e:
                     self.logger.debug(f"  ✗ Failed to parse task {i}: {e}")
                     continue
@@ -387,6 +404,7 @@ class TaskParser:
 
         import os
         from datetime import datetime
+
         os.makedirs("logs/diagnostics", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -409,11 +427,11 @@ class TaskParser:
         """Determine task type from promotion type"""
         promotion_type_lower = promotion_type.lower()
 
-        if 'quiz' in promotion_type_lower:
-            return 'quiz'
-        elif 'poll' in promotion_type_lower:
-            return 'poll'
-        elif 'urlreward' in promotion_type_lower or 'url' in promotion_type_lower:
-            return 'urlreward'
+        if "quiz" in promotion_type_lower:
+            return "quiz"
+        elif "poll" in promotion_type_lower:
+            return "poll"
+        elif "urlreward" in promotion_type_lower or "url" in promotion_type_lower:
+            return "urlreward"
         else:
-            return 'urlreward'\n
+            return "urlreward"

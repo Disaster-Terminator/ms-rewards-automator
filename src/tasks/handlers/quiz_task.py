@@ -4,15 +4,18 @@ Quiz Task Handler
 Handles interactive quiz tasks. This is a basic implementation that attempts
 to answer quiz questions.
 """
-from datetime import datetime
-from pathlib import Path
+
 import asyncio
 import logging
 import random
+from datetime import datetime
+from pathlib import Path
 
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeout
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from tasks.task_base import Task, TaskMetadata
+
 
 class QuizTask(Task):
     """Handler for quiz tasks"""
@@ -44,7 +47,7 @@ class QuizTask(Task):
                 await page.goto(
                     self.metadata.destination_url,
                     wait_until="domcontentloaded",  # 改为更宽松的等待条件
-                    timeout=60000  # 增加到60秒
+                    timeout=60000,  # 增加到60秒
                 )
             except PlaywrightTimeout:
                 self.logger.warning("Page load timeout, but continuing...")
@@ -55,14 +58,14 @@ class QuizTask(Task):
             await asyncio.sleep(3)  # 增加等待时间
 
             # Attempt to answer quiz questions
-            self.logger.info(f"🎯 查找Quiz问题...")
+            self.logger.info("🎯 查找Quiz问题...")
             questions_answered = await self._answer_quiz_questions(page)
 
             if questions_answered > 0:
                 self.logger.info(f"✅ 已回答 {questions_answered} 个问题")
                 return True
             else:
-                self.logger.warning(f"⚠️  未找到或未回答任何问题")
+                self.logger.warning("⚠️  未找到或未回答任何问题")
                 return False
 
         except PlaywrightTimeout:
@@ -73,7 +76,6 @@ class QuizTask(Task):
             self.logger.error(f"❌ 执行Quiz任务出错: {e}")
             await self._save_debug_screenshot(page, "quiz_error")
             return False
-
 
     async def _answer_quiz_questions(self, page: Page) -> int:
         """
@@ -90,7 +92,7 @@ class QuizTask(Task):
 
         try:
             for i in range(max_questions):
-                self.logger.debug(f"Looking for question {i+1}...")
+                self.logger.debug(f"Looking for question {i + 1}...")
 
                 # Wait a bit for question to appear
                 await asyncio.sleep(1)
@@ -130,13 +132,13 @@ class QuizTask(Task):
         try:
             # Strategy 1: Try common quiz option selectors
             answer_selectors = [
-                '.rqOption',  # Rewards quiz
-                'div.rqOption',  # 标准quiz选项
-                'a.rqOption',  # 链接形式的选项
+                ".rqOption",  # Rewards quiz
+                "div.rqOption",  # 标准quiz选项
+                "a.rqOption",  # 链接形式的选项
                 '[class*="quiz-option"]',
                 '[class*="answer-option"]',
                 'button[class*="option"]',
-                '.wk-button',
+                ".wk-button",
                 # ABC Quiz specific selectors
                 'input[type="radio"]',  # 单选按钮
                 'input[type="checkbox"]',  # 多选按钮
@@ -146,7 +148,7 @@ class QuizTask(Task):
                 'div[class*="option"]:not([class*="more"]):not([class*="feedback"])',
             ]
 
-            self.logger.debug(f"🔍 尝试查找答案选项...")
+            self.logger.debug("🔍 尝试查找答案选项...")
 
             for selector in answer_selectors:
                 options = await page.query_selector_all(selector)
@@ -170,18 +172,20 @@ class QuizTask(Task):
                         self.logger.info(f"  ✓ 已选择答案 (选择器: {selector})")
                         return True
                     else:
-                        self.logger.debug(f"  但没有可见且可用的选项")
+                        self.logger.debug("  但没有可见且可用的选项")
 
             # Strategy 2: Look for elements containing option text (A., B., C., etc.)
             self.logger.debug("🔍 尝试通过文本模式查找...")
-            option_patterns = ['A.', 'B.', 'C.', 'D.', 'E.']
+            option_patterns = ["A.", "B.", "C.", "D.", "E."]
             for pattern in option_patterns:
                 try:
                     # Try to find clickable elements containing the pattern
                     element = await page.query_selector(f'text="{pattern}"')
                     if element:
                         # Get the parent clickable element
-                        parent = await element.evaluate_handle('el => el.closest("button, a, div[role=button], [onclick]")')
+                        parent = await element.evaluate_handle(
+                            'el => el.closest("button, a, div[role=button], [onclick]")'
+                        )
                         if parent:
                             await parent.as_element().click()
                             self.logger.info(f"  ✓ 已选择答案 (文本模式: {pattern})")
@@ -216,16 +220,12 @@ class QuizTask(Task):
                 'text="Quiz Complete"',
                 'text="You earned"',
                 '[class*="quiz-complete"]',
-                '[class*="success"]'
+                '[class*="success"]',
             ]
 
             for indicator in completion_indicators:
                 try:
-                    element = await page.wait_for_selector(
-                        indicator,
-                        timeout=1000,
-                        state="visible"
-                    )
+                    element = await page.wait_for_selector(indicator, timeout=1000, state="visible")
                     if element:
                         return True
                 except PlaywrightTimeout:
@@ -255,4 +255,4 @@ class QuizTask(Task):
             self.logger.info(f"🔍 Debug screenshot saved: {screenshot_path}")
 
         except Exception as e:
-            self.logger.debug(f"Failed to save debug screenshot: {e}")\n
+            self.logger.debug(f"Failed to save debug screenshot: {e}")

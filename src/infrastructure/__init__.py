@@ -10,4 +10,4 @@ Infrastructure module - 基础设施模块
 - ConfigManager: 配置管理器
 - Container: 依赖注入容器
 - models: 数据模型定义
-"""\n
+"""

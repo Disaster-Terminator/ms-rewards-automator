@@ -3,11 +3,13 @@ Passwordless Handler.
 
 Handles Microsoft's passwordless authentication flow.
 """
+
 from typing import Any
 
 from ..edge_popup_handler import EdgePopupHandler
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class PasswordlessHandler(StateHandler):
     """
@@ -24,32 +26,28 @@ class PasswordlessHandler(StateHandler):
 
     # Selectors for passwordless page
     PASSWORDLESS_INDICATORS = [
-        'text=Use your password instead',
-        'text=Sign in another way',
-        'text=Other ways to sign in',
-        'text=Use your password',  # 新增
+        "text=Use your password instead",
+        "text=Sign in another way",
+        "text=Other ways to sign in",
+        "text=Use your password",  # 新增
     ]
 
     USE_PASSWORD_SELECTORS = [
         # ✅ 已验证成功的选择器（最优先）
         'div:has(svg) >> text="Use your password"',
-
         # 精确匹配选择器
         'div[data-value="Password"]',
         'div:text-is("Use your password")',
         '[data-value="Password"]',
-
         # 通用选择器
         'div:has-text("Use your password")',
         '[role="button"]:has-text("Use your password")',
         'button:has-text("Use your password")',
         'a:has-text("Use your password")',
-
         # 中文版本
         'div:has(svg) >> text="使用密码"',
         'div:text-is("使用密码")',
         'div:has-text("使用密码")',
-
         # 旧版选择器（向后兼容）
         'a:has-text("Use your password instead")',
         'button:has-text("Use your password instead")',
@@ -82,8 +80,8 @@ class PasswordlessHandler(StateHandler):
         totp_indicators = [
             'input[name="otc"]',
             'input[id="idTxtBx_SAOTCC_OTC"]',
-            'text=Enter the code from your authenticator app',
-            'text=Enter code',
+            "text=Enter the code from your authenticator app",
+            "text=Enter code",
         ]
 
         for indicator in totp_indicators:
@@ -127,7 +125,7 @@ class PasswordlessHandler(StateHandler):
         clicked = False
         for selector in self.USE_PASSWORD_SELECTORS:
             try:
-                element = await page.wait_for_selector(selector, timeout=3000, state='visible')
+                element = await page.wait_for_selector(selector, timeout=3000, state="visible")
                 if element:
                     await element.click()
                     self.logger.info(f"✓ 成功点击: {selector}")
@@ -142,11 +140,12 @@ class PasswordlessHandler(StateHandler):
             try:
                 import os
                 from datetime import datetime
+
                 os.makedirs("logs/diagnostics", exist_ok=True)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 html_path = f"logs/diagnostics/passwordless_clicked_{timestamp}.html"
                 content = await page.content()
-                with open(html_path, 'w', encoding='utf-8') as f:
+                with open(html_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 self.logger.info(f"点击后 HTML 已保存: {html_path}")
             except Exception as e:
@@ -161,7 +160,7 @@ class PasswordlessHandler(StateHandler):
             ]
             for selector in js_selectors:
                 try:
-                    result = await page.evaluate(f'''
+                    result = await page.evaluate(f"""
                         () => {{
                             const element = document.querySelector('{selector}');
                             if (element) {{
@@ -170,7 +169,7 @@ class PasswordlessHandler(StateHandler):
                             }}
                             return false;
                         }}
-                    ''')
+                    """)
                     if result:
                         self.logger.info(f"✓ JavaScript 点击成功: {selector}")
                         clicked = True
@@ -185,6 +184,7 @@ class PasswordlessHandler(StateHandler):
             try:
                 import os
                 from datetime import datetime
+
                 os.makedirs("logs/diagnostics", exist_ok=True)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -196,7 +196,7 @@ class PasswordlessHandler(StateHandler):
                 # 保存 HTML
                 html_path = f"logs/diagnostics/passwordless_{timestamp}.html"
                 content = await page.content()
-                with open(html_path, 'w', encoding='utf-8') as f:
+                with open(html_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 self.logger.info(f"HTML 已保存: {html_path}")
             except Exception as e:
@@ -219,4 +219,4 @@ class PasswordlessHandler(StateHandler):
         return [
             LoginState.PASSWORD_INPUT,
             LoginState.ERROR,
-        ]\n
+        ]

@@ -1,20 +1,38 @@
 """
 Bing Suggestions query source - fetches queries from Bing Suggestions API
 """
+
 import random
 
 from ..bing_api_client import BingAPIClient
 from .query_source import QuerySource
+
 
 class BingSuggestionsSource(QuerySource):
     """Query source that fetches suggestions from Bing Suggestions API"""
 
     # Seed queries to bootstrap suggestions
     SEED_QUERIES = [
-        "technology", "science", "health", "travel", "food",
-        "sports", "entertainment", "business", "education", "news",
-        "weather", "finance", "shopping", "music", "movies",
-        "books", "games", "art", "history", "culture"
+        "technology",
+        "science",
+        "health",
+        "travel",
+        "food",
+        "sports",
+        "entertainment",
+        "business",
+        "education",
+        "news",
+        "weather",
+        "finance",
+        "shopping",
+        "music",
+        "movies",
+        "books",
+        "games",
+        "art",
+        "history",
+        "culture",
     ]
 
     def __init__(self, config):
@@ -54,7 +72,7 @@ class BingSuggestionsSource(QuerySource):
                     break
 
                 suggestions = await self.api_client.get_suggestions(seed)
-                queries.extend(suggestions[:self.suggestions_per_seed])
+                queries.extend(suggestions[: self.suggestions_per_seed])
 
             # Trim to requested count
             queries = queries[:count]
@@ -74,4 +92,4 @@ class BingSuggestionsSource(QuerySource):
 
     def is_available(self) -> bool:
         """Check if this source is available"""
-        return self._available\n
+        return self._available

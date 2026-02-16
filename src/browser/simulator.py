@@ -2,6 +2,7 @@
 浏览器模拟器模块
 创建和配置不同平台的浏览器实例，集成反检测机制
 """
+
 import asyncio
 import logging
 import os
@@ -41,7 +42,9 @@ class BrowserSimulator:
             self.playwright = await async_playwright().start()
             logger.info("Playwright 已启动")
 
-    def _get_browser_args(self, device_type: str = "desktop", browser_type: str = "chromium") -> list[str]:
+    def _get_browser_args(
+        self, device_type: str = "desktop", browser_type: str = "chromium"
+    ) -> list[str]:
         """
         获取浏览器启动参数
 
@@ -54,61 +57,63 @@ class BrowserSimulator:
         """
         # 基础参数
         base_args = [
-            '--disable-blink-features=AutomationControlled',
-            '--disable-dev-shm-usage',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--no-default-browser-check',
-            '--disable-default-apps',
-            '--no-first-run',
-            '--disable-popup-blocking',
-            '--disable-background-timer-throttling',
-            '--disable-features=TranslateUI',
-            '--disable-ipc-flooding-protection',
-            '--disable-hang-monitor',
-            '--disable-prompt-on-repost',
-            '--disable-domain-reliability',
-            '--disable-component-extensions-with-background-pages',
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-web-security",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--no-default-browser-check",
+            "--disable-default-apps",
+            "--no-first-run",
+            "--disable-popup-blocking",
+            "--disable-background-timer-throttling",
+            "--disable-features=TranslateUI",
+            "--disable-ipc-flooding-protection",
+            "--disable-hang-monitor",
+            "--disable-prompt-on-repost",
+            "--disable-domain-reliability",
+            "--disable-component-extensions-with-background-pages",
         ]
 
         # Edge 特定：禁用登录弹窗和同步提示（仅当 browser_type 为 edge 时）
         if browser_type == "edge":
             edge_specific_args = [
-                '--disable-features=msEdgeEnableNurturingFramework',  # 禁用 Edge 培育框架（弹窗系统）
-                '--disable-features=msEdgeSignInCtaOnNtp',  # 禁用新标签页登录提示
-                '--disable-features=msEdgeSignInPromo',  # 禁用登录推广
-                '--disable-features=msEdgeSyncPromo',  # 禁用同步推广
-                '--disable-features=EdgeEnhanceSecurityMode',  # 禁用增强安全模式提示
-                '--disable-features=EdgeShoppingAssistant',  # 禁用购物助手
-                '--disable-features=EdgeCollectionsEnabled',  # 禁用集锦
-                '--disable-features=msImplicitSignin',  # 禁用隐式登录
-                '--disable-features=msSignInWithMicrosoft',  # 禁用 Microsoft 登录提示
+                "--disable-features=msEdgeEnableNurturingFramework",  # 禁用 Edge 培育框架（弹窗系统）
+                "--disable-features=msEdgeSignInCtaOnNtp",  # 禁用新标签页登录提示
+                "--disable-features=msEdgeSignInPromo",  # 禁用登录推广
+                "--disable-features=msEdgeSyncPromo",  # 禁用同步推广
+                "--disable-features=EdgeEnhanceSecurityMode",  # 禁用增强安全模式提示
+                "--disable-features=EdgeShoppingAssistant",  # 禁用购物助手
+                "--disable-features=EdgeCollectionsEnabled",  # 禁用集锦
+                "--disable-features=msImplicitSignin",  # 禁用隐式登录
+                "--disable-features=msSignInWithMicrosoft",  # 禁用 Microsoft 登录提示
             ]
             base_args.extend(edge_specific_args)
 
         # 通用禁用选项
-        base_args.extend([
-            '--disable-sync',  # 完全禁用同步
-            '--disable-features=IdentityManager',  # 禁用身份管理器
-            '--disable-features=AutofillEnableAccountWalletStorage',  # 禁用账户钱包
-            '--disable-features=msEdgeWalletIntegration',  # 禁用钱包集成
-            # 禁用 Windows 凭据管理器集成（关键！）
-            '--password-store=basic',  # 使用基本密码存储，不使用系统凭据管理器
-            '--disable-features=PasswordImport',  # 禁用密码导入
-            '--disable-features=PasswordManager',  # 禁用密码管理器
-            '--disable-features=PasswordManagerOnboarding',  # 禁用密码管理器引导
-            '--disable-features=PasswordSuggestions',  # 禁用密码建议
-            '--disable-features=AutofillServerCommunication',  # 禁用自动填充服务器通信
-        ])
+        base_args.extend(
+            [
+                "--disable-sync",  # 完全禁用同步
+                "--disable-features=IdentityManager",  # 禁用身份管理器
+                "--disable-features=AutofillEnableAccountWalletStorage",  # 禁用账户钱包
+                "--disable-features=msEdgeWalletIntegration",  # 禁用钱包集成
+                # 禁用 Windows 凭据管理器集成（关键！）
+                "--password-store=basic",  # 使用基本密码存储，不使用系统凭据管理器
+                "--disable-features=PasswordImport",  # 禁用密码导入
+                "--disable-features=PasswordManager",  # 禁用密码管理器
+                "--disable-features=PasswordManagerOnboarding",  # 禁用密码管理器引导
+                "--disable-features=PasswordSuggestions",  # 禁用密码建议
+                "--disable-features=AutofillServerCommunication",  # 禁用自动填充服务器通信
+            ]
+        )
         wsl2_args = [
-            '--disable-gpu',
-            '--disable-software-rasterizer',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu-rasterization',
-            '--use-gl=swiftshader',
-            '--disable-features=Crashpad',  # 禁用崩溃报告（解决 sigtrap）
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-accelerated-2d-canvas",
+            "--disable-gpu-rasterization",
+            "--use-gl=swiftshader",
+            "--disable-features=Crashpad",  # 禁用崩溃报告（解决 sigtrap）
         ]
         base_args.extend(wsl2_args)
 
@@ -118,69 +123,69 @@ class BrowserSimulator:
 
         if not headless and prevent_focus:
             focus_prevention_args = [
-                '--disable-focus-on-load',               # 禁用加载时自动聚焦
-                '--disable-raise-on-focus',              # 禁用聚焦时窗口置顶
-                '--no-startup-window',                   # 不显示启动窗口
-                '--disable-background-mode',             # 禁用后台模式
-                '--disable-backgrounding-occluded-windows', # 禁用被遮挡窗口的后台处理
-                '--disable-renderer-backgrounding',      # 禁用渲染器后台处理
-                '--disable-features=FocusMode',          # 禁用焦点模式
-                '--disable-features=TabHoverCards',      # 禁用标签页悬停卡片
-                '--disable-features=TabGroups',          # 禁用标签页分组
-                '--disable-features=DesktopPWAsTabStrip', # 禁用PWA标签条
-                '--disable-features=WebAppManifestDisplayOverride', # 禁用Web应用显示覆盖
-                '--disable-client-side-phishing-detection', # 禁用客户端钓鱼检测
-                '--disable-sync',                        # 禁用同步
-                '--disable-background-networking',       # 禁用后台网络
-                '--disable-background-downloads',        # 禁用后台下载
-                '--disable-component-update',            # 禁用组件更新
-                '--disable-default-apps',                # 禁用默认应用
-                '--disable-extensions',                  # 禁用扩展（可选）
-                '--disable-plugins',                     # 禁用插件
-                '--disable-print-preview',               # 禁用打印预览
-                '--disable-speech-api',                  # 禁用语音API
-                '--disable-file-system',                 # 禁用文件系统API
-                '--disable-notifications',               # 禁用通知
-                '--disable-permissions-api',             # 禁用权限API
-                '--disable-presentation-api',            # 禁用演示API
-                '--disable-remote-fonts',                # 禁用远程字体
-                '--disable-shared-workers',              # 禁用共享Worker
-                '--disable-speech-synthesis-api',        # 禁用语音合成API
-                '--disable-web-security',                # 禁用Web安全（已包含但重要）
-                '--allow-running-insecure-content',      # 允许不安全内容
-                '--disable-features=VizDisplayCompositor', # 禁用显示合成器
-                '--disable-features=AudioServiceOutOfProcess', # 禁用音频服务进程外
-                '--disable-features=VizServiceDisplay',  # 禁用Viz服务显示
+                "--disable-focus-on-load",  # 禁用加载时自动聚焦
+                "--disable-raise-on-focus",  # 禁用聚焦时窗口置顶
+                "--no-startup-window",  # 不显示启动窗口
+                "--disable-background-mode",  # 禁用后台模式
+                "--disable-backgrounding-occluded-windows",  # 禁用被遮挡窗口的后台处理
+                "--disable-renderer-backgrounding",  # 禁用渲染器后台处理
+                "--disable-features=FocusMode",  # 禁用焦点模式
+                "--disable-features=TabHoverCards",  # 禁用标签页悬停卡片
+                "--disable-features=TabGroups",  # 禁用标签页分组
+                "--disable-features=DesktopPWAsTabStrip",  # 禁用PWA标签条
+                "--disable-features=WebAppManifestDisplayOverride",  # 禁用Web应用显示覆盖
+                "--disable-client-side-phishing-detection",  # 禁用客户端钓鱼检测
+                "--disable-sync",  # 禁用同步
+                "--disable-background-networking",  # 禁用后台网络
+                "--disable-background-downloads",  # 禁用后台下载
+                "--disable-component-update",  # 禁用组件更新
+                "--disable-default-apps",  # 禁用默认应用
+                "--disable-extensions",  # 禁用扩展（可选）
+                "--disable-plugins",  # 禁用插件
+                "--disable-print-preview",  # 禁用打印预览
+                "--disable-speech-api",  # 禁用语音API
+                "--disable-file-system",  # 禁用文件系统API
+                "--disable-notifications",  # 禁用通知
+                "--disable-permissions-api",  # 禁用权限API
+                "--disable-presentation-api",  # 禁用演示API
+                "--disable-remote-fonts",  # 禁用远程字体
+                "--disable-shared-workers",  # 禁用共享Worker
+                "--disable-speech-synthesis-api",  # 禁用语音合成API
+                "--disable-web-security",  # 禁用Web安全（已包含但重要）
+                "--allow-running-insecure-content",  # 允许不安全内容
+                "--disable-features=VizDisplayCompositor",  # 禁用显示合成器
+                "--disable-features=AudioServiceOutOfProcess",  # 禁用音频服务进程外
+                "--disable-features=VizServiceDisplay",  # 禁用Viz服务显示
             ]
             base_args.extend(focus_prevention_args)
 
         # 主题相关参数
         if self.config.get("browser.force_dark_mode", True):
             theme_args = [
-                '--force-dark-mode',
-                '--enable-features=WebUIDarkMode',
-                '--enable-features=WebContentsForceDark',
-                '--force-color-profile=srgb',
+                "--force-dark-mode",
+                "--enable-features=WebUIDarkMode",
+                "--enable-features=WebContentsForceDark",
+                "--force-color-profile=srgb",
             ]
             base_args.extend(theme_args)
 
         # 移动设备特定参数
         if device_type == "mobile":
             mobile_args = [
-                '--disable-features=VizDisplayCompositor',
-                '--disable-features=AudioServiceOutOfProcess',
-                '--enable-features=UseSkiaRenderer',
-                '--disable-gpu-sandbox',
+                "--disable-features=VizDisplayCompositor",
+                "--disable-features=AudioServiceOutOfProcess",
+                "--enable-features=UseSkiaRenderer",
+                "--disable-gpu-sandbox",
             ]
             base_args.extend(mobile_args)
 
         # 性能优化参数
         performance_args = [
-            '--max_old_space_size=4096',
-            '--disable-background-timer-throttling',
-            '--disable-renderer-backgrounding',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-features=CalculateNativeWinOcclusion',
+            "--max_old_space_size=4096",
+            "--disable-background-timer-throttling",
+            "--disable-renderer-backgrounding",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-features=CalculateNativeWinOcclusion",
         ]
         base_args.extend(performance_args)
 
@@ -204,7 +209,7 @@ class BrowserSimulator:
 
         # 根据浏览器类型选择设备配置
         device_key = f"desktop_{browser_type}"
-        _ = self.anti_ban.get_device_config(device_key)
+        self.anti_ban.get_device_config(device_key)
 
         logger.info(f"创建桌面浏览器: {browser_type}, headless={headless}")
 
@@ -223,17 +228,12 @@ class BrowserSimulator:
         if channel:
             logger.info(f"使用浏览器通道: {channel}")
             self.browser = await self.playwright.chromium.launch(
-                channel=channel,
-                headless=headless,
-                slow_mo=slow_mo,
-                args=browser_args
+                channel=channel, headless=headless, slow_mo=slow_mo, args=browser_args
             )
         else:
             logger.info("使用 Playwright 自带的 Chromium")
             self.browser = await self.playwright.chromium.launch(
-                headless=headless,
-                slow_mo=slow_mo,
-                args=browser_args
+                headless=headless, slow_mo=slow_mo, args=browser_args
             )
 
         logger.info(f"桌面浏览器创建成功: {browser_type}")
@@ -261,7 +261,7 @@ class BrowserSimulator:
         else:
             device_key = "mobile_android"
 
-        _ = self.anti_ban.get_device_config(device_key)
+        self.anti_ban.get_device_config(device_key)
 
         logger.info(f"创建移动浏览器: {device}, headless={headless}")
 
@@ -270,9 +270,7 @@ class BrowserSimulator:
 
         # 启动 Chromium
         self.browser = await self.playwright.chromium.launch(
-            headless=headless,
-            slow_mo=slow_mo,
-            args=browser_args
+            headless=headless, slow_mo=slow_mo, args=browser_args
         )
 
         logger.info(f"移动浏览器创建成功: {device}")
@@ -282,7 +280,7 @@ class BrowserSimulator:
         self,
         browser: Browser,
         device_type: str = "desktop_chromium",
-        storage_state: str | None = None
+        storage_state: str | None = None,
     ) -> tuple[BrowserContext, Page]:
         """
         创建浏览器上下文，加载会话状态
@@ -345,11 +343,14 @@ class BrowserSimulator:
         # 注意：只有当主题管理功能启用且持久化启用时才执行
         try:
             from ui.bing_theme_manager import BingThemeManager
+
             theme_manager = BingThemeManager(self.config)
             if theme_manager.enabled and theme_manager.persistence_enabled:
                 logger.debug("尝试在新上下文中恢复主题设置...")
                 # 导航到Bing首页以便应用主题
-                await main_page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=10000)
+                await main_page.goto(
+                    "https://www.bing.com", wait_until="domcontentloaded", timeout=10000
+                )
                 await asyncio.sleep(1)  # 等待页面稳定
 
                 # 尝试恢复主题
@@ -403,7 +404,7 @@ class BrowserSimulator:
             # 获取防焦点模式
             prevent_focus = self.config.get("browser.prevent_focus", "enhanced")
 
-            if prevent_focus is False or prevent_focus == "false":
+            if not prevent_focus or prevent_focus == "false":
                 logger.debug("防置顶功能已禁用")
                 return
 
@@ -489,9 +490,7 @@ class BrowserSimulator:
         logger.info("反检测脚本应用完成")
 
     async def create_manual_login_context(
-        self,
-        device_type: str = "desktop_chromium",
-        storage_state: str | None = None
+        self, device_type: str = "desktop_chromium", storage_state: str | None = None
     ) -> tuple[Browser, BrowserContext, Page]:
         """
         创建用于手动登录的浏览器上下文
@@ -555,4 +554,4 @@ class BrowserSimulator:
 
     def get_browser_stats(self):
         """获取浏览器性能统计"""
-        return self.state_manager.get_performance_stats()\n
+        return self.state_manager.get_performance_stats()

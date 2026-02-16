@@ -6,23 +6,18 @@ before we build more complex tests on top of them.
 """
 
 import pytest
-from tests.fixtures.mock_accounts import (
-    MockAccount,
-    TEST_ACCOUNTS,
-    mock_account_strategy
-)
+from hypothesis import given
+
+from tests.fixtures.mock_accounts import MockAccount, mock_account_strategy
 from tests.fixtures.mock_dashboards import (
     MockDashboard,
     generate_mock_dashboard,
-    EMPTY_DASHBOARD,
-    SIMPLE_DASHBOARD
 )
-from hypothesis import given
-
 
 # ============================================================================
 # MockAccount Verification Tests
 # ============================================================================
+
 
 @pytest.mark.unit
 def test_mock_account_standard(mock_account_standard):
@@ -66,7 +61,7 @@ def test_mock_account_strategy_generates_valid_accounts(account):
     assert isinstance(account, MockAccount)
     assert len(account.email) > 0
     assert account.account_type in ["standard", "2fa", "passwordless"]
-    
+
     # Password should be non-empty for standard and 2fa accounts
     if account.account_type in ["standard", "2fa"]:
         assert len(account.password) >= 8
@@ -75,6 +70,7 @@ def test_mock_account_strategy_generates_valid_accounts(account):
 # ============================================================================
 # MockDashboard Verification Tests
 # ============================================================================
+
 
 @pytest.mark.unit
 def test_mock_dashboard_empty(mock_dashboard_empty):
@@ -90,7 +86,7 @@ def test_mock_dashboard_simple(mock_dashboard_simple):
     assert isinstance(mock_dashboard_simple, MockDashboard)
     assert len(mock_dashboard_simple.tasks) == 3
     assert mock_dashboard_simple.points_available >= 0
-    
+
     # Verify task structure
     for task in mock_dashboard_simple.tasks:
         assert "id" in task
@@ -111,12 +107,12 @@ def test_mock_dashboard_full(mock_dashboard_full):
 def test_mock_dashboard_generator(mock_dashboard_generator):
     """Test that dashboard generator function works."""
     dashboard = mock_dashboard_generator(num_tasks=5, completed_ratio=0.5)
-    
+
     assert isinstance(dashboard, MockDashboard)
     assert len(dashboard.tasks) == 5
     assert dashboard.html_content is not None
     assert len(dashboard.html_content) > 0
-    
+
     # Check that some tasks are completed
     completed_count = sum(1 for task in dashboard.tasks if task["completed"])
     assert completed_count >= 0  # At least some might be completed
@@ -126,8 +122,7 @@ def test_mock_dashboard_generator(mock_dashboard_generator):
 def test_dashboard_html_generation():
     """Test that dashboard HTML is generated correctly."""
     dashboard = generate_mock_dashboard(num_tasks=2, completed_ratio=0.0)
-    
-    assert '<div class="dashboard">' in dashboard.html_content
-    assert 'task-title' in dashboard.html_content
-    assert 'task-points' in dashboard.html_content
 
+    assert '<div class="dashboard">' in dashboard.html_content
+    assert "task-title" in dashboard.html_content
+    assert "task-points" in dashboard.html_content

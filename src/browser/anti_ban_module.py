@@ -2,15 +2,18 @@
 反封禁模块
 实现多层反检测策略，隐藏自动化特征
 """
+
 import asyncio
 import logging
 import random
+from typing import Any
 
 from playwright.async_api import Page
 
 logger = logging.getLogger(__name__)
 
 
+# 设备配置常量
 DEVICE_CONFIGS = {
     "desktop_edge": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
@@ -46,7 +49,7 @@ DEVICE_CONFIGS = {
         "device_scale_factor": 2.625,
         "is_mobile": True,
         "has_touch": True,
-    }
+    },
 }
 
 
@@ -64,6 +67,7 @@ class AntiBanModule:
         self.wait_min = config.get("search.wait_interval.min", 5)
         self.wait_max = config.get("search.wait_interval.max", 15)
 
+        # 滚动配置
         self.scroll_enabled = config.get("anti_detection.scroll_behavior.enabled", True)
         self.min_scrolls = config.get("anti_detection.scroll_behavior.min_scrolls", 2)
         self.max_scrolls = config.get("anti_detection.scroll_behavior.max_scrolls", 5)
@@ -83,7 +87,9 @@ class AntiBanModule:
         logger.debug(f"生成随机等待时间: {wait_time:.2f} 秒")
         return wait_time
 
-    def get_random_viewport(self, base_width: int = 1920, base_height: int = 1080) -> dict[str, int]:
+    def get_random_viewport(
+        self, base_width: int = 1920, base_height: int = 1080
+    ) -> dict[str, int]:
         """
         生成随机视口大小（在合理范围内）
 
@@ -94,6 +100,7 @@ class AntiBanModule:
         Returns:
             视口配置字典
         """
+        # 在基础尺寸的 ±10% 范围内随机
         width_variance = int(base_width * 0.1)
         height_variance = int(base_height * 0.1)
 
@@ -119,8 +126,10 @@ class AntiBanModule:
         logger.debug(f"开始模拟滚动，次数: {scroll_count}")
 
         for i in range(scroll_count):
+            # 随机滚动距离（200-800 像素）
             scroll_distance = random.randint(200, 800)
 
+            # 使用缓动函数模拟自然滚动
             try:
                 await page.evaluate(f"""
                     window.scrollBy({{
@@ -129,13 +138,11 @@ class AntiBanModule:
                     }});
                 """)
 
-                delay = random.uniform(
-                    self.scroll_delay_min / 1000,
-                    self.scroll_delay_max / 1000
-                )
+                # 随机停留时间
+                delay = random.uniform(self.scroll_delay_min / 1000, self.scroll_delay_max / 1000)
                 await asyncio.sleep(delay)
 
-                logger.debug(f"滚动 {i+1}/{scroll_count}: {scroll_distance}px, 延迟 {delay:.2f}s")
+                logger.debug(f"滚动 {i + 1}/{scroll_count}: {scroll_distance}px, 延迟 {delay:.2f}s")
 
             except Exception as e:
                 logger.warning(f"滚动时出错: {e}")
@@ -156,18 +163,21 @@ class AntiBanModule:
                 logger.warning(f"未找到元素: {selector}")
                 return
 
+            # 先点击聚焦
             await element.click()
             await asyncio.sleep(0.1)
 
             logger.debug(f"开始模拟打字: {text}")
 
-            for char in text:
+            for _i, char in enumerate(text):
                 await element.type(char)
 
+                # 每个字符之间随机延迟 50-150ms
                 delay = random.uniform(0.05, 0.15)
                 await asyncio.sleep(delay)
 
-                if random.random() < 0.1:
+                # 偶尔有更长的停顿（模拟思考）
+                if random.random() < 0.1:  # 10% 概率
                     think_delay = random.uniform(0.3, 0.8)
                     await asyncio.sleep(think_delay)
                     logger.debug(f"模拟思考停顿: {think_delay:.2f}s")
@@ -185,12 +195,13 @@ class AntiBanModule:
             脚本列表
         """
         scripts = [
+            # 脚本 1: 隐藏 webdriver 标志
             """
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
             });
             """,
-
+            # 脚本 2: 修改 plugins 为真实格式
             """
             Object.defineProperty(navigator, 'plugins', {
                 get: () => {
@@ -207,13 +218,13 @@ class AntiBanModule:
                 }
             });
             """,
-
+            # 脚本 3: 修改 languages
             """
             Object.defineProperty(navigator, 'languages', {
                 get: () => ['en-US', 'en', 'zh-CN', 'zh']
             });
             """,
-
+            # 脚本 4: 覆盖 permissions API
             """
             const originalQuery = window.navigator.permissions.query;
             window.navigator.permissions.query = (parameters) => (
@@ -222,7 +233,7 @@ class AntiBanModule:
                     originalQuery(parameters)
             );
             """,
-
+            # 脚本 5: 修改 chrome 对象
             """
             window.chrome = {
                 runtime: {},
@@ -231,34 +242,36 @@ class AntiBanModule:
                 app: {}
             };
             """,
-
+            # 脚本 6: 覆盖 navigator.platform
             """
             Object.defineProperty(navigator, 'platform', {
                 get: () => 'Win32'
             });
             """,
-
+            # 脚本 7: 修改 hardwareConcurrency
             """
             Object.defineProperty(navigator, 'hardwareConcurrency', {
                 get: () => 8
             });
             """,
-
+            # 脚本 8: 修改 deviceMemory
             """
             Object.defineProperty(navigator, 'deviceMemory', {
                 get: () => 8
             });
             """,
-
+            # 脚本 9: WebGL 指纹保护
             """
             (() => {
                 const getParameterProxyHandler = {
                     apply: function(target, thisArg, args) {
                         const param = args[0];
 
+                        // UNMASKED_VENDOR_WEBGL
                         if (param === 37445) {
                             return 'Google Inc. (NVIDIA)';
                         }
+                        // UNMASKED_RENDERER_WEBGL
                         if (param === 37446) {
                             const renderers = [
                                 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)',
@@ -301,7 +314,7 @@ class AntiBanModule:
                 }
             })();
             """,
-
+            # 脚本 10: Canvas 指纹保护
             """
             (() => {
                 const sessionSeed = Math.random() * 10000;
@@ -370,13 +383,13 @@ class AntiBanModule:
         for i, script in enumerate(scripts):
             try:
                 await page.evaluate(script)
-                logger.debug(f"注入反检测脚本 {i+1}/{len(scripts)}")
+                logger.debug(f"注入反检测脚本 {i + 1}/{len(scripts)}")
             except Exception as e:
-                logger.warning(f"注入脚本 {i+1} 失败: {e}")
+                logger.warning(f"注入脚本 {i + 1} 失败: {e}")
 
         logger.info("反检测脚本注入完成")
 
-    def get_device_config(self, device_type: str) -> dict[str, dict]:
+    def get_device_config(self, device_type: str) -> dict[str, Any]:
         """
         获取设备配置
 
@@ -392,12 +405,12 @@ class AntiBanModule:
 
         config = DEVICE_CONFIGS[device_type].copy()
 
+        # 如果启用了随机视口，则随机化视口大小
         if self.config.get("anti_detection.random_viewport", True):
             base_viewport = config["viewport"]
             config["viewport"] = self.get_random_viewport(
-                base_viewport["width"],
-                base_viewport["height"]
+                base_viewport["width"], base_viewport["height"]
             )
 
         logger.info(f"获取设备配置: {device_type}")
-        return config\n
+        return config

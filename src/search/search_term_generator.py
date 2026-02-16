@@ -2,9 +2,10 @@
 搜索词生成器模块
 生成有意义、上下文相关的搜索词，避免随机无意义搜索
 """
-from pathlib import Path
+
 import logging
 import random
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class SearchTermGenerator:
         self.config = config
         self.base_terms: list[str] = []
         self.generated_phrases: list[str] = []
-        self.used_terms: Set[str] = set()
+        self.used_terms: set[str] = set()
 
         # 加载搜索词文件
         terms_file = config.get("search.search_terms_file", "tools/search_terms.txt")
@@ -61,7 +62,9 @@ class SearchTermGenerator:
         # 生成短语组合
         self.generate_phrase_combinations(self.base_terms)
 
-        logger.info(f"搜索词生成器初始化完成: {len(self.base_terms)} 基础词, {len(self.generated_phrases)} 生成短语")
+        logger.info(
+            f"搜索词生成器初始化完成: {len(self.base_terms)} 基础词, {len(self.generated_phrases)} 生成短语"
+        )
 
     def load_terms_from_file(self, file_path: str) -> list[str]:
         """
@@ -80,7 +83,7 @@ class SearchTermGenerator:
                 self.base_terms = self._get_default_terms()
                 return self.base_terms
 
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 terms = [line.strip() for line in f if line.strip()]
 
             # 过滤掉单字符搜索词（太不自然）
@@ -135,7 +138,7 @@ class SearchTermGenerator:
 
         # 2. 生成 "词 + 连接词 + 词" 组合
         for i, term1 in enumerate(base_terms[:30]):
-            for term2 in base_terms[i+1:i+6]:  # 限制组合数量
+            for term2 in base_terms[i + 1 : i + 6]:  # 限制组合数量
                 if self._are_related(term1, term2):
                     # 直接组合
                     phrases.append(f"{term1} {term2}")
@@ -203,7 +206,7 @@ class SearchTermGenerator:
         # 如果使用记录超过候选词的 70%，清空一半
         if len(self.used_terms) > len(candidates) * 0.7:
             old_size = len(self.used_terms)
-            self.used_terms = set(list(self.used_terms)[old_size//2:])
+            self.used_terms = set(list(self.used_terms)[old_size // 2 :])
             logger.debug(f"使用记录过多，清理了 {old_size - len(self.used_terms)} 条")
 
         logger.debug(f"选择搜索词: {term}")
@@ -260,5 +263,7 @@ class SearchTermGenerator:
             "generated_phrases_count": len(self.generated_phrases),
             "total_candidates": len(self.base_terms) + len(self.generated_phrases),
             "used_terms_count": len(self.used_terms),
-            "available_terms": len(self.base_terms) + len(self.generated_phrases) - len(self.used_terms)
-        }\n
+            "available_terms": len(self.base_terms)
+            + len(self.generated_phrases)
+            - len(self.used_terms),
+        }

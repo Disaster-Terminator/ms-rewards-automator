@@ -1,22 +1,25 @@
 """
 Base classes and data models for the Task System
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
 from playwright.async_api import Page
 
+
 @dataclass
 class TaskMetadata:
     """Metadata for a Microsoft Rewards task"""
+
     task_id: str
     task_type: str
     title: str
     points: int
     is_completed: bool
-    destination_url: \g<0>str] = None
-    promotion_type: \g<0>str] = None
+    destination_url: str | None = None
+    promotion_type: str | None = None
     is_button: bool = False
 
     def __str__(self) -> str:
@@ -27,6 +30,7 @@ class TaskMetadata:
 @dataclass
 class TaskExecutionReport:
     """Report of task execution results"""
+
     total_tasks: int
     completed: int
     failed: int
@@ -83,4 +87,4 @@ class Task(ABC):
         return self.metadata.task_type
 
     def __str__(self) -> str:
-        return str(self.metadata)\n
+        return str(self.metadata)

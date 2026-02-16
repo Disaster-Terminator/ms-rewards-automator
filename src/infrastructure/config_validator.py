@@ -2,17 +2,17 @@
 配置验证器模块
 提供启动时配置验证、错误检测和修复建议
 """
-from pathlib import Path
-from typing import Any, Tuple
+
 import logging
 import os
-import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigValidationError(Exception):
     """配置验证错误"""
+
     pass
 
 
@@ -38,113 +38,101 @@ class ConfigValidator:
                 "min": 1,
                 "max": 50,
                 "default": 30,
-                "description": "桌面搜索次数"
+                "description": "桌面搜索次数",
             },
             "search.mobile_count": {
                 "type": int,
                 "min": 1,
                 "max": 50,  # Increased from 30 to allow more flexibility
                 "default": 20,
-                "description": "移动搜索次数"
+                "description": "移动搜索次数",
             },
             "search.wait_interval": {
                 "type": (int, float, dict),
                 "min": 1,
                 "max": 30,
                 "default": 5,
-                "description": "搜索等待间隔（秒）或 {min, max} 字典"
+                "description": "搜索等待间隔（秒）或 {min, max} 字典",
             },
             "search.wait_interval.min": {
                 "type": (int, float),
                 "min": 0.1,
                 "max": 60,
                 "default": 2,
-                "description": "最小等待时间（已废弃）"
+                "description": "最小等待时间（已废弃）",
             },
             "search.wait_interval.max": {
                 "type": (int, float),
                 "min": 0.2,
                 "max": 120,
                 "default": 5,
-                "description": "最大等待时间（已废弃）"
+                "description": "最大等待时间（已废弃）",
             },
-            "browser.headless": {
-                "type": bool,
-                "default": True,
-                "description": "无头模式"
-            },
+            "browser.headless": {"type": bool, "default": True, "description": "无头模式"},
             "browser.prevent_focus": {
                 "type": (str, bool),
                 "allowed_values": ["enhanced", "basic", False, "false"],
                 "default": "enhanced",
-                "description": "防焦点模式"
+                "description": "防焦点模式",
             },
             "browser.slow_mo": {
                 "type": int,
                 "min": 0,
                 "max": 2000,
                 "default": 50,
-                "description": "操作延迟"
+                "description": "操作延迟",
             },
             "browser.timeout": {
                 "type": int,
                 "min": 5000,
                 "max": 120000,
                 "default": 30000,
-                "description": "页面超时"
+                "description": "页面超时",
             },
             "account.storage_state_path": {
                 "type": str,
                 "default": "storage_state.json",
-                "description": "会话状态文件路径"
+                "description": "会话状态文件路径",
             },
-            "monitoring.enabled": {
-                "type": bool,
-                "default": True,
-                "description": "状态监控"
-            },
-            "notification.enabled": {
-                "type": bool,
-                "default": False,
-                "description": "通知功能"
-            },
+            "monitoring.enabled": {"type": bool, "default": True, "description": "状态监控"},
+            "notification.enabled": {"type": bool, "default": False, "description": "通知功能"},
             "logging.level": {
                 "type": str,
                 "allowed_values": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
                 "default": "INFO",
-                "description": "日志级别"
+                "description": "日志级别",
             },
             "bing_theme.enabled": {
                 "type": bool,
                 "default": True,
-                "description": "是否启用主题管理"
+                "description": "是否启用主题管理",
             },
             "bing_theme.theme": {
                 "type": str,
                 "allowed_values": ["dark", "light"],
                 "default": "dark",
-                "description": "首选主题"
+                "description": "首选主题",
             },
             "bing_theme.force_theme": {
                 "type": bool,
                 "default": True,
-                "description": "是否强制应用主题"
+                "description": "是否强制应用主题",
             },
             "bing_theme.persistence_enabled": {
                 "type": bool,
                 "default": True,
-                "description": "是否启用会话间主题保持"
+                "description": "是否启用会话间主题保持",
             },
             "bing_theme.theme_state_file": {
                 "type": str,
                 "default": "logs/theme_state.json",
-                "description": "主题状态文件路径"
-            }
+                "description": "主题状态文件路径",
+            },
         }
 
         logger.info("配置验证器初始化完成")
 
-    def validate_config(self, config_data: dict[str, Any]) -> Tuple[bool, list[str], list[str]]:
+    def validate_config(self, config_data: dict[str, Any]) -> tuple[bool, list[str], list[str]]:
         """
         验证配置数据
 
@@ -207,7 +195,9 @@ class ConfigValidator:
             if value is None:
                 # 使用默认值
                 if "default" in rules:
-                    self.warnings.append(f"字段 '{field_path}' 未设置，将使用默认值: {rules['default']}")
+                    self.warnings.append(
+                        f"字段 '{field_path}' 未设置，将使用默认值: {rules['default']}"
+                    )
                 continue
 
             # 类型检查
@@ -254,9 +244,7 @@ class ConfigValidator:
         wait_max = self._get_nested_value(config_data, "search.wait_interval.max")
 
         if wait_min and wait_max and wait_min >= wait_max:
-            self.errors.append(
-                f"等待时间配置错误: min ({wait_min}) 必须小于 max ({wait_max})"
-            )
+            self.errors.append(f"等待时间配置错误: min ({wait_min}) 必须小于 max ({wait_max})")
 
         # 检查搜索次数合理性
         desktop_count = self._get_nested_value(config_data, "search.desktop_count")
@@ -277,9 +265,7 @@ class ConfigValidator:
         prevent_focus = self._get_nested_value(config_data, "browser.prevent_focus")
 
         if headless and prevent_focus:
-            self.warnings.append(
-                "无头模式下防焦点设置无效，建议在有头模式下使用防焦点功能"
-            )
+            self.warnings.append("无头模式下防焦点设置无效，建议在有头模式下使用防焦点功能")
 
     def _validate_file_paths(self, config_data: dict[str, Any]):
         """验证文件路径"""
@@ -343,16 +329,12 @@ class ConfigValidator:
         # 性能优化建议
         slow_mo = self._get_nested_value(config_data, "browser.slow_mo")
         if slow_mo and slow_mo > 200:
-            self.suggestions.append(
-                f"当前操作延迟 ({slow_mo}ms) 较高，可以适当降低以提高执行速度"
-            )
+            self.suggestions.append(f"当前操作延迟 ({slow_mo}ms) 较高，可以适当降低以提高执行速度")
 
         # 安全性建议
         wait_max = self._get_nested_value(config_data, "search.wait_interval.max")
         if wait_max and wait_max < 5:
-            self.suggestions.append(
-                "建议增加最大等待时间 (>= 5秒) 以降低被检测风险"
-            )
+            self.suggestions.append("建议增加最大等待时间 (>= 5秒) 以降低被检测风险")
 
         # 监控建议
         monitoring_enabled = self._get_nested_value(config_data, "monitoring.enabled")
@@ -453,7 +435,7 @@ class ConfigValidator:
         current[keys[-1]] = value
 
     @staticmethod
-    def validate_config_file(config_path: str) -> Tuple[bool, str]:
+    def validate_config_file(config_path: str) -> tuple[bool, str]:
         """
         验证配置文件
 
@@ -482,4 +464,4 @@ class ConfigValidator:
 
         except Exception as e:
             error_report = f"配置文件验证失败: {e}"
-            return False, error_report\n
+            return False, error_report

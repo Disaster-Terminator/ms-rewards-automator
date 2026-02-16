@@ -1,10 +1,12 @@
 """
 Local file query source - loads queries from a text file
 """
-from pathlib import Path
+
 import random
+from pathlib import Path
 
 from .query_source import QuerySource
+
 
 class LocalFileSource(QuerySource):
     """Query source that loads queries from a local text file"""
@@ -41,7 +43,7 @@ class LocalFileSource(QuerySource):
         super().__init__(config)
         self.base_terms: list[str] = []
         self.generated_phrases: list[str] = []
-        self.used_terms: Set[str] = set()
+        self.used_terms: set[str] = set()
 
         # Load search terms file
         terms_file = config.get("search.search_terms_file", "tools/search_terms.txt")
@@ -63,7 +65,7 @@ class LocalFileSource(QuerySource):
                 self.base_terms = self._get_default_terms()
                 return
 
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 terms = [line.strip() for line in f if line.strip()]
 
             # Filter out single-character terms
@@ -108,7 +110,7 @@ class LocalFileSource(QuerySource):
 
         # 2. Generate "term + connector + term" combinations
         for i, term1 in enumerate(self.base_terms[:30]):
-            for term2 in self.base_terms[i+1:i+6]:  # Limit combinations
+            for term2 in self.base_terms[i + 1 : i + 6]:  # Limit combinations
                 if self._are_related(term1, term2):
                     # Direct combination
                     phrases.append(f"{term1} {term2}")
@@ -168,8 +170,10 @@ class LocalFileSource(QuerySource):
         # If usage record exceeds 70% of candidates, clear half
         if len(self.used_terms) > len(candidates) * 0.7:
             old_size = len(self.used_terms)
-            self.used_terms = set(list(self.used_terms)[old_size//2:])
-            self.logger.debug(f"Usage record too large, cleared {old_size - len(self.used_terms)} entries")
+            self.used_terms = set(list(self.used_terms)[old_size // 2 :])
+            self.logger.debug(
+                f"Usage record too large, cleared {old_size - len(self.used_terms)} entries"
+            )
 
         self.logger.debug(f"Fetched {len(queries)} queries from local file")
         return queries
@@ -180,4 +184,4 @@ class LocalFileSource(QuerySource):
 
     def is_available(self) -> bool:
         """Check if this source is available"""
-        return len(self.base_terms) > 0\n
+        return len(self.base_terms) > 0

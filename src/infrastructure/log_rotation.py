@@ -2,10 +2,10 @@
 日志和截图轮替管理模块
 自动清理过期的日志和截图文件
 """
-from pathlib import Path
+
 import logging
-import os
 import time
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class LogRotation:
         logs_dir: str = "logs",
         screenshots_dir: str = "screenshots",
         max_age_days: int = 7,
-        keep_min_files: int = 10
+        keep_min_files: int = 10,
     ):
         """
         初始化轮替管理器
@@ -67,10 +67,7 @@ class LogRotation:
             return False
 
     def cleanup_directory(
-        self,
-        directory: Path,
-        patterns: \g<0>list] = None,
-        dry_run: bool = False
+        self, directory: Path, patterns: list | None = None, dry_run: bool = False
     ) -> dict:
         """
         清理目录中的过期文件
@@ -87,12 +84,7 @@ class LogRotation:
             logger.warning(f"目录不存在: {directory}")
             return {"deleted": 0, "errors": 0, "skipped": 0}
 
-        result = {
-            "deleted": 0,
-            "errors": 0,
-            "skipped": 0,
-            "total_size_freed": 0
-        }
+        result = {"deleted": 0, "errors": 0, "skipped": 0, "total_size_freed": 0}
 
         # 获取所有匹配的文件
         files = []
@@ -144,11 +136,7 @@ class LogRotation:
         Returns:
             总体清理结果
         """
-        total_result = {
-            "logs": {},
-            "screenshots": {},
-            "diagnostics": {}
-        }
+        total_result = {"logs": {}, "screenshots": {}, "diagnostics": {}}
 
         # 1. 清理主日志文件（保留最近的）
         if self.logs_dir.exists():
@@ -156,12 +144,12 @@ class LogRotation:
             if main_log.exists():
                 try:
                     # 读取文件行数
-                    with open(main_log, 'r', encoding='utf-8') as f:
+                    with open(main_log, encoding="utf-8") as f:
                         lines = f.readlines()
 
                     # 如果超过 10000 行，保留最后 10000 行
                     if len(lines) > 10000:
-                        with open(main_log, 'w', encoding='utf-8') as f:
+                        with open(main_log, "w", encoding="utf-8") as f:
                             f.writelines(lines[-10000:])
                         logger.info(f"日志轮替: {len(lines)} → 10000 行")
                 except Exception as e:
@@ -171,17 +159,13 @@ class LogRotation:
         diagnostics_dir = self.logs_dir / "diagnostics"
         if diagnostics_dir.exists():
             total_result["diagnostics"] = self.cleanup_directory(
-                diagnostics_dir,
-                patterns=["*.html", "*.png", "*.md"],
-                dry_run=dry_run
+                diagnostics_dir, patterns=["*.html", "*.png", "*.md"], dry_run=dry_run
             )
 
         # 3. 清理 screenshots
         if self.screenshots_dir.exists():
             total_result["screenshots"] = self.cleanup_directory(
-                self.screenshots_dir,
-                patterns=["*.png", "*.jpg"],
-                dry_run=dry_run
+                self.screenshots_dir, patterns=["*.png", "*.jpg"], dry_run=dry_run
             )
 
         # 4. 清理其他日志文件
@@ -200,21 +184,24 @@ class LogRotation:
 
         # 输出汇总
         total_deleted = (
-            total_result["diagnostics"].get("deleted", 0) +
-            total_result["screenshots"].get("deleted", 0) +
-            total_result["logs"].get("deleted", 0)
+            total_result["diagnostics"].get("deleted", 0)
+            + total_result["screenshots"].get("deleted", 0)
+            + total_result["logs"].get("deleted", 0)
         )
-        total_size = (
-            total_result["diagnostics"].get("total_size_freed", 0) +
-            total_result["screenshots"].get("total_size_freed", 0)
-        )
+        total_size = total_result["diagnostics"].get("total_size_freed", 0) + total_result[
+            "screenshots"
+        ].get("total_size_freed", 0)
 
-        logger.info(f"清理完成: 删除 {total_deleted} 个文件，释放 {total_size / 1024 / 1024:.2f} MB")
+        logger.info(
+            f"清理完成: 删除 {total_deleted} 个文件，释放 {total_size / 1024 / 1024:.2f} MB"
+        )
 
         return total_result
 
 
-def cleanup_old_files(logs_dir: str = "logs", screenshots_dir: str = "screenshots", dry_run: bool = False):
+def cleanup_old_files(
+    logs_dir: str = "logs", screenshots_dir: str = "screenshots", dry_run: bool = False
+):
     """
     便捷函数：清理旧文件
 
@@ -234,4 +221,4 @@ if __name__ == "__main__":
     # 测试运行
     logging.basicConfig(level=logging.INFO)
     result = cleanup_old_files(dry_run=False)
-    print(f"清理结果: {result}")\n
+    print(f"清理结果: {result}")

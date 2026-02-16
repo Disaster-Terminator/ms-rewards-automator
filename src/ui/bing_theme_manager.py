@@ -2,14 +2,14 @@
 Bing主题管理器模块
 处理Bing搜索页面的深色主题设置和持久化
 """
-from pathlib import Path
-from typing import Any
+
 import asyncio
 import json
 import logging
-import os
+from pathlib import Path
+from typing import Any
 
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import BrowserContext, Page
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,14 @@ class BingThemeManager:
         self.force_theme = config.get("bing_theme.force_theme", True) if config else True
 
         # 会话间主题持久化配置
-        self.persistence_enabled = config.get("bing_theme.persistence_enabled", True) if config else True
-        self.theme_state_file = config.get("bing_theme.theme_state_file", "logs/theme_state.json") if config else "logs/theme_state.json"
+        self.persistence_enabled = (
+            config.get("bing_theme.persistence_enabled", True) if config else True
+        )
+        self.theme_state_file = (
+            config.get("bing_theme.theme_state_file", "logs/theme_state.json")
+            if config
+            else "logs/theme_state.json"
+        )
 
         # 主题状态缓存
         self._theme_state_cache = None
@@ -58,12 +64,16 @@ class BingThemeManager:
                 "button:has-text('Save')",
                 "input[value='保存']",
                 "button:has-text('保存')",
-            ]
+            ],
         }
 
-        logger.info(f"Bing主题管理器初始化完成 (enabled={self.enabled}, theme={self.preferred_theme}, persistence={self.persistence_enabled})")
+        logger.info(
+            f"Bing主题管理器初始化完成 (enabled={self.enabled}, theme={self.preferred_theme}, persistence={self.persistence_enabled})"
+        )
 
-    async def save_theme_state(self, theme: str, context_info: \g<0>dict[str, Any]] = None) -> bool:
+    async def save_theme_state(
+        self, theme: str, context_info: dict[str, Any] | None = None
+    ) -> bool:
         """
         保存主题状态到持久化存储
         这是任务6.2.2的核心功能：实现会话间主题保持
@@ -89,7 +99,7 @@ class BingThemeManager:
                 "preferred_theme": self.preferred_theme,
                 "force_theme": self.force_theme,
                 "context_info": context_info or {},
-                "version": "1.0"
+                "version": "1.0",
             }
 
             # 确保目录存在
@@ -97,7 +107,7 @@ class BingThemeManager:
             theme_file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # 保存到文件
-            with open(theme_file_path, 'w', encoding='utf-8') as f:
+            with open(theme_file_path, "w", encoding="utf-8") as f:
                 json.dump(theme_state, f, indent=2, ensure_ascii=False)
 
             # 更新缓存
@@ -111,7 +121,7 @@ class BingThemeManager:
             logger.error(f"保存主题状态失败: {e}")
             return False
 
-    async def load_theme_state(self) -> \g<0>dict[str, Any]]:
+    async def load_theme_state(self) -> dict[str, Any] | None:
         """
         从持久化存储加载主题状态
         这是任务6.2.2的核心功能：实现会话间主题保持
@@ -126,9 +136,11 @@ class BingThemeManager:
         try:
             # 检查缓存是否有效
             current_time = asyncio.get_running_loop().time()
-            if (self._theme_state_cache and
-                self._last_cache_update and
-                current_time - self._last_cache_update < self._cache_ttl):
+            if (
+                self._theme_state_cache
+                and self._last_cache_update
+                and current_time - self._last_cache_update < self._cache_ttl
+            ):
                 logger.debug("使用缓存的主题状态")
                 return self._theme_state_cache
 
@@ -139,7 +151,7 @@ class BingThemeManager:
                 return None
 
             # 从文件加载
-            with open(theme_file_path, 'r', encoding='utf-8') as f:
+            with open(theme_file_path, encoding="utf-8") as f:
                 theme_state = json.load(f)
 
             # 验证数据完整性
@@ -256,7 +268,9 @@ class BingThemeManager:
             logger.error(f"从持久化状态恢复主题失败: {e}")
             return False
 
-    async def ensure_theme_persistence(self, page: Page, context: \g<0>BrowserContext] = None) -> bool:
+    async def ensure_theme_persistence(
+        self, page: Page, context: BrowserContext | None = None
+    ) -> bool:
         """
         确保主题设置的持久化
         这是任务6.2.2的扩展功能：主动确保主题持久化
@@ -294,7 +308,7 @@ class BingThemeManager:
                     if viewport:
                         context_info["viewport"] = {
                             "width": viewport["width"],
-                            "height": viewport["height"]
+                            "height": viewport["height"],
                         }
 
                     # 获取设备信息
@@ -410,10 +424,7 @@ class BingThemeManager:
                     break
 
             if not bing_origin:
-                bing_origin = {
-                    "origin": "https://www.bing.com",
-                    "localStorage": []
-                }
+                bing_origin = {"origin": "https://www.bing.com", "localStorage": []}
                 storage_state["origins"].append(bing_origin)
 
             if "localStorage" not in bing_origin:
@@ -421,20 +432,27 @@ class BingThemeManager:
 
             # 添加或更新主题相关的localStorage条目
             theme_entries = [
-                {"name": "bing-theme-persistence", "value": json.dumps({
-                    "theme": theme,
-                    "timestamp": asyncio.get_running_loop().time(),
-                    "source": "bing_theme_manager",
-                    "version": "1.0"
-                })},
+                {
+                    "name": "bing-theme-persistence",
+                    "value": json.dumps(
+                        {
+                            "theme": theme,
+                            "timestamp": asyncio.get_running_loop().time(),
+                            "source": "bing_theme_manager",
+                            "version": "1.0",
+                        }
+                    ),
+                },
                 {"name": "theme-preference", "value": theme},
-                {"name": "last-theme-update", "value": str(int(asyncio.get_running_loop().time()))}
+                {"name": "last-theme-update", "value": str(int(asyncio.get_running_loop().time()))},
             ]
 
             # 移除旧的主题条目
             bing_origin["localStorage"] = [
-                item for item in bing_origin["localStorage"]
-                if item.get("name") not in ["bing-theme-persistence", "theme-preference", "last-theme-update"]
+                item
+                for item in bing_origin["localStorage"]
+                if item.get("name")
+                not in ["bing-theme-persistence", "theme-preference", "last-theme-update"]
             ]
 
             # 添加新的主题条目
@@ -464,7 +482,7 @@ class BingThemeManager:
             "browser_persistence": {"status": "unknown", "details": {}},
             "theme_consistency": {"status": "unknown", "details": {}},
             "recommendations": [],
-            "timestamp": asyncio.get_running_loop().time()
+            "timestamp": asyncio.get_running_loop().time(),
         }
 
         try:
@@ -483,12 +501,7 @@ class BingThemeManager:
             integrity_result["theme_consistency"] = consistency_check
 
             # 4. 计算总体状态
-            status_scores = {
-                "good": 3,
-                "warning": 2,
-                "error": 1,
-                "unknown": 0
-            }
+            status_scores = {"good": 3, "warning": 2, "error": 1, "unknown": 0}
 
             total_score = 0
             max_score = 0
@@ -554,7 +567,7 @@ class BingThemeManager:
                 "file_size": file_stat.st_size,
                 "file_age_seconds": file_age,
                 "saved_theme": theme_state.get("theme"),
-                "last_update": theme_state.get("timestamp")
+                "last_update": theme_state.get("timestamp"),
             }
 
             return result
@@ -608,7 +621,9 @@ class BingThemeManager:
 
             if "error" in browser_persistence:
                 result["status"] = "error"
-                result["details"]["message"] = f"浏览器持久化检查失败: {browser_persistence['error']}"
+                result["details"]["message"] = (
+                    f"浏览器持久化检查失败: {browser_persistence['error']}"
+                )
                 return result
 
             # 分析结果
@@ -652,7 +667,7 @@ class BingThemeManager:
             result["details"] = {
                 "current_theme": current_theme,
                 "saved_theme": saved_theme,
-                "preferred_theme": preferred_theme
+                "preferred_theme": preferred_theme,
             }
 
             # 检查一致性
@@ -772,7 +787,7 @@ class BingThemeManager:
             logger.error(f"清理主题持久化数据失败: {e}")
             return False
 
-    async def detect_current_theme(self, page: Page) -> \g<0>str]:
+    async def detect_current_theme(self, page: Page) -> str | None:
         """
         检测当前Bing页面的主题
         使用多种检测方法确保准确性和可靠性
@@ -840,7 +855,7 @@ class BingThemeManager:
             logger.warning(f"检测主题失败: {e}")
             return None
 
-    async def _detect_theme_by_css_classes(self, page: Page) -> \g<0>str]:
+    async def _detect_theme_by_css_classes(self, page: Page) -> str | None:
         """通过CSS类和数据属性检测主题"""
         try:
             # 深色主题指示器
@@ -855,7 +870,7 @@ class BingThemeManager:
                 "[data-bs-theme='dark']",  # Bootstrap主题
                 ".theme-dark",
                 "body[class*='night']",
-                "html[class*='night']"
+                "html[class*='night']",
             ]
 
             # 浅色主题指示器
@@ -868,7 +883,7 @@ class BingThemeManager:
                 "body.light-theme",
                 "html.light-theme",
                 "[data-bs-theme='light']",
-                ".theme-light"
+                ".theme-light",
             ]
 
             # 检查深色主题指示器
@@ -897,7 +912,7 @@ class BingThemeManager:
             logger.debug(f"CSS类检测失败: {e}")
             return None
 
-    async def _detect_theme_by_computed_styles(self, page: Page) -> \g<0>str]:
+    async def _detect_theme_by_computed_styles(self, page: Page) -> str | None:
         """通过计算样式和背景色检测主题"""
         try:
             theme_info = await page.evaluate("""
@@ -1014,23 +1029,29 @@ class BingThemeManager:
             logger.debug(f"计算样式检测失败: {e}")
             return None
 
-    async def _detect_theme_by_cookies(self, page: Page) -> \g<0>str]:
+    async def _detect_theme_by_cookies(self, page: Page) -> str | None:
         """通过Cookie检测主题设置"""
         try:
             cookies = await page.context.cookies()
 
             for cookie in cookies:
-                name = cookie.get('name', '')
-                value = cookie.get('value', '')
+                name = cookie.get("name", "")
+                value = cookie.get("value", "")
 
                 # 检查Bing主题Cookie
-                if 'SRCHHPGUSR' in name:
+                if "SRCHHPGUSR" in name:
                     # 检查各种主题参数格式
                     theme_patterns = [
-                        ('THEME:1', 'dark'), ('THEME=1', 'dark'), ('THEME%3A1', 'dark'),
-                        ('THEME:0', 'light'), ('THEME=0', 'light'), ('THEME%3A0', 'light'),
-                        ('theme:dark', 'dark'), ('theme=dark', 'dark'),
-                        ('theme:light', 'light'), ('theme=light', 'light')
+                        ("THEME:1", "dark"),
+                        ("THEME=1", "dark"),
+                        ("THEME%3A1", "dark"),
+                        ("THEME:0", "light"),
+                        ("THEME=0", "light"),
+                        ("THEME%3A0", "light"),
+                        ("theme:dark", "dark"),
+                        ("theme=dark", "dark"),
+                        ("theme:light", "light"),
+                        ("theme=light", "light"),
                     ]
 
                     for pattern, theme in theme_patterns:
@@ -1039,12 +1060,12 @@ class BingThemeManager:
                             return theme
 
                 # 检查其他可能的主题Cookie
-                theme_cookie_names = ['theme', 'color-scheme', 'appearance', 'mode']
+                theme_cookie_names = ["theme", "color-scheme", "appearance", "mode"]
                 if any(theme_name in name.lower() for theme_name in theme_cookie_names):
-                    if any(dark_val in value.lower() for dark_val in ['dark', '1', 'night']):
+                    if any(dark_val in value.lower() for dark_val in ["dark", "1", "night"]):
                         logger.debug(f"从Cookie {name} 检测到深色主题")
                         return "dark"
-                    elif any(light_val in value.lower() for light_val in ['light', '0', 'day']):
+                    elif any(light_val in value.lower() for light_val in ["light", "0", "day"]):
                         logger.debug(f"从Cookie {name} 检测到浅色主题")
                         return "light"
 
@@ -1054,16 +1075,21 @@ class BingThemeManager:
             logger.debug(f"Cookie检测失败: {e}")
             return None
 
-    async def _detect_theme_by_url_params(self, page: Page) -> \g<0>str]:
+    async def _detect_theme_by_url_params(self, page: Page) -> str | None:
         """通过URL参数检测主题设置"""
         try:
             url = page.url
 
             # 检查URL中的主题参数
             theme_patterns = [
-                ('THEME=1', 'dark'), ('THEME%3D1', 'dark'), ('theme=dark', 'dark'),
-                ('THEME=0', 'light'), ('THEME%3D0', 'light'), ('theme=light', 'light'),
-                ('SRCHHPGUSR=THEME:1', 'dark'), ('SRCHHPGUSR=THEME:0', 'light')
+                ("THEME=1", "dark"),
+                ("THEME%3D1", "dark"),
+                ("theme=dark", "dark"),
+                ("THEME=0", "light"),
+                ("THEME%3D0", "light"),
+                ("theme=light", "light"),
+                ("SRCHHPGUSR=THEME:1", "dark"),
+                ("SRCHHPGUSR=THEME:0", "light"),
             ]
 
             for pattern, theme in theme_patterns:
@@ -1077,7 +1103,7 @@ class BingThemeManager:
             logger.debug(f"URL参数检测失败: {e}")
             return None
 
-    async def _detect_theme_by_storage(self, page: Page) -> \g<0>str]:
+    async def _detect_theme_by_storage(self, page: Page) -> str | None:
         """通过localStorage和sessionStorage检测主题"""
         try:
             storage_result = await page.evaluate("""
@@ -1120,7 +1146,7 @@ class BingThemeManager:
             logger.debug(f"存储检测失败: {e}")
             return None
 
-    async def _detect_theme_by_meta_tags(self, page: Page) -> \g<0>str]:
+    async def _detect_theme_by_meta_tags(self, page: Page) -> str | None:
         """通过meta标签和页面属性检测主题"""
         try:
             meta_result = await page.evaluate("""
@@ -1199,12 +1225,12 @@ class BingThemeManager:
         # 统计投票
         votes = {"dark": 0, "light": 0}
         method_weights = {
-            "css_classes": 3,      # CSS类权重最高，最可靠
+            "css_classes": 3,  # CSS类权重最高，最可靠
             "computed_styles": 3,  # 计算样式权重也很高
-            "cookies": 2,          # Cookie权重中等
-            "url_params": 2,       # URL参数权重中等
-            "storage": 1,          # 存储权重较低
-            "meta_tags": 1         # Meta标签权重较低
+            "cookies": 2,  # Cookie权重中等
+            "url_params": 2,  # URL参数权重中等
+            "storage": 1,  # 存储权重较低
+            "meta_tags": 1,  # Meta标签权重较低
         }
 
         total_weight = 0
@@ -1262,7 +1288,7 @@ class BingThemeManager:
                 ("LocalStorage", self._set_theme_by_localstorage),
                 ("JavaScript注入", self._set_theme_by_javascript),
                 ("设置页面", self._set_theme_by_settings),
-                ("强制CSS", self._set_theme_by_force_css)
+                ("强制CSS", self._set_theme_by_force_css),
             ]
 
             # 尝试每种方法
@@ -1321,24 +1347,27 @@ class BingThemeManager:
             if "SRCHHPGUSR" in current_url:
                 # 更新现有参数
                 import re
-                new_url = re.sub(r'THEME[:=]\d', f'THEME={theme_param}', current_url)
+
+                new_url = re.sub(r"THEME[:=]\d", f"THEME={theme_param}", current_url)
                 if new_url != current_url:
                     url_variations.append(new_url)
 
                 # 尝试冒号格式
-                new_url2 = re.sub(r'THEME[:=]\d', f'THEME:{theme_param}', current_url)
+                new_url2 = re.sub(r"THEME[:=]\d", f"THEME:{theme_param}", current_url)
                 if new_url2 != current_url and new_url2 != new_url:
                     url_variations.append(new_url2)
             else:
                 # 添加新参数
                 separator = "&" if "?" in current_url else "?"
-                url_variations.extend([
-                    f"{current_url}{separator}SRCHHPGUSR=THEME={theme_param}",
-                    f"{current_url}{separator}SRCHHPGUSR=THEME:{theme_param}",
-                    f"{current_url}{separator}THEME={theme_param}",
-                    f"{current_url}{separator}theme={theme}",
-                    f"{current_url}{separator}color-scheme={theme}"
-                ])
+                url_variations.extend(
+                    [
+                        f"{current_url}{separator}SRCHHPGUSR=THEME={theme_param}",
+                        f"{current_url}{separator}SRCHHPGUSR=THEME:{theme_param}",
+                        f"{current_url}{separator}THEME={theme_param}",
+                        f"{current_url}{separator}theme={theme}",
+                        f"{current_url}{separator}color-scheme={theme}",
+                    ]
+                )
 
             # 尝试每种URL变体
             for url_variant in url_variations:
@@ -1373,34 +1402,32 @@ class BingThemeManager:
             # 多种Cookie设置方式
             cookie_variations = [
                 # Bing标准格式
-                {'name': 'SRCHHPGUSR', 'value': f'THEME={theme_value}'},
-                {'name': 'SRCHHPGUSR', 'value': f'THEME:{theme_value}'},
-                {'name': 'SRCHHPGUSR', 'value': f'THEME%3D{theme_value}'},
-                {'name': 'SRCHHPGUSR', 'value': f'THEME%3A{theme_value}'},
-
+                {"name": "SRCHHPGUSR", "value": f"THEME={theme_value}"},
+                {"name": "SRCHHPGUSR", "value": f"THEME:{theme_value}"},
+                {"name": "SRCHHPGUSR", "value": f"THEME%3D{theme_value}"},
+                {"name": "SRCHHPGUSR", "value": f"THEME%3A{theme_value}"},
                 # 通用主题Cookie
-                {'name': 'theme', 'value': theme},
-                {'name': 'color-scheme', 'value': theme},
-                {'name': 'appearance', 'value': theme},
-                {'name': 'mode', 'value': theme},
-                {'name': 'bing-theme', 'value': theme},
-
+                {"name": "theme", "value": theme},
+                {"name": "color-scheme", "value": theme},
+                {"name": "appearance", "value": theme},
+                {"name": "mode", "value": theme},
+                {"name": "bing-theme", "value": theme},
                 # 数值格式
-                {'name': 'theme-mode', 'value': theme_value},
-                {'name': 'dark-mode', 'value': theme_value},
+                {"name": "theme-mode", "value": theme_value},
+                {"name": "dark-mode", "value": theme_value},
             ]
 
             # 设置所有Cookie变体
             for cookie_data in cookie_variations:
                 try:
                     cookie_full = {
-                        'name': cookie_data['name'],
-                        'value': cookie_data['value'],
-                        'domain': '.bing.com',
-                        'path': '/',
-                        'httpOnly': False,
-                        'secure': True,
-                        'sameSite': 'Lax'
+                        "name": cookie_data["name"],
+                        "value": cookie_data["value"],
+                        "domain": ".bing.com",
+                        "path": "/",
+                        "httpOnly": False,
+                        "secure": True,
+                        "sameSite": "Lax",
                     }
 
                     await page.context.add_cookies([cookie_full])
@@ -1788,7 +1815,7 @@ class BingThemeManager:
                 "button:has-text('Settings')",
                 "button:has-text('设置')",
                 ".header-settings",
-                "#settings-menu"
+                "#settings-menu",
             ]
 
             # 查找设置按钮
@@ -1825,7 +1852,7 @@ class BingThemeManager:
                 "select[name*='theme']",
                 ".dark-mode-toggle" if theme == "dark" else ".light-mode-toggle",
                 "[data-testid*='theme']",
-                ".theme-selector"
+                ".theme-selector",
             ]
 
             # 查找主题选项
@@ -1883,7 +1910,7 @@ class BingThemeManager:
                 "[data-testid*='save']",
                 "[data-testid*='apply']",
                 ".btn-primary",
-                ".submit-btn"
+                ".submit-btn",
             ]
 
             # 查找保存按钮
@@ -1916,7 +1943,9 @@ class BingThemeManager:
             logger.debug(f"设置页面设置主题失败: {e}")
             return False
 
-    async def set_theme_with_retry(self, page: Page, theme: str = "dark", max_retries: int = 3) -> bool:
+    async def set_theme_with_retry(
+        self, page: Page, theme: str = "dark", max_retries: int = 3
+    ) -> bool:
         """
         带重试机制的主题设置
 
@@ -1969,7 +1998,7 @@ class BingThemeManager:
                 ("Cookie", self._set_theme_by_cookie),
                 ("LocalStorage", self._set_theme_by_localstorage),
                 ("JavaScript注入", self._set_theme_by_javascript),
-                ("强制CSS", self._set_theme_by_force_css)
+                ("强制CSS", self._set_theme_by_force_css),
             ]
 
             # 并行执行所有方法（除了需要页面刷新的）
@@ -2034,7 +2063,7 @@ class BingThemeManager:
                 ("Cookie", self._detect_theme_by_cookies),
                 ("URL参数", self._detect_theme_by_url_params),
                 ("存储", self._detect_theme_by_storage),
-                ("Meta标签", self._detect_theme_by_meta_tags)
+                ("Meta标签", self._detect_theme_by_meta_tags),
             ]
 
             for method_name, method_func in methods:
@@ -2051,7 +2080,7 @@ class BingThemeManager:
             page_info = {
                 "url": page.url,
                 "title": await page.title() if page else "未知",
-                "user_agent": await page.evaluate("navigator.userAgent") if page else "未知"
+                "user_agent": await page.evaluate("navigator.userAgent") if page else "未知",
             }
 
             # 获取配置信息
@@ -2063,7 +2092,7 @@ class BingThemeManager:
                 "detection_results": detection_results,
                 "page_info": page_info,
                 "config": config_info,
-                "status": "成功" if final_theme else "失败"
+                "status": "成功" if final_theme else "失败",
             }
 
             logger.debug(f"主题状态报告生成完成: {final_theme}")
@@ -2077,10 +2106,12 @@ class BingThemeManager:
                 "detection_results": {},
                 "page_info": {},
                 "config": self.get_theme_config(),
-                "status": f"错误: {str(e)}"
+                "status": f"错误: {str(e)}",
             }
 
-    async def ensure_theme_before_search(self, page: Page, context: \g<0>BrowserContext] = None) -> bool:
+    async def ensure_theme_before_search(
+        self, page: Page, context: BrowserContext | None = None
+    ) -> bool:
         """
         在搜索前确保主题设置正确，包含完善的失败处理和会话间持久化
         这是任务6.2.2的集成功能：在搜索前确保主题持久化
@@ -2111,7 +2142,9 @@ class BingThemeManager:
                 return True
 
             # 3. 主题不匹配，需要设置
-            logger.info(f"主题不匹配 (当前: {current_theme}, 期望: {self.preferred_theme})，尝试设置")
+            logger.info(
+                f"主题不匹配 (当前: {current_theme}, 期望: {self.preferred_theme})，尝试设置"
+            )
 
             # 首先尝试标准设置
             success = await self.set_theme(page, self.preferred_theme)
@@ -2127,7 +2160,9 @@ class BingThemeManager:
                         await self.ensure_theme_persistence(page, context)
                     return True
                 else:
-                    logger.warning(f"主题设置验证失败: 期望{self.preferred_theme}, 实际{verified_theme}")
+                    logger.warning(
+                        f"主题设置验证失败: 期望{self.preferred_theme}, 实际{verified_theme}"
+                    )
 
             # 如果标准设置失败，尝试降级策略
             logger.debug("标准主题设置失败，尝试降级策略...")
@@ -2185,23 +2220,16 @@ class BingThemeManager:
                     "LocalStorage",
                     "JavaScript注入",
                     "设置页面",
-                    "强制CSS"
+                    "强制CSS",
                 ],
-                "fallback_strategies": [
-                    "强制应用所有方法",
-                    "仅应用CSS样式",
-                    "设置最小化主题标记"
-                ]
+                "fallback_strategies": ["强制应用所有方法", "仅应用CSS样式", "设置最小化主题标记"],
             }
 
             return stats
 
         except Exception as e:
             logger.error(f"获取失败统计信息异常: {e}")
-            return {
-                "error": str(e),
-                "config": self.get_theme_config()
-            }
+            return {"error": str(e), "config": self.get_theme_config()}
 
     async def verify_theme_persistence(self, page: Page) -> bool:
         """
@@ -2226,7 +2254,7 @@ class BingThemeManager:
             # 检查主题是否保持
             new_theme = await self.detect_current_theme(page)
 
-            is_persistent = (original_theme == new_theme)
+            is_persistent = original_theme == new_theme
 
             if is_persistent:
                 logger.debug(f"✓ 主题持久化验证成功: {new_theme}")
@@ -2239,7 +2267,9 @@ class BingThemeManager:
             logger.warning(f"主题持久化验证失败: {e}")
             return False
 
-    async def verify_theme_setting(self, page: Page, expected_theme: str = "dark") -> dict[str, Any]:
+    async def verify_theme_setting(
+        self, page: Page, expected_theme: str = "dark"
+    ) -> dict[str, Any]:
         """
         验证主题设置是否成功应用
         这是任务6.2.1的核心实现：提供全面的主题设置验证功能
@@ -2260,7 +2290,7 @@ class BingThemeManager:
             "verification_score": 0.0,
             "recommendations": [],
             "timestamp": asyncio.get_running_loop().time(),
-            "error": None
+            "error": None,
         }
 
         try:
@@ -2280,24 +2310,30 @@ class BingThemeManager:
             verification_result["verification_methods"] = verification_methods
 
             # 3. 计算验证分数
-            verification_score = self._calculate_verification_score(verification_methods, detected_theme, expected_theme)
+            verification_score = self._calculate_verification_score(
+                verification_methods, detected_theme, expected_theme
+            )
             verification_result["verification_score"] = verification_score
 
             # 4. 主题持久化验证
             if detected_theme == expected_theme:
                 logger.debug("主题匹配，进行持久化验证...")
-                persistence_result = await self._verify_theme_persistence_detailed(page, expected_theme)
+                persistence_result = await self._verify_theme_persistence_detailed(
+                    page, expected_theme
+                )
                 verification_result["persistence_check"] = persistence_result["is_persistent"]
                 verification_result["persistence_details"] = persistence_result
             else:
-                logger.debug(f"主题不匹配 (期望: {expected_theme}, 实际: {detected_theme})，跳过持久化验证")
+                logger.debug(
+                    f"主题不匹配 (期望: {expected_theme}, 实际: {detected_theme})，跳过持久化验证"
+                )
                 verification_result["persistence_check"] = False
 
             # 5. 确定最终验证结果
             verification_result["success"] = (
-                detected_theme == expected_theme and
-                verification_score >= 0.7 and  # 至少70%的方法验证成功
-                (verification_result["persistence_check"] or detected_theme != expected_theme)
+                detected_theme == expected_theme
+                and verification_score >= 0.7  # 至少70%的方法验证成功
+                and (verification_result["persistence_check"] or detected_theme != expected_theme)
             )
 
             # 6. 生成建议
@@ -2308,9 +2344,13 @@ class BingThemeManager:
 
             # 7. 记录验证结果
             if verification_result["success"]:
-                logger.info(f"✓ 主题设置验证成功: {expected_theme} (分数: {verification_score:.2f})")
+                logger.info(
+                    f"✓ 主题设置验证成功: {expected_theme} (分数: {verification_score:.2f})"
+                )
             else:
-                logger.warning(f"主题设置验证失败: 期望 {expected_theme}, 检测到 {detected_theme} (分数: {verification_score:.2f})")
+                logger.warning(
+                    f"主题设置验证失败: 期望 {expected_theme}, 检测到 {detected_theme} (分数: {verification_score:.2f})"
+                )
 
             return verification_result
 
@@ -2318,7 +2358,9 @@ class BingThemeManager:
             error_msg = f"主题设置验证异常: {str(e)}"
             logger.error(error_msg)
             verification_result["error"] = error_msg
-            verification_result["recommendations"].append("验证过程中发生异常，建议检查页面状态和网络连接")
+            verification_result["recommendations"].append(
+                "验证过程中发生异常，建议检查页面状态和网络连接"
+            )
             return verification_result
 
     async def _verify_theme_by_all_methods(self, page: Page, expected_theme: str) -> dict[str, Any]:
@@ -2341,7 +2383,7 @@ class BingThemeManager:
             ("cookies", self._detect_theme_by_cookies, 2),
             ("url_params", self._detect_theme_by_url_params, 2),
             ("storage", self._detect_theme_by_storage, 1),
-            ("meta_tags", self._detect_theme_by_meta_tags, 1)
+            ("meta_tags", self._detect_theme_by_meta_tags, 1),
         ]
 
         for method_name, method_func, weight in detection_methods:
@@ -2352,7 +2394,7 @@ class BingThemeManager:
                     "matches_expected": result == expected_theme,
                     "weight": weight,
                     "status": "success",
-                    "error": None
+                    "error": None,
                 }
                 logger.debug(f"验证方法 {method_name}: {result} (期望: {expected_theme})")
 
@@ -2362,13 +2404,15 @@ class BingThemeManager:
                     "matches_expected": False,
                     "weight": weight,
                     "status": "error",
-                    "error": str(e)
+                    "error": str(e),
                 }
                 logger.debug(f"验证方法 {method_name} 失败: {e}")
 
         return methods_result
 
-    def _calculate_verification_score(self, methods_result: dict[str, Any], detected_theme: str, expected_theme: str) -> float:
+    def _calculate_verification_score(
+        self, methods_result: dict[str, Any], detected_theme: str, expected_theme: str
+    ) -> float:
         """
         计算主题验证分数
 
@@ -2386,7 +2430,7 @@ class BingThemeManager:
         total_weight = 0
         matched_weight = 0
 
-        for method_name, result in methods_result.items():
+        for _method_name, result in methods_result.items():
             weight = result.get("weight", 1)
             total_weight += weight
 
@@ -2405,7 +2449,9 @@ class BingThemeManager:
 
         return base_score
 
-    async def _verify_theme_persistence_detailed(self, page: Page, expected_theme: str) -> dict[str, Any]:
+    async def _verify_theme_persistence_detailed(
+        self, page: Page, expected_theme: str
+    ) -> dict[str, Any]:
         """
         详细的主题持久化验证
 
@@ -2423,7 +2469,7 @@ class BingThemeManager:
             "refresh_successful": False,
             "verification_methods_before": {},
             "verification_methods_after": {},
-            "error": None
+            "error": None,
         }
 
         try:
@@ -2457,15 +2503,17 @@ class BingThemeManager:
 
             # 4. 判断持久化结果
             persistence_result["is_persistent"] = (
-                before_theme == after_theme == expected_theme and
-                before_theme is not None and
-                after_theme is not None
+                before_theme == after_theme == expected_theme
+                and before_theme is not None
+                and after_theme is not None
             )
 
             if persistence_result["is_persistent"]:
                 logger.debug(f"✓ 主题持久化验证成功: {expected_theme}")
             else:
-                logger.warning(f"主题持久化验证失败: {before_theme} -> {after_theme} (期望: {expected_theme})")
+                logger.warning(
+                    f"主题持久化验证失败: {before_theme} -> {after_theme} (期望: {expected_theme})"
+                )
 
             return persistence_result
 
@@ -2475,10 +2523,13 @@ class BingThemeManager:
             persistence_result["error"] = error_msg
             return persistence_result
 
-    def _generate_verification_recommendations(self, verification_result: dict[str, Any],
-                                             methods_result: dict[str, Any],
-                                             detected_theme: str,
-                                             expected_theme: str) -> list:
+    def _generate_verification_recommendations(
+        self,
+        verification_result: dict[str, Any],
+        methods_result: dict[str, Any],
+        detected_theme: str,
+        expected_theme: str,
+    ) -> list:
         """
         基于验证结果生成建议
 
@@ -2500,7 +2551,9 @@ class BingThemeManager:
                     recommendations.append("无法检测到当前主题，建议检查页面是否为Bing搜索页面")
                     recommendations.append("确保页面完全加载后再进行主题验证")
                 else:
-                    recommendations.append(f"当前主题为 {detected_theme}，但期望为 {expected_theme}，建议重新设置主题")
+                    recommendations.append(
+                        f"当前主题为 {detected_theme}，但期望为 {expected_theme}，建议重新设置主题"
+                    )
                     recommendations.append("可以尝试使用强制主题应用功能")
 
             # 2. 基于验证分数的建议
@@ -2531,7 +2584,10 @@ class BingThemeManager:
                 recommendations.append("可能需要针对这些方法优化主题设置策略")
 
             # 4. 基于持久化验证的建议
-            if not verification_result.get("persistence_check", False) and detected_theme == expected_theme:
+            if (
+                not verification_result.get("persistence_check", False)
+                and detected_theme == expected_theme
+            ):
                 recommendations.append("主题设置未能持久化，建议检查Cookie和localStorage设置")
                 recommendations.append("可能需要使用更持久的主题设置方法")
 
@@ -2548,8 +2604,9 @@ class BingThemeManager:
             logger.error(f"生成验证建议时发生异常: {e}")
             return ["生成建议时发生错误，建议手动检查主题设置"]
 
-    async def verify_and_fix_theme_setting(self, page: Page, expected_theme: str = "dark",
-                                         max_attempts: int = 3) -> dict[str, Any]:
+    async def verify_and_fix_theme_setting(
+        self, page: Page, expected_theme: str = "dark", max_attempts: int = 3
+    ) -> dict[str, Any]:
         """
         验证主题设置，如果验证失败则尝试修复
         这是任务6.2.1的扩展功能：提供验证和自动修复的组合功能
@@ -2568,7 +2625,7 @@ class BingThemeManager:
             "fix_attempts": [],
             "final_verification": None,
             "total_attempts": 0,
-            "error": None
+            "error": None,
         }
 
         try:
@@ -2584,7 +2641,9 @@ class BingThemeManager:
                 result["final_verification"] = initial_verification
                 return result
 
-            logger.info(f"初始主题验证失败 (分数: {initial_verification['verification_score']:.2f})，开始修复...")
+            logger.info(
+                f"初始主题验证失败 (分数: {initial_verification['verification_score']:.2f})，开始修复..."
+            )
 
             # 2. 尝试修复
             for attempt in range(max_attempts):
@@ -2596,7 +2655,7 @@ class BingThemeManager:
                     "method_used": None,
                     "success": False,
                     "verification_after_fix": None,
-                    "error": None
+                    "error": None,
                 }
 
                 try:
@@ -2608,7 +2667,9 @@ class BingThemeManager:
                     elif attempt == 1:
                         # 第二次尝试：带重试的设置
                         fix_attempt["method_used"] = "retry_setting"
-                        fix_success = await self.set_theme_with_retry(page, expected_theme, max_retries=2)
+                        fix_success = await self.set_theme_with_retry(
+                            page, expected_theme, max_retries=2
+                        )
                     else:
                         # 最后尝试：降级策略
                         fix_attempt["method_used"] = "fallback_setting"
@@ -2619,7 +2680,9 @@ class BingThemeManager:
                     if fix_success:
                         # 修复成功，进行验证
                         await asyncio.sleep(1)  # 等待主题应用
-                        verification_after_fix = await self.verify_theme_setting(page, expected_theme)
+                        verification_after_fix = await self.verify_theme_setting(
+                            page, expected_theme
+                        )
                         fix_attempt["verification_after_fix"] = verification_after_fix
 
                         if verification_after_fix["success"]:
@@ -2629,7 +2692,9 @@ class BingThemeManager:
                             result["fix_attempts"].append(fix_attempt)
                             return result
                         else:
-                            logger.warning(f"第{attempt + 1}次修复后验证仍失败 (分数: {verification_after_fix['verification_score']:.2f})")
+                            logger.warning(
+                                f"第{attempt + 1}次修复后验证仍失败 (分数: {verification_after_fix['verification_score']:.2f})"
+                            )
                     else:
                         logger.warning(f"第{attempt + 1}次修复方法失败")
 
@@ -2658,7 +2723,9 @@ class BingThemeManager:
             result["error"] = error_msg
             return result
 
-    async def _handle_theme_setting_failure(self, page: Page, theme: str, failure_details: list) -> None:
+    async def _handle_theme_setting_failure(
+        self, page: Page, theme: str, failure_details: list
+    ) -> None:
         """
         处理主题设置失败的情况
         提供详细的错误报告和诊断信息
@@ -2676,7 +2743,9 @@ class BingThemeManager:
                 logger.debug(f"失败详情 {i}: {detail}")
 
             # 生成诊断报告
-            diagnostic_info = await self._generate_theme_failure_diagnostic(page, theme, failure_details)
+            diagnostic_info = await self._generate_theme_failure_diagnostic(
+                page, theme, failure_details
+            )
 
             # 记录诊断信息
             logger.info("主题设置失败诊断报告:")
@@ -2699,7 +2768,9 @@ class BingThemeManager:
         except Exception as e:
             logger.error(f"处理主题设置失败时发生异常: {e}")
 
-    async def _generate_theme_failure_diagnostic(self, page: Page, theme: str, failure_details: list) -> dict[str, Any]:
+    async def _generate_theme_failure_diagnostic(
+        self, page: Page, theme: str, failure_details: list
+    ) -> dict[str, Any]:
         """
         生成主题设置失败的诊断信息
 
@@ -2723,7 +2794,7 @@ class BingThemeManager:
             "page_ready_state": "未知",
             "is_bing_page": False,
             "page_has_error": "未知",
-            "network_online": "未知"
+            "network_online": "未知",
         }
 
         try:
@@ -2815,12 +2886,14 @@ class BingThemeManager:
                 suggestions.append("无法检测当前主题，页面可能不支持主题设置")
 
             # 通用建议
-            suggestions.extend([
-                "尝试刷新页面后重新设置主题",
-                "检查浏览器是否支持JavaScript",
-                "尝试清除浏览器缓存和Cookie",
-                "考虑使用不同的浏览器或用户代理"
-            ])
+            suggestions.extend(
+                [
+                    "尝试刷新页面后重新设置主题",
+                    "检查浏览器是否支持JavaScript",
+                    "尝试清除浏览器缓存和Cookie",
+                    "考虑使用不同的浏览器或用户代理",
+                ]
+            )
 
             # 如果失败次数很多，建议禁用主题管理
             if diagnostic_info.get("failure_count", 0) >= 6:
@@ -2847,8 +2920,8 @@ class BingThemeManager:
                 return False
 
             # 创建截图目录
-            from pathlib import Path
             import time
+            from pathlib import Path
 
             screenshot_dir = Path("logs/theme_failures")
             screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -2996,4 +3069,4 @@ class BingThemeManager:
 
         except Exception as e:
             logger.debug(f"最小化主题标记应用失败: {e}")
-            return False\n
+            return False

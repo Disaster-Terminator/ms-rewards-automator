@@ -3,11 +3,13 @@ Password Input Handler.
 
 Handles the password input state in Microsoft login flow.
 """
+
 from typing import Any
 
 from ..edge_popup_handler import EdgePopupHandler
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class PasswordInputHandler(StateHandler):
     """
@@ -82,7 +84,7 @@ class PasswordInputHandler(StateHandler):
         Returns:
             True if successful
         """
-        password = credentials.get('password')
+        password = credentials.get("password")
         if not password:
             self.logger.error("No password provided in credentials")
             return False
@@ -194,4 +196,4 @@ class PasswordInputHandler(StateHandler):
             LoginState.GET_A_CODE,
             LoginState.RECOVERY_EMAIL,
             LoginState.ERROR,
-        ]\n
+        ]

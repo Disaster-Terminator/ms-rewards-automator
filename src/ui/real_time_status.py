@@ -2,12 +2,11 @@
 实时状态显示模块
 在无头模式下提供实时状态更新和进度显示
 """
-from datetime import datetime, timedelta
-from typing import Any
-import asyncio
+
 import logging
 import threading
 import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +96,11 @@ class RealTimeStatusDisplay:
         # 清屏（仅在支持的终端中）
         try:
             import os
-            if os.name == 'nt':  # Windows
-                os.system('cls')
+
+            if os.name == "nt":  # Windows
+                os.system("cls")
             else:  # Unix/Linux/Mac
-                os.system('clear')
+                os.system("clear")
         except Exception:
             # 如果清屏失败，使用换行分隔
             print("\n" + "=" * 60)
@@ -122,12 +122,16 @@ class RealTimeStatusDisplay:
         if self.desktop_searches_total > 0:
             desktop_percent = (self.desktop_searches_completed / self.desktop_searches_total) * 100
             desktop_bar = self._create_progress_bar(desktop_percent, width=20)
-            print(f"🖥️  桌面搜索: {desktop_bar} {self.desktop_searches_completed}/{self.desktop_searches_total}")
+            print(
+                f"🖥️  桌面搜索: {desktop_bar} {self.desktop_searches_completed}/{self.desktop_searches_total}"
+            )
 
         if self.mobile_searches_total > 0:
             mobile_percent = (self.mobile_searches_completed / self.mobile_searches_total) * 100
             mobile_bar = self._create_progress_bar(mobile_percent, width=20)
-            print(f"📱 移动搜索: {mobile_bar} {self.mobile_searches_completed}/{self.mobile_searches_total}")
+            print(
+                f"📱 移动搜索: {mobile_bar} {self.mobile_searches_completed}/{self.mobile_searches_total}"
+            )
 
         if self.current_points is not None and self.current_points > 0:
             print(f"💰 积分状态: {self.current_points} (+{self.points_gained})")
@@ -372,4 +376,4 @@ class StatusManager:
         """显示完成摘要"""
         if cls._display:
             cls._display.show_completion_summary()
-            cls._display.stop_display_thread()\n
+            cls._display.stop_display_thread()

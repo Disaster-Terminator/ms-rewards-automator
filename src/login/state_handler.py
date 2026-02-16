@@ -9,15 +9,19 @@ Each handler is responsible for:
 
 Design Pattern: Strategy Pattern with Template Method
 """
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any
+
+from __future__ import annotations
+
 import logging
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 from playwright.async_api import Page
 
 if TYPE_CHECKING:
     from infrastructure.config_manager import ConfigManager
+
+    from .login_state_machine import LoginState
 
 
 class StateHandler(ABC):
@@ -33,7 +37,7 @@ class StateHandler(ABC):
         human_simulator: Human behavior simulator for anti-detection
     """
 
-    def __init__(self, config: 'ConfigManager', logger: \g<0>logging.Logger] = None):
+    def __init__(self, config: ConfigManager, logger: logging.Logger | None = None):
         """
         Initialize the state handler.
 
@@ -45,6 +49,7 @@ class StateHandler(ABC):
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
         from .human_behavior_simulator import HumanBehaviorSimulator
+
         self.human_simulator = HumanBehaviorSimulator(logger=self.logger)
 
     @abstractmethod
@@ -83,7 +88,7 @@ class StateHandler(ABC):
         pass
 
     @abstractmethod
-    def get_next_states(self) -> list['LoginState']:
+    def get_next_states(self) -> list[LoginState]:
         """
         Return possible next states after handling this state.
 
@@ -104,11 +109,7 @@ class StateHandler(ABC):
         """
         return self.__class__.__name__
 
-    async def wait_for_navigation(
-        self,
-        page: Any,
-        timeout: int = 60000
-    ) -> bool:
+    async def wait_for_navigation(self, page: Any, timeout: int = 60000) -> bool:
         """
         Wait for page navigation to complete.
 
@@ -138,11 +139,7 @@ class StateHandler(ABC):
             return True  # 返回 True 让流程继续
 
     async def safe_click(
-        self,
-        page: Any,
-        selector: str,
-        timeout: int = 10000,
-        human_like: bool = True
+        self, page: Any, selector: str, timeout: int = 10000, human_like: bool = True
     ) -> bool:
         """
         Safely click an element with error handling.
@@ -171,12 +168,7 @@ class StateHandler(ABC):
             return False
 
     async def safe_fill(
-        self,
-        page: Any,
-        selector: str,
-        value: str,
-        timeout: int = 10000,
-        human_like: bool = True
+        self, page: Any, selector: str, value: str, timeout: int = 10000, human_like: bool = True
     ) -> bool:
         """
         Safely fill an input field with error handling.
@@ -205,12 +197,7 @@ class StateHandler(ABC):
             self.logger.error(f"Failed to fill {selector}: {e}")
             return False
 
-    async def element_exists(
-        self,
-        page: Any,
-        selector: str,
-        timeout: int = 2000
-    ) -> bool:
+    async def element_exists(self, page: Any, selector: str, timeout: int = 2000) -> bool:
         """
         Check if an element exists on the page.
 
@@ -228,4 +215,4 @@ class StateHandler(ABC):
         except Exception:
             # 明确捕获所有异常（包括 TimeoutError）并返回 False
             # 这样可以避免 "Future exception was never retrieved" 警告
-            return False\n
+            return False

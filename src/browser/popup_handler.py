@@ -4,9 +4,11 @@ Browser Popup Handler - 浏览器弹窗处理器
 处理各种浏览器弹窗，包括 Edge 登录促销弹窗、对话框等。
 从 login 模块解耦，移到 browser 模块。
 """
-from typing import Any
+
 import asyncio
 import logging
+from typing import Any
+
 
 class BrowserPopupHandler:
     """
@@ -27,7 +29,6 @@ class BrowserPopupHandler:
         'button:has-text("暂不")',
         'button:has-text("取消")',
         'button:has-text("关闭")',
-
         # 英文按钮 - 各种变体
         'button:has-text("No, thanks")',
         'button:has-text("No thanks")',
@@ -40,12 +41,10 @@ class BrowserPopupHandler:
         'button:has-text("Cancel")',
         'button:has-text("Close")',
         'button:has-text("Dismiss")',
-
         # 通配符文本匹配
         'button:text-matches(".*[Nn]o.*thank.*", "i")',
         'button:text-matches(".*不.*谢.*", "i")',
         'button:text-matches(".*dismiss.*", "i")',
-
         # ID 和 Class 选择器
         'button[id*="dismiss"]',
         'button[id*="Dismiss"]',
@@ -58,12 +57,7 @@ class BrowserPopupHandler:
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         self._popup_handled = False
 
-    async def dismiss_popup(
-        self,
-        page: Any,
-        wait_after: int = 500,
-        debug: bool = False
-    ) -> bool:
+    async def dismiss_popup(self, page: Any, wait_after: int = 500, debug: bool = False) -> bool:
         """
         尝试关闭弹窗
 
@@ -80,7 +74,7 @@ class BrowserPopupHandler:
         # 检查是否是"保持登录"页面（跳过弹窗处理）
         try:
             title = await page.title()
-            if title and ('stay signed in' in title.lower() or '保持登录' in title):
+            if title and ("stay signed in" in title.lower() or "保持登录" in title):
                 self.logger.debug(f"检测到'保持登录'页面 (标题: {title})，跳过弹窗处理")
                 return False
         except Exception:
@@ -103,6 +97,7 @@ class BrowserPopupHandler:
             try:
                 import os
                 from datetime import datetime
+
                 os.makedirs("logs/diagnostics", exist_ok=True)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 screenshot_path = f"logs/diagnostics/popup_{timestamp}.png"
@@ -158,8 +153,8 @@ class BrowserPopupHandler:
         popup_container_selectors = [
             '[role="dialog"]',
             '[aria-modal="true"]',
-            '.edgepopup',  # 假设的选择器
-            '#edge-popup',  # 假设的选择器
+            ".edgepopup",  # 假设的选择器
+            "#edge-popup",  # 假设的选择器
         ]
 
         for selector in popup_container_selectors:
@@ -258,4 +253,4 @@ class BrowserPopupHandler:
 
 
 # 兼容性别名
-EdgePopupHandler = BrowserPopupHandler\n
+EdgePopupHandler = BrowserPopupHandler

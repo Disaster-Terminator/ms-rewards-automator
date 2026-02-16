@@ -2,7 +2,7 @@
 积分检测器模块
 从 Microsoft Rewards Dashboard 抓取积分信息
 """
-import asyncio
+
 import logging
 import re
 
@@ -29,6 +29,7 @@ class PointsDetector:
         "span[class*='points']",
     ]
 
+    # 任务状态选择器
     TASK_SELECTORS = {
         "desktop_search": [
             "div[data-bi-id='pc-search']",
@@ -42,7 +43,7 @@ class PointsDetector:
         "daily_set": [
             "div[data-bi-id='daily-set']",
             "div[class*='daily-set']",
-        ]
+        ],
     }
 
     def __init__(self):
@@ -140,11 +141,15 @@ class PointsDetector:
             return None
 
         try:
-            numbers = re.findall(r'\d+', text.replace(',', ''))
+            # 移除所有非数字字符（保留数字）
+            # 支持格式: "1,234", "1234", "1,234 points", "Available points: 1,234"
+            numbers = re.findall(r"\d+", text.replace(",", ""))
 
             if numbers:
+                # 取最大的数字（通常是积分总数）
                 points = max(int(n) for n in numbers)
 
+                # 合理性检查（积分通常在 0 到 1,000,000 之间）
                 if 0 <= points <= 1000000:
                     return points
                 else:
@@ -199,7 +204,7 @@ class PointsDetector:
                 r'"totalPoints"\s*:\s*(\d+)',
                 r'"currentPoints"\s*:\s*(\d+)',
                 r'"userPoints"\s*:\s*(\d+)',
-                r'balance\s*:\s*(\d+)',
+                r"balance\s*:\s*(\d+)",
             ]
 
             for pattern in user_points_patterns:
@@ -207,7 +212,7 @@ class PointsDetector:
                 if matches:
                     for m in matches:
                         try:
-                            points = int(m.replace(',', ''))
+                            points = int(m.replace(",", ""))
                             if 100 <= points <= 1000000:
                                 logger.debug(f"从源码 JSON 提取积分: {points} (模式: {pattern})")
                                 return points
@@ -218,9 +223,9 @@ class PointsDetector:
                 page_text = await page.evaluate("() => document.body.innerText")
 
                 balance_patterns = [
-                    r'(?:Available|Current|Total|Your)\s*(?:Points?|Balance)[:\s]*(\d[\d,]*)',
-                    r'(?:Points?|Balance)[:\s]*(\d[\d,]*)\s*(?:points?)?',
-                    r'(\d[\d,]*)\s*(?:Available|Current)\s*(?:points?)',
+                    r"(?:Available|Current|Total|Your)\s*(?:Points?|Balance)[:\s]*(\d[\d,]*)",
+                    r"(?:Points?|Balance)[:\s]*(\d[\d,]*)\s*(?:points?)?",
+                    r"(\d[\d,]*)\s*(?:Available|Current)\s*(?:points?)",
                 ]
 
                 for pattern in balance_patterns:
@@ -228,7 +233,7 @@ class PointsDetector:
                     if matches:
                         for m in matches:
                             try:
-                                points = int(m.replace(',', ''))
+                                points = int(m.replace(",", ""))
                                 if 100 <= points <= 1000000:
                                     logger.debug(f"从页面文本提取积分: {points} (模式: {pattern})")
                                     return points
@@ -256,26 +261,24 @@ class PointsDetector:
         tasks = {}
 
         try:
+            # 确保在 Dashboard 页面
             if self.DASHBOARD_URL not in page.url:
                 await page.goto(self.DASHBOARD_URL, wait_until="networkidle", timeout=60000)
                 await page.wait_for_timeout(3000)
 
+            # 检查桌面搜索状态
             tasks["desktop_search"] = await self._check_task_status(
-                page,
-                self.TASK_SELECTORS["desktop_search"],
-                "桌面搜索"
+                page, self.TASK_SELECTORS["desktop_search"], "桌面搜索"
             )
 
+            # 检查移动搜索状态
             tasks["mobile_search"] = await self._check_task_status(
-                page,
-                self.TASK_SELECTORS["mobile_search"],
-                "移动搜索"
+                page, self.TASK_SELECTORS["mobile_search"], "移动搜索"
             )
 
+            # 检查每日任务集
             tasks["daily_set"] = await self._check_task_status(
-                page,
-                self.TASK_SELECTORS["daily_set"],
-                "每日任务"
+                page, self.TASK_SELECTORS["daily_set"], "每日任务"
             )
 
             logger.info(f"任务状态: {tasks}")
@@ -285,12 +288,7 @@ class PointsDetector:
             logger.error(f"获取任务状态失败: {e}")
             return tasks
 
-    async def _check_task_status(
-        self,
-        page: Page,
-        selectors: list,
-        task_name: str
-    ) -> dict:
+    async def _check_task_status(self, page: Page, selectors: list, task_name: str) -> dict:
         """
         检查单个任务的状态
 
@@ -302,12 +300,7 @@ class PointsDetector:
         Returns:
             任务状态字典
         """
-        status = {
-            "found": False,
-            "completed": False,
-            "progress": None,
-            "max_progress": None
-        }
+        status = {"found": False, "completed": False, "progress": None, "max_progress": None}
 
         try:
             for selector in selectors:
@@ -317,18 +310,23 @@ class PointsDetector:
                     if element:
                         status["found"] = True
 
+                        # 检查是否完成
                         class_attr = await element.get_attribute("class")
                         data_status = await element.get_attribute("data-bi-status")
 
-                        if class_attr and ("complete" in class_attr.lower() or "done" in class_attr.lower()):
+                        if class_attr and (
+                            "complete" in class_attr.lower() or "done" in class_attr.lower()
+                        ):
                             status["completed"] = True
 
                         if data_status and data_status.lower() == "complete":
                             status["completed"] = True
 
+                        # 尝试提取进度
                         text = await element.text_content()
                         if text:
-                            progress_match = re.search(r'(\d+)\s*/\s*(\d+)', text)
+                            # 查找类似 "15/30" 的进度
+                            progress_match = re.search(r"(\d+)\s*/\s*(\d+)", text)
                             if progress_match:
                                 status["progress"] = int(progress_match.group(1))
                                 status["max_progress"] = int(progress_match.group(2))
@@ -351,10 +349,7 @@ class PointsDetector:
             return status
 
     async def wait_for_points_update(
-        self,
-        page: Page,
-        initial_points: int,
-        timeout: int = 30
+        self, page: Page, initial_points: int, timeout: int = 30
     ) -> int | None:
         """
         等待积分更新
@@ -367,19 +362,26 @@ class PointsDetector:
         Returns:
             新的积分数量，超时返回 None
         """
+        import asyncio
+
         logger.info(f"等待积分更新（初始: {initial_points}）")
 
         start_time = asyncio.get_running_loop().time()
 
         while True:
+            # 检查超时
             if asyncio.get_running_loop().time() - start_time > timeout:
                 logger.warning(f"等待积分更新超时（{timeout}秒）")
                 return None
 
+            # 获取当前积分
             current_points = await self.get_current_points(page)
 
             if current_points is not None and current_points > initial_points:
-                logger.info(f"✓ 积分已更新: {initial_points} -> {current_points} (+{current_points - initial_points})")
+                logger.info(
+                    f"✓ 积分已更新: {initial_points} -> {current_points} (+{current_points - initial_points})"
+                )
                 return current_points
 
-            await asyncio.sleep(2)\n
+            # 等待一段时间再检查
+            await asyncio.sleep(2)

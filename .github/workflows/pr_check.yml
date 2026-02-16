@@ -24,9 +24,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy black isort
+          pip install ruff mypy
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-timeout hypothesis
 
       - name: Check PR title format
         run: |
@@ -53,18 +52,11 @@ jobs:
             echo "No Python files changed"
           fi
 
-      - name: Run Black check on changed files
+      - name: Run Ruff format check on changed files
         run: |
           CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.py')
           if [ -n "$CHANGED_FILES" ]; then
-            echo "$CHANGED_FILES" | xargs black --check
-          fi
-
-      - name: Run isort check on changed files
-        run: |
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.py')
-          if [ -n "$CHANGED_FILES" ]; then
-            echo "$CHANGED_FILES" | xargs isort --check-only --diff
+            echo "$CHANGED_FILES" | xargs ruff format --check
           fi
 
       - name: Run unit tests for changed modules

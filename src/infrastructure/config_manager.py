@@ -2,10 +2,10 @@
 配置管理器模块
 负责加载、验证和提供配置参数
 """
-from pathlib import Path
-from typing import Any
+
 import logging
 import os
+from typing import Any
 
 import yaml
 
@@ -18,18 +18,18 @@ DEFAULT_CONFIG = {
         "desktop_count": 30,
         "mobile_count": 20,
         "wait_interval": 5,  # 简化为单个值
-        "search_terms_file": "tools/search_terms.txt"
+        "search_terms_file": "tools/search_terms.txt",
     },
     "browser": {
         "headless": False,
         "prevent_focus": "basic",
         "slow_mo": 100,
         "timeout": 30000,
-        "type": "chromium"
+        "type": "chromium",
     },
     "account": {
         "storage_state_path": "storage_state.json",
-        "login_url": "https://rewards.microsoft.com/"
+        "login_url": "https://rewards.microsoft.com/",
     },
     "login": {
         "state_machine_enabled": True,
@@ -37,28 +37,20 @@ DEFAULT_CONFIG = {
         "timeout_seconds": 300,
         "stay_signed_in": True,
         "manual_intervention_timeout": 120,
-        "auto_login": {
-            "enabled": False,
-            "email": "",
-            "password": "",
-            "totp_secret": ""
-        }
+        "auto_login": {"enabled": False, "email": "", "password": "", "totp_secret": ""},
     },
     "query_engine": {
         "enabled": False,
         "cache_ttl": 3600,
-        "sources": {
-            "local_file": {"enabled": True},
-            "bing_suggestions": {"enabled": True}
-        },
+        "sources": {"local_file": {"enabled": True}, "bing_suggestions": {"enabled": True}},
         "bing_api": {
             "rate_limit": 10,
             "max_retries": 3,
             "timeout": 15,
             "suggestions_per_query": 3,
             "suggestions_per_seed": 3,
-            "max_expand": 5
-        }
+            "max_expand": 5,
+        },
     },
     "task_system": {
         "enabled": True,
@@ -66,18 +58,14 @@ DEFAULT_CONFIG = {
         "max_delay": 5,
         "skip_completed": True,
         "debug_mode": False,
-        "task_types": {
-            "url_reward": True,
-            "quiz": False,
-            "poll": False
-        }
+        "task_types": {"url_reward": True, "quiz": False, "poll": False},
     },
     "bing_theme": {
         "enabled": False,
         "theme": "dark",
         "force_theme": True,
         "persistence_enabled": True,
-        "theme_state_file": "logs/theme_state.json"
+        "theme_state_file": "logs/theme_state.json",
     },
     "monitoring": {
         "enabled": True,
@@ -86,28 +74,13 @@ DEFAULT_CONFIG = {
         "alert_on_no_increase": True,
         "max_no_increase_count": 3,
         "real_time_display": True,
-        "health_check": {
-            "enabled": True,
-            "interval": 30,
-            "save_reports": True
-        }
+        "health_check": {"enabled": True, "interval": 30, "save_reports": True},
     },
     "notification": {
         "enabled": False,
-        "telegram": {
-            "enabled": False,
-            "bot_token": "",
-            "chat_id": ""
-        },
-        "serverchan": {
-            "enabled": False,
-            "key": ""
-        },
-        "whatsapp": {
-            "enabled": False,
-            "phone": "",
-            "apikey": ""
-        }
+        "telegram": {"enabled": False, "bot_token": "", "chat_id": ""},
+        "serverchan": {"enabled": False, "key": ""},
+        "whatsapp": {"enabled": False, "phone": "", "apikey": ""},
     },
     "scheduler": {
         "enabled": False,
@@ -115,18 +88,10 @@ DEFAULT_CONFIG = {
         "random_start_hour": 8,
         "random_end_hour": 22,
         "fixed_hour": 10,
-        "fixed_minute": 0
+        "fixed_minute": 0,
     },
-    "error_handling": {
-        "max_retries": 3,
-        "retry_delay": 5,
-        "exponential_backoff": True
-    },
-    "logging": {
-        "level": "INFO",
-        "file": "logs/automator.log",
-        "console": True
-    }
+    "error_handling": {"max_retries": 3, "retry_delay": 5, "exponential_backoff": True},
+    "logging": {"level": "INFO", "file": "logs/automator.log", "console": True},
 }
 
 # 开发模式覆盖配置 - 用于快速迭代调试
@@ -139,16 +104,11 @@ DEV_MODE_OVERRIDES = {
             "max": 1.5,
         },
     },
-    "browser": {
-        "slow_mo": 0,
-        "headless": False
-    },
+    "browser": {"slow_mo": 0, "headless": False},
     "anti_detection": {
         "use_stealth": False,
         "random_viewport": False,
-        "scroll_behavior": {
-            "enabled": False
-        }
+        "scroll_behavior": {"enabled": False},
     },
     "monitoring": {
         "enabled": True,
@@ -162,9 +122,7 @@ DEV_MODE_OVERRIDES = {
         "debug_mode": True,
         "max_tasks": 2,
     },
-    "logging": {
-        "level": "DEBUG"
-    }
+    "logging": {"level": "DEBUG"},
 }
 
 # 用户模式覆盖配置 - 用于鲁棒性测试，模拟真实使用环境
@@ -177,10 +135,7 @@ USER_MODE_OVERRIDES = {
             "max": 8,
         },
     },
-    "browser": {
-        "slow_mo": 50,
-        "headless": False
-    },
+    "browser": {"slow_mo": 50, "headless": False},
     "anti_detection": {
         "use_stealth": True,
         "random_viewport": True,
@@ -188,7 +143,7 @@ USER_MODE_OVERRIDES = {
             "enabled": True,
             "min_scrolls": 2,
             "max_scrolls": 4,
-        }
+        },
     },
     "monitoring": {
         "enabled": True,
@@ -201,16 +156,16 @@ USER_MODE_OVERRIDES = {
         "enabled": False,
         "debug_mode": False,
     },
-    "logging": {
-        "level": "INFO"
-    }
+    "logging": {"level": "INFO"},
 }
 
 
 class ConfigManager:
     """配置管理器类"""
 
-    def __init__(self, config_path: str = "config.yaml", dev_mode: bool = False, user_mode: bool = False):
+    def __init__(
+        self, config_path: str = "config.yaml", dev_mode: bool = False, user_mode: bool = False
+    ):
         """
         初始化配置管理器
 
@@ -239,6 +194,7 @@ class ConfigManager:
         """初始化类型化配置"""
         try:
             from .app_config import AppConfig
+
             self.app = AppConfig.from_dict(self.config)
         except Exception as e:
             logger.warning(f"类型化配置初始化失败，使用字典配置: {e}")
@@ -268,7 +224,7 @@ class ConfigManager:
             return
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 loaded_config = yaml.safe_load(f)
 
             if loaded_config is None:
@@ -285,16 +241,24 @@ class ConfigManager:
                 wait_max = self.config["search"]["wait_interval"].get("max", 8)
                 # 使用中间值
                 self.config["search"]["wait_interval"] = (wait_min + wait_max) // 2
-                logger.debug(f"wait_interval 已从 dict 转换为 int: {self.config['search']['wait_interval']}")
+                logger.debug(
+                    f"wait_interval 已从 dict 转换为 int: {self.config['search']['wait_interval']}"
+                )
 
             # 向后兼容：处理旧的 account.email/password/totp_secret
             if "account" in self.config:
                 if "email" in self.config["account"] and "login" in self.config:
                     if "auto_login" not in self.config["login"]:
                         self.config["login"]["auto_login"] = {}
-                    self.config["login"]["auto_login"]["email"] = self.config["account"].get("email", "")
-                    self.config["login"]["auto_login"]["password"] = self.config["account"].get("password", "")
-                    self.config["login"]["auto_login"]["totp_secret"] = self.config["account"].get("totp_secret", "")
+                    self.config["login"]["auto_login"]["email"] = self.config["account"].get(
+                        "email", ""
+                    )
+                    self.config["login"]["auto_login"]["password"] = self.config["account"].get(
+                        "password", ""
+                    )
+                    self.config["login"]["auto_login"]["totp_secret"] = self.config["account"].get(
+                        "totp_secret", ""
+                    )
                     # 如果配置了凭据，默认启用自动登录
                     if self.config["login"]["auto_login"]["email"]:
                         self.config["login"]["auto_login"]["enabled"] = True
@@ -314,7 +278,7 @@ class ConfigManager:
             logger.warning("使用默认配置")
             self.config = DEFAULT_CONFIG.copy()
 
-    def _merge_configs(self, default: Dict, loaded: Dict) -> Dict:
+    def _merge_configs(self, default: dict, loaded: dict) -> dict:
         """
         递归合并配置字典
 
@@ -326,6 +290,7 @@ class ConfigManager:
             合并后的配置
         """
         import copy
+
         result = copy.deepcopy(default)
 
         for key, value in loaded.items():
@@ -356,7 +321,7 @@ class ConfigManager:
         Returns:
             配置值
         """
-        keys = key.split('.')
+        keys = key.split(".")
         value = self.config
 
         for k in keys:
@@ -380,6 +345,7 @@ class ConfigManager:
         try:
             # 使用新的配置验证器
             from .config_validator import ConfigValidator
+
             validator = ConfigValidator(self)
 
             is_valid, errors, warnings = validator.validate_config(self.config)
@@ -424,7 +390,7 @@ class ConfigManager:
             "search.wait_interval",
             "browser.headless",
             "account.storage_state_path",
-            "logging.level"
+            "logging.level",
         ]
 
         for key in required_keys:
@@ -456,7 +422,9 @@ class ConfigManager:
                 logger.error("wait_interval.min 和 wait_interval.max 必须是数字")
                 return False
             if wait_min >= wait_max:
-                logger.error(f"wait_interval.min ({wait_min}) 必须小于 wait_interval.max ({wait_max})")
+                logger.error(
+                    f"wait_interval.min ({wait_min}) 必须小于 wait_interval.max ({wait_max})"
+                )
                 return False
         elif isinstance(wait_interval, (int, float)):
             if wait_interval <= 0:
@@ -519,7 +487,7 @@ class ConfigManager:
             "headless": self.get("browser.headless", False),
             "prevent_focus": self.get("browser.prevent_focus", "enhanced"),
             "slow_mo": self.get("browser.slow_mo", 100),
-            "timeout": self.get("browser.timeout", 30000)
+            "timeout": self.get("browser.timeout", 30000),
         }
 
         # 向后兼容：处理旧的配置格式
@@ -541,4 +509,4 @@ class ConfigManager:
 
     def __repr__(self) -> str:
         """字符串表示"""
-        return f"ConfigManager(config_path='{self.config_path}')"\n
+        return f"ConfigManager(config_path='{self.config_path}')"

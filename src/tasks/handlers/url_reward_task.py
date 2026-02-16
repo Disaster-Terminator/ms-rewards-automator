@@ -4,12 +4,15 @@ URL Reward Task Handler
 Handles simple URL-based reward tasks where the user just needs to visit a URL
 and wait for completion detection.
 """
+
 import asyncio
 import logging
 
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeout
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from tasks.task_base import Task, TaskMetadata
+
 
 class UrlRewardTask(Task):
     """Handler for URL reward tasks"""
@@ -38,16 +41,18 @@ class UrlRewardTask(Task):
 
         # Validate URL
         if not url or url == "None" or url == "null":
-            self.logger.warning(f"⏭️  跳过空URL")
+            self.logger.warning("⏭️  跳过空URL")
             return False
 
         # Skip special protocol URLs (microsoft-edge://, ms-windows-store://, etc.)
-        if url.startswith(('microsoft-edge://', 'ms-windows-store://', 'ms-settings://', 'edge://')):
+        if url.startswith(
+            ("microsoft-edge://", "ms-windows-store://", "ms-settings://", "edge://")
+        ):
             self.logger.warning(f"⏭️  跳过特殊协议URL: {url}")
             return False
 
         # Ensure URL has a valid protocol
-        if not url.startswith(('http://', 'https://')):
+        if not url.startswith(("http://", "https://")):
             self.logger.warning(f"⏭️  跳过无效协议URL: {url}")
             return False
 
@@ -59,7 +64,7 @@ class UrlRewardTask(Task):
             await page.goto(
                 self.metadata.destination_url,
                 wait_until="domcontentloaded",  # 只等待DOM加载，不等待网络空闲
-                timeout=15000  # 减少超时时间到15秒
+                timeout=15000,  # 减少超时时间到15秒
             )
 
             # 简单等待1秒让页面稳定
@@ -76,4 +81,4 @@ class UrlRewardTask(Task):
             return False
         except Exception as e:
             self.logger.error(f"❌ 执行URL任务出错: {e}")
-            return False\n
+            return False

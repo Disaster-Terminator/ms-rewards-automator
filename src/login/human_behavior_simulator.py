@@ -7,11 +7,13 @@ This module simulates human-like behavior to bypass automation detection:
 - Random pauses and micro-movements
 - Natural interaction patterns
 """
-from typing import Any, Tuple
+
 import asyncio
 import logging
 import math
 import random
+from typing import Any
+
 
 class HumanBehaviorSimulator:
     """
@@ -22,7 +24,7 @@ class HumanBehaviorSimulator:
     systems to detect automation.
     """
 
-    def __init__(self, logger: \g<0>logging.Logger] = None):
+    def __init__(self, logger: logging.Logger | None = None):
         """
         Initialize the human behavior simulator.
 
@@ -32,7 +34,7 @@ class HumanBehaviorSimulator:
         self.logger = logger or logging.getLogger(__name__)
 
         # Typing speed parameters (milliseconds per character)
-        self.typing_speed_min = 80   # Fast typing
+        self.typing_speed_min = 80  # Fast typing
         self.typing_speed_max = 200  # Slow typing
         self.typing_speed_avg = 120  # Average typing
 
@@ -44,13 +46,7 @@ class HumanBehaviorSimulator:
         # Mouse movement parameters
         self.mouse_speed = 1.0  # Multiplier for movement speed
 
-    async def human_type(
-        self,
-        page: Any,
-        selector: str,
-        text: str,
-        timeout: int = 10000
-    ) -> bool:
+    async def human_type(self, page: Any, selector: str, text: str, timeout: int = 10000) -> bool:
         """
         Type text with human-like behavior.
 
@@ -85,8 +81,8 @@ class HumanBehaviorSimulator:
                 return False
 
             # Move mouse to element with natural movement
-            target_x = box['x'] + box['width'] / 2
-            target_y = box['y'] + box['height'] / 2
+            target_x = box["x"] + box["width"] / 2
+            target_y = box["y"] + box["height"] / 2
             await self._move_mouse_naturally(page, target_x, target_y)
 
             # Small delay before click (human reaction time)
@@ -97,10 +93,13 @@ class HumanBehaviorSimulator:
             await asyncio.sleep(random.uniform(0.05, 0.15))
 
             # Clear existing content first
-            await page.evaluate('''(selector) => {
+            await page.evaluate(
+                """(selector) => {
                 const element = document.querySelector(selector);
                 if (element) element.value = "";
-            }''', selector)
+            }""",
+                selector,
+            )
 
             # Type each character with human-like timing
             for i, char in enumerate(text):
@@ -114,20 +113,23 @@ class HumanBehaviorSimulator:
 
                     # Random pause (simulating thinking or checking)
                     if random.random() < self.pause_probability:
-                        pause = random.uniform(
-                            self.pause_duration_min,
-                            self.pause_duration_max
-                        ) / 1000.0
+                        pause = (
+                            random.uniform(self.pause_duration_min, self.pause_duration_max)
+                            / 1000.0
+                        )
                         await asyncio.sleep(pause)
 
             # Trigger input and change events to ensure form validation
-            await page.evaluate('''(selector) => {
+            await page.evaluate(
+                """(selector) => {
                 const element = document.querySelector(selector);
                 if (element) {
                     element.dispatchEvent(new Event('input', { bubbles: true }));
                     element.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-            }''', selector)
+            }""",
+                selector,
+            )
 
             self.logger.debug(f"Human-typed text into: {selector}")
             return True
@@ -136,12 +138,7 @@ class HumanBehaviorSimulator:
             self.logger.error(f"Failed to human-type into {selector}: {e}")
             return False
 
-    async def human_click(
-        self,
-        page: Any,
-        selector: str,
-        timeout: int = 10000
-    ) -> bool:
+    async def human_click(self, page: Any, selector: str, timeout: int = 10000) -> bool:
         """
         Click an element with human-like behavior.
 
@@ -161,11 +158,7 @@ class HumanBehaviorSimulator:
         """
         try:
             # Wait for element to be visible and enabled
-            await page.wait_for_selector(
-                selector,
-                state="visible",
-                timeout=timeout
-            )
+            await page.wait_for_selector(selector, state="visible", timeout=timeout)
 
             # Get element bounding box
             element = await page.query_selector(selector)
@@ -180,12 +173,12 @@ class HumanBehaviorSimulator:
 
             # Calculate click position with small random offset
             # (humans don't click exact center)
-            center_x = box['x'] + box['width'] / 2
-            center_y = box['y'] + box['height'] / 2
+            center_x = box["x"] + box["width"] / 2
+            center_y = box["y"] + box["height"] / 2
 
             # Add random offset (within 30% of element size)
-            offset_x = random.uniform(-box['width'] * 0.3, box['width'] * 0.3)
-            offset_y = random.uniform(-box['height'] * 0.3, box['height'] * 0.3)
+            offset_x = random.uniform(-box["width"] * 0.3, box["width"] * 0.3)
+            offset_y = random.uniform(-box["height"] * 0.3, box["height"] * 0.3)
 
             target_x = center_x + offset_x
             target_y = center_y + offset_y
@@ -210,11 +203,7 @@ class HumanBehaviorSimulator:
             return False
 
     async def _move_mouse_naturally(
-        self,
-        page: Any,
-        target_x: float,
-        target_y: float,
-        steps: int = None
+        self, page: Any, target_x: float, target_y: float, steps: int = None
     ) -> None:
         """
         Move mouse to target position with natural Bezier curve movement.
@@ -230,11 +219,11 @@ class HumanBehaviorSimulator:
             # Note: Playwright doesn't expose current mouse position,
             # so we'll start from a random position near the viewport
             viewport = page.viewport_size
-            start_x = random.uniform(viewport['width'] * 0.3, viewport['width'] * 0.7)
-            start_y = random.uniform(viewport['height'] * 0.3, viewport['height'] * 0.7)
+            start_x = random.uniform(viewport["width"] * 0.3, viewport["width"] * 0.7)
+            start_y = random.uniform(viewport["height"] * 0.3, viewport["height"] * 0.7)
 
             # Calculate distance and determine number of steps
-            distance = math.sqrt((target_x - start_x)**2 + (target_y - start_y)**2)
+            distance = math.sqrt((target_x - start_x) ** 2 + (target_y - start_y) ** 2)
             if steps is None:
                 steps = max(10, int(distance / 10))  # More steps for longer distances
 
@@ -254,16 +243,16 @@ class HumanBehaviorSimulator:
 
                 # Cubic Bezier curve formula
                 x = (
-                    (1 - t)**3 * start_x +
-                    3 * (1 - t)**2 * t * control1_x +
-                    3 * (1 - t) * t**2 * control2_x +
-                    t**3 * target_x
+                    (1 - t) ** 3 * start_x
+                    + 3 * (1 - t) ** 2 * t * control1_x
+                    + 3 * (1 - t) * t**2 * control2_x
+                    + t**3 * target_x
                 )
                 y = (
-                    (1 - t)**3 * start_y +
-                    3 * (1 - t)**2 * t * control1_y +
-                    3 * (1 - t) * t**2 * control2_y +
-                    t**3 * target_y
+                    (1 - t) ** 3 * start_y
+                    + 3 * (1 - t) ** 2 * t * control1_y
+                    + 3 * (1 - t) * t**2 * control2_y
+                    + t**3 * target_y
                 )
 
                 await page.mouse.move(x, y)
@@ -319,18 +308,14 @@ class HumanBehaviorSimulator:
         """
         try:
             viewport = page.viewport_size
-            x = random.uniform(viewport['width'] * 0.3, viewport['width'] * 0.7)
-            y = random.uniform(viewport['height'] * 0.3, viewport['height'] * 0.7)
+            x = random.uniform(viewport["width"] * 0.3, viewport["width"] * 0.7)
+            y = random.uniform(viewport["height"] * 0.3, viewport["height"] * 0.7)
 
             await self._move_mouse_naturally(page, x, y, steps=5)
         except Exception as e:
             self.logger.debug(f"Random mouse movement error (non-critical): {e}")
 
-    async def human_delay(
-        self,
-        min_ms: float = 500,
-        max_ms: float = 2000
-    ) -> None:
+    async def human_delay(self, min_ms: float = 500, max_ms: float = 2000) -> None:
         """
         Add a human-like delay.
 
@@ -339,4 +324,4 @@ class HumanBehaviorSimulator:
             max_ms: Maximum delay in milliseconds
         """
         delay = random.uniform(min_ms, max_ms) / 1000.0
-        await asyncio.sleep(delay)\n
+        await asyncio.sleep(delay)

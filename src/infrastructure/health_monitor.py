@@ -2,14 +2,15 @@
 健康监控模块
 提供系统健康检查、性能监控和问题诊断功能
 """
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Tuple
+
 import asyncio
 import json
 import logging
 import platform
 import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 import psutil
 
@@ -139,12 +140,14 @@ class HealthMonitor:
         browser_health = await self._check_browser_health()
 
         # 更新健康状态
-        self.health_status.update({
-            "system": system_health["status"],
-            "network": network_health["status"],
-            "browser": browser_health["status"],
-            "last_check": datetime.now().isoformat(),
-        })
+        self.health_status.update(
+            {
+                "system": system_health["status"],
+                "network": network_health["status"],
+                "browser": browser_health["status"],
+                "last_check": datetime.now().isoformat(),
+            }
+        )
 
         # 计算总体健康状态
         self._calculate_overall_health()
@@ -185,7 +188,7 @@ class HealthMonitor:
                 self.metrics["memory_usage"] = self.metrics["memory_usage"][-100:]
 
             # 磁盘空间 - 跨平台支持
-            system_disk = 'C:\\' if platform.system() == 'Windows' else '/'
+            system_disk = "C:\\" if platform.system() == "Windows" else "/"
             try:
                 disk = psutil.disk_usage(system_disk)
                 disk_percent = (disk.used / disk.total) * 100
@@ -268,7 +271,7 @@ class HealthMonitor:
 
             issues = []
             if connection_rate < 0.8:
-                issues.append(f"网络连接不稳定: {connection_rate*100:.0f}% 成功率")
+                issues.append(f"网络连接不稳定: {connection_rate * 100:.0f}% 成功率")
             if avg_response_time > 5.0:
                 issues.append(f"网络响应缓慢: {avg_response_time:.1f}s")
 
@@ -319,11 +322,14 @@ class HealthMonitor:
 
                 self.metrics["browser_page_count"] = page_count
 
-                for proc in psutil.process_iter(['name', 'memory_info']):
+                for proc in psutil.process_iter(["name", "memory_info"]):
                     try:
-                        name = proc.info['name'].lower()
-                        if any(browser in name for browser in ['chrome', 'chromium', 'msedge', 'firefox']):
-                            browser_memory_mb += proc.info['memory_info'].rss / (1024 * 1024)
+                        name = proc.info["name"].lower()
+                        if any(
+                            browser in name
+                            for browser in ["chrome", "chromium", "msedge", "firefox"]
+                        ):
+                            browser_memory_mb += proc.info["memory_info"].rss / (1024 * 1024)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         pass
 
@@ -395,7 +401,9 @@ class HealthMonitor:
 
         # 内存使用率建议
         if self.metrics["memory_usage"]:
-            avg_memory = sum(self.metrics["memory_usage"][-10:]) / len(self.metrics["memory_usage"][-10:])
+            avg_memory = sum(self.metrics["memory_usage"][-10:]) / len(
+                self.metrics["memory_usage"][-10:]
+            )
             if avg_memory > 80:
                 self.recommendations.append("内存使用率较高，建议启用无头模式或重启应用")
 
@@ -426,8 +434,12 @@ class HealthMonitor:
 
         # 更新平均响应时间
         if response_time > 0:
-            total_time = self.metrics["average_response_time"] * (self.metrics["total_searches"] - 1)
-            self.metrics["average_response_time"] = (total_time + response_time) / self.metrics["total_searches"]
+            total_time = self.metrics["average_response_time"] * (
+                self.metrics["total_searches"] - 1
+            )
+            self.metrics["average_response_time"] = (total_time + response_time) / self.metrics[
+                "total_searches"
+            ]
 
     def record_browser_crash(self):
         """记录浏览器崩溃"""
@@ -454,20 +466,25 @@ class HealthMonitor:
             "total_searches": self.metrics["total_searches"],
             "success_rate": (
                 self.metrics["successful_searches"] / self.metrics["total_searches"]
-                if self.metrics["total_searches"] > 0 else 0
+                if self.metrics["total_searches"] > 0
+                else 0
             ),
             "average_response_time": self.metrics["average_response_time"],
             "browser_crashes": self.metrics["browser_crashes"],
             "network_errors": self.metrics["network_errors"],
             "current_cpu": self.metrics["cpu_usage"][-1] if self.metrics["cpu_usage"] else 0,
-            "current_memory": self.metrics["memory_usage"][-1] if self.metrics["memory_usage"] else 0,
+            "current_memory": self.metrics["memory_usage"][-1]
+            if self.metrics["memory_usage"]
+            else 0,
             "avg_cpu_10min": (
                 sum(self.metrics["cpu_usage"][-20:]) / len(self.metrics["cpu_usage"][-20:])
-                if len(self.metrics["cpu_usage"]) >= 20 else 0
+                if len(self.metrics["cpu_usage"]) >= 20
+                else 0
             ),
             "avg_memory_10min": (
                 sum(self.metrics["memory_usage"][-20:]) / len(self.metrics["memory_usage"][-20:])
-                if len(self.metrics["memory_usage"]) >= 20 else 0
+                if len(self.metrics["memory_usage"]) >= 20
+                else 0
             ),
         }
 
@@ -484,76 +501,88 @@ class HealthMonitor:
         if self.metrics["total_searches"] > 10:
             success_rate = self.metrics["successful_searches"] / self.metrics["total_searches"]
             if success_rate < 0.5:
-                diagnoses.append({
-                    "issue": "搜索成功率过低",
-                    "severity": "high",
-                    "description": f"成功率仅为 {success_rate*100:.1f}%",
-                    "solutions": [
-                        "检查网络连接",
-                        "增加搜索间隔时间",
-                        "检查Microsoft Rewards账户状态",
-                        "更新浏览器版本",
-                    ]
-                })
+                diagnoses.append(
+                    {
+                        "issue": "搜索成功率过低",
+                        "severity": "high",
+                        "description": f"成功率仅为 {success_rate * 100:.1f}%",
+                        "solutions": [
+                            "检查网络连接",
+                            "增加搜索间隔时间",
+                            "检查Microsoft Rewards账户状态",
+                            "更新浏览器版本",
+                        ],
+                    }
+                )
 
         # 检查浏览器崩溃
         if self.metrics["browser_crashes"] > 5:
-            diagnoses.append({
-                "issue": "浏览器崩溃频繁",
-                "severity": "high",
-                "description": f"已发生 {self.metrics['browser_crashes']} 次崩溃",
-                "solutions": [
-                    "重启应用程序",
-                    "检查系统内存是否充足",
-                    "更新Playwright和浏览器",
-                    "启用无头模式减少资源消耗",
-                ]
-            })
+            diagnoses.append(
+                {
+                    "issue": "浏览器崩溃频繁",
+                    "severity": "high",
+                    "description": f"已发生 {self.metrics['browser_crashes']} 次崩溃",
+                    "solutions": [
+                        "重启应用程序",
+                        "检查系统内存是否充足",
+                        "更新Playwright和浏览器",
+                        "启用无头模式减少资源消耗",
+                    ],
+                }
+            )
 
         # 检查网络错误
         if self.metrics["network_errors"] > 10:
-            diagnoses.append({
-                "issue": "网络错误频繁",
-                "severity": "medium",
-                "description": f"已发生 {self.metrics['network_errors']} 次网络错误",
-                "solutions": [
-                    "检查网络连接稳定性",
-                    "尝试更换DNS服务器",
-                    "检查防火墙设置",
-                    "增加网络超时时间",
-                ]
-            })
+            diagnoses.append(
+                {
+                    "issue": "网络错误频繁",
+                    "severity": "medium",
+                    "description": f"已发生 {self.metrics['network_errors']} 次网络错误",
+                    "solutions": [
+                        "检查网络连接稳定性",
+                        "尝试更换DNS服务器",
+                        "检查防火墙设置",
+                        "增加网络超时时间",
+                    ],
+                }
+            )
 
         # 检查系统资源
         if self.metrics["cpu_usage"]:
             avg_cpu = sum(self.metrics["cpu_usage"][-10:]) / len(self.metrics["cpu_usage"][-10:])
             if avg_cpu > 90:
-                diagnoses.append({
-                    "issue": "CPU使用率过高",
-                    "severity": "medium",
-                    "description": f"平均CPU使用率: {avg_cpu:.1f}%",
-                    "solutions": [
-                        "关闭其他占用CPU的应用程序",
-                        "降低搜索频率",
-                        "启用无头模式",
-                        "检查后台进程",
-                    ]
-                })
+                diagnoses.append(
+                    {
+                        "issue": "CPU使用率过高",
+                        "severity": "medium",
+                        "description": f"平均CPU使用率: {avg_cpu:.1f}%",
+                        "solutions": [
+                            "关闭其他占用CPU的应用程序",
+                            "降低搜索频率",
+                            "启用无头模式",
+                            "检查后台进程",
+                        ],
+                    }
+                )
 
         if self.metrics["memory_usage"]:
-            avg_memory = sum(self.metrics["memory_usage"][-10:]) / len(self.metrics["memory_usage"][-10:])
+            avg_memory = sum(self.metrics["memory_usage"][-10:]) / len(
+                self.metrics["memory_usage"][-10:]
+            )
             if avg_memory > 90:
-                diagnoses.append({
-                    "issue": "内存使用率过高",
-                    "severity": "medium",
-                    "description": f"平均内存使用率: {avg_memory:.1f}%",
-                    "solutions": [
-                        "重启应用程序",
-                        "关闭其他占用内存的应用程序",
-                        "启用无头模式",
-                        "检查内存泄漏",
-                    ]
-                })
+                diagnoses.append(
+                    {
+                        "issue": "内存使用率过高",
+                        "severity": "medium",
+                        "description": f"平均内存使用率: {avg_memory:.1f}%",
+                        "solutions": [
+                            "重启应用程序",
+                            "关闭其他占用内存的应用程序",
+                            "启用无头模式",
+                            "检查内存泄漏",
+                        ],
+                    }
+                )
 
         return diagnoses
 
@@ -576,7 +605,7 @@ class HealthMonitor:
             # 确保目录存在
             Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2, ensure_ascii=False)
 
             logger.info(f"健康报告已保存到: {filepath}")
@@ -610,7 +639,7 @@ class HealthMonitor:
 
         if self.metrics["total_searches"] > 0:
             success_rate = self.metrics["successful_searches"] / self.metrics["total_searches"]
-            summary.append(f"成功率: {success_rate*100:.1f}%")
+            summary.append(f"成功率: {success_rate * 100:.1f}%")
 
         if self.metrics["browser_memory_mb"] > 0:
             summary.append(f"浏览器内存: {self.metrics['browser_memory_mb']:.0f}MB")
@@ -633,8 +662,12 @@ class HealthMonitor:
             "components": {
                 "system": {
                     "status": self.health_status["system"],
-                    "cpu_percent": self.metrics["cpu_usage"][-1] if self.metrics["cpu_usage"] else 0,
-                    "memory_percent": self.metrics["memory_usage"][-1] if self.metrics["memory_usage"] else 0,
+                    "cpu_percent": self.metrics["cpu_usage"][-1]
+                    if self.metrics["cpu_usage"]
+                    else 0,
+                    "memory_percent": self.metrics["memory_usage"][-1]
+                    if self.metrics["memory_usage"]
+                    else 0,
                 },
                 "network": {
                     "status": self.health_status["network"],
@@ -652,9 +685,10 @@ class HealthMonitor:
                 "failed": self.metrics["failed_searches"],
                 "success_rate": (
                     self.metrics["successful_searches"] / self.metrics["total_searches"]
-                    if self.metrics["total_searches"] > 0 else 0
+                    if self.metrics["total_searches"] > 0
+                    else 0
                 ),
             },
             "uptime_seconds": time.time() - self.metrics["start_time"],
             "recommendations": self.recommendations[:3],
-        }\n
+        }

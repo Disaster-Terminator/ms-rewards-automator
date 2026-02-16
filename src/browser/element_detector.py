@@ -2,9 +2,10 @@
 元素检测器模块
 提供鲁棒的页面元素检测机制，支持多重选择器和降级策略
 """
-from typing import Any
+
 import asyncio
 import logging
+from typing import Any
 
 from playwright.async_api import ElementHandle, Page
 
@@ -14,20 +15,22 @@ logger = logging.getLogger(__name__)
 class ElementDetector:
     """页面元素检测器类"""
 
+    # 搜索框选择器列表（按优先级排序）
     SEARCH_BOX_SELECTORS = [
-        "input[name='q']",                    # 标准Bing搜索框
-        "input#sb_form_q",                    # Bing搜索框ID
-        "textarea[name='q']",                 # 文本域形式的搜索框
-        "input[type='search']",               # 搜索类型输入框
-        "input[placeholder*='search']",       # 包含search的占位符
-        "input[placeholder*='Search']",       # 包含Search的占位符
-        "input[aria-label*='search']",        # 搜索相关的aria标签
-        "input[aria-label*='Search']",        # 搜索相关的aria标签
-        "input.sb_form_q",                    # Bing搜索框类名
-        "input[data-testid*='search']",       # 测试ID包含search
-        "form input[type='text']",            # 表单中的文本输入框
+        "input[name='q']",  # 标准Bing搜索框
+        "input#sb_form_q",  # Bing搜索框ID
+        "textarea[name='q']",  # 文本域形式的搜索框
+        "input[type='search']",  # 搜索类型输入框
+        "input[placeholder*='search']",  # 包含search的占位符
+        "input[placeholder*='Search']",  # 包含Search的占位符
+        "input[aria-label*='search']",  # 搜索相关的aria标签
+        "input[aria-label*='Search']",  # 搜索相关的aria标签
+        "input.sb_form_q",  # Bing搜索框类名
+        "input[data-testid*='search']",  # 测试ID包含search
+        "form input[type='text']",  # 表单中的文本输入框
     ]
 
+    # 搜索按钮选择器
     SEARCH_BUTTON_SELECTORS = [
         "input[type='submit'][value*='Search']",
         "button[type='submit']",
@@ -37,6 +40,7 @@ class ElementDetector:
         "button[aria-label*='Search']",
     ]
 
+    # 搜索结果选择器
     SEARCH_RESULT_SELECTORS = [
         "li.b_algo h2 a",
         "#b_results .b_algo h2 a",
@@ -55,7 +59,7 @@ class ElementDetector:
         """
         self.config = config
         self.detection_timeout = 10000  # 默认检测超时时间
-        self.retry_count = 3           # 默认重试次数
+        self.retry_count = 3  # 默认重试次数
 
         # 使用类常量作为实例属性，便于测试
         self.search_box_selectors = self.SEARCH_BOX_SELECTORS.copy()
@@ -69,10 +73,7 @@ class ElementDetector:
         logger.info("元素检测器初始化完成")
 
     async def find_search_box(
-        self,
-        page: Page,
-        timeout: int | None = None,
-        visible_only: bool = True
+        self, page: Page, timeout: int | None = None, visible_only: bool = True
     ) -> ElementHandle | None:
         """
         查找搜索框元素
@@ -91,7 +92,7 @@ class ElementDetector:
 
         for i, selector in enumerate(self.search_box_selectors):
             try:
-                logger.debug(f"尝试选择器 {i+1}/{len(self.search_box_selectors)}: {selector}")
+                logger.debug(f"尝试选择器 {i + 1}/{len(self.search_box_selectors)}: {selector}")
 
                 # 设置状态要求
                 state = "visible" if visible_only else "attached"
@@ -99,7 +100,7 @@ class ElementDetector:
                 element = await page.wait_for_selector(
                     selector,
                     timeout=min(timeout // len(self.search_box_selectors), 2000),
-                    state=state
+                    state=state,
                 )
 
                 if element:
@@ -157,10 +158,7 @@ class ElementDetector:
             return False
 
     async def find_search_results(
-        self,
-        page: Page,
-        timeout: int | None = None,
-        min_results: int = 1
+        self, page: Page, timeout: int | None = None, min_results: int = 1
     ) -> list[ElementHandle]:
         """
         查找搜索结果链接
@@ -181,12 +179,12 @@ class ElementDetector:
 
         for i, selector in enumerate(self.search_result_selectors):
             try:
-                logger.debug(f"尝试结果选择器 {i+1}/{len(self.search_result_selectors)}: {selector}")
+                logger.debug(
+                    f"尝试结果选择器 {i + 1}/{len(self.search_result_selectors)}: {selector}"
+                )
 
                 await page.wait_for_selector(
-                    selector,
-                    timeout=per_selector_timeout,
-                    state="visible"
+                    selector, timeout=per_selector_timeout, state="visible"
                 )
 
                 # 获取所有匹配的结果
@@ -243,11 +241,7 @@ class ElementDetector:
             return False
 
     async def find_element_with_fallback(
-        self,
-        page: Page,
-        selectors: list[str],
-        timeout: int | None = None,
-        state: str = "visible"
+        self, page: Page, selectors: list[str], timeout: int | None = None, state: str = "visible"
     ) -> ElementHandle | None:
         """
         使用降级策略查找元素
@@ -265,12 +259,10 @@ class ElementDetector:
 
         for i, selector in enumerate(selectors):
             try:
-                logger.debug(f"尝试选择器 {i+1}/{len(selectors)}: {selector}")
+                logger.debug(f"尝试选择器 {i + 1}/{len(selectors)}: {selector}")
 
                 element = await page.wait_for_selector(
-                    selector,
-                    timeout=min(timeout // len(selectors), 2000),
-                    state=state
+                    selector, timeout=min(timeout // len(selectors), 2000), state=state
                 )
 
                 if element:
@@ -284,10 +276,7 @@ class ElementDetector:
         return None
 
     async def wait_for_page_ready(
-        self,
-        page: Page,
-        timeout: int | None = None,
-        check_network: bool = True
+        self, page: Page, timeout: int | None = None, check_network: bool = True
     ) -> bool:
         """
         等待页面准备就绪
@@ -340,14 +329,15 @@ class ElementDetector:
         try:
             # 检查页面标题
             title = await page.title()
-            if any(error_keyword in title.lower() for error_keyword in
-                   ["error", "404", "not found", "access denied", "forbidden"]):
+            if any(
+                error_keyword in title.lower()
+                for error_keyword in ["error", "404", "not found", "access denied", "forbidden"]
+            ):
                 errors.append(f"页面标题包含错误信息: {title}")
 
             # 检查URL
             url = page.url
-            if any(error_keyword in url.lower() for error_keyword in
-                   ["error", "404", "notfound"]):
+            if any(error_keyword in url.lower() for error_keyword in ["error", "404", "notfound"]):
                 errors.append(f"URL包含错误信息: {url}")
 
             # 检查页面内容中的错误信息
@@ -380,10 +370,7 @@ class ElementDetector:
         return errors
 
     async def take_diagnostic_screenshot(
-        self,
-        page: Page,
-        filename: str,
-        full_page: bool = True
+        self, page: Page, filename: str, full_page: bool = True
     ) -> bool:
         """
         拍摄诊断截图
@@ -457,4 +444,4 @@ class ElementDetector:
 
         except Exception as e:
             logger.debug(f"获取元素信息失败: {e}")
-            return {"error": str(e)}\n
+            return {"error": str(e)}

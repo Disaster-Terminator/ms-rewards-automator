@@ -10,13 +10,13 @@ Design Pattern: State Machine with Handler Registry
 - State history tracking for debugging
 - Timeout and max transitions protection
 """
+
+import logging
+import os
 from collections import deque
 from datetime import datetime
 from enum import Enum
-from typing import Any
-import asyncio
-import logging
-import os
+from typing import TYPE_CHECKING, Any
 
 from playwright.async_api import Page
 
@@ -35,6 +35,7 @@ class LoginState(Enum):
     Each state represents a distinct page or authentication step
     in the Microsoft login flow.
     """
+
     LOGGED_IN = "logged_in"
     EMAIL_INPUT = "email_input"
     PASSWORD_INPUT = "password_input"
@@ -61,7 +62,7 @@ class StateTransition:
         to_state: LoginState,
         timestamp: datetime,
         success: bool = True,
-        error_message: \g<0>str] = None
+        error_message: str | None = None,
     ):
         self.from_state = from_state
         self.to_state = to_state
@@ -95,7 +96,7 @@ class LoginStateMachine:
         logger: Logger instance
     """
 
-    def __init__(self, config: 'ConfigManager', logger: \g<0>logging.Logger] = None):
+    def __init__(self, config: "ConfigManager", logger: logging.Logger | None = None):
         """
         Initialize the login state machine.
 
@@ -110,12 +111,12 @@ class LoginStateMachine:
         self._max_history_size = 50
         self.state_history: deque = deque(maxlen=self._max_history_size)
 
-        self.handlers: dict[LoginState, 'StateHandler'] = {}
+        self.handlers: dict[LoginState, StateHandler] = {}
 
         self.max_transitions = config.get("login.max_transitions", 10)
         self.timeout_seconds = config.get("login.timeout_seconds", 300)
 
-        self.diagnosis_system: \g<0>SelfDiagnosisSystem] = None
+        self.diagnosis_system: SelfDiagnosisSystem | None = None
 
         self.edge_popup_handler = EdgePopupHandler(logger=self.logger)
 
@@ -125,7 +126,7 @@ class LoginStateMachine:
             f"timeout={self.timeout_seconds}s)"
         )
 
-    def register_handler(self, state: LoginState, handler: 'StateHandler') -> None:
+    def register_handler(self, state: LoginState, handler: "StateHandler") -> None:
         """
         Register a handler for a specific state.
 
@@ -185,13 +186,12 @@ class LoginStateMachine:
         self.logger.warning("Could not detect login state, returning ERROR")
         return LoginState.ERROR
 
-
     def _record_transition(
         self,
         from_state: LoginState,
         to_state: LoginState,
         success: bool = True,
-        error_message: \g<0>str] = None
+        error_message: str | None = None,
     ) -> None:
         """
         Record a state transition in history.
@@ -207,7 +207,7 @@ class LoginStateMachine:
             to_state=to_state,
             timestamp=datetime.now(),
             success=success,
-            error_message=error_message
+            error_message=error_message,
         )
 
         self.state_history.append(transition)
@@ -216,10 +216,7 @@ class LoginStateMachine:
         if success:
             self.logger.info(f"State transition: {from_state} → {to_state}")
         else:
-            self.logger.error(
-                f"Failed transition: {from_state} → {to_state} "
-                f"({error_message})"
-            )
+            self.logger.error(f"Failed transition: {from_state} → {to_state} ({error_message})")
 
     def get_state_history(self) -> list[StateTransition]:
         """
@@ -270,19 +267,18 @@ class LoginStateMachine:
                     "to": str(t.to_state),
                     "timestamp": t.timestamp.isoformat(),
                     "success": t.success,
-                    "error": t.error_message
+                    "error": t.error_message,
                 }
                 for t in self.state_history
-            ]
+            ],
         }
-
 
     async def handle_login(
         self,
         page: Any,
         credentials: dict[str, str],
-        max_transitions: \g<0>int] = None,
-        timeout: \g<0>int] = None
+        max_transitions: int | None = None,
+        timeout: int | None = None,
     ) -> bool:
         """
         Execute the login flow by transitioning through states.
@@ -314,8 +310,7 @@ class LoginStateMachine:
         self.diagnosis_system = SelfDiagnosisSystem(page)
 
         self.logger.info(
-            f"Starting login flow (max_transitions={max_trans}, "
-            f"timeout={timeout_sec}s)"
+            f"Starting login flow (max_transitions={max_trans}, timeout={timeout_sec}s)"
         )
 
         start_time = datetime.now()
@@ -330,18 +325,12 @@ class LoginStateMachine:
             elapsed = (datetime.now() - start_time).total_seconds()
             if elapsed > timeout_sec:
                 self.logger.error(f"Login timeout after {elapsed:.1f}s")
-                raise TimeoutError(
-                    f"Login exceeded timeout of {timeout_sec}s"
-                )
+                raise TimeoutError(f"Login exceeded timeout of {timeout_sec}s")
 
             # Check max transitions
             if transition_count >= max_trans:
-                self.logger.error(
-                    f"Max transitions ({max_trans}) exceeded"
-                )
-                raise RuntimeError(
-                    f"Login exceeded maximum transitions ({max_trans})"
-                )
+                self.logger.error(f"Max transitions ({max_trans}) exceeded")
+                raise RuntimeError(f"Login exceeded maximum transitions ({max_trans})")
 
             # Detect current state (with timeout monitoring)
             try:
@@ -351,7 +340,9 @@ class LoginStateMachine:
                 try:
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
                     await page.wait_for_selector("body", timeout=10000)
-                    await page.wait_for_load_state("load", timeout=15000)  # 改用 load 替代 networkidle
+                    await page.wait_for_load_state(
+                        "load", timeout=15000
+                    )  # 改用 load 替代 networkidle
                 except Exception as e:
                     # 即使超时也继续，因为实际操作可能已经成功
                     self.logger.debug(f"页面加载检查: {e}")
@@ -359,7 +350,7 @@ class LoginStateMachine:
                 self.current_state = await self.diagnosis_system.monitor_execution(
                     lambda: self.detect_state(page),
                     timeout=60,  # 增加到 60 秒，因为需要检查多个 handler
-                    operation_name=f"Detect state (from {previous_state})"
+                    operation_name=f"Detect state (from {previous_state})",
                 )
             except TimeoutError as e:
                 self.logger.error(f"State detection timeout: {e}")
@@ -376,22 +367,20 @@ class LoginStateMachine:
                 if self.current_state != LoginState.LOGGED_IN:
                     same_state_count += 1
                     self.logger.warning(
-                        f"卡在同一状态 {self.current_state}，"
-                        f"连续 {same_state_count} 次"
+                        f"卡在同一状态 {self.current_state}，连续 {same_state_count} 次"
                     )
 
                     if same_state_count >= 4:
-                        self.logger.error(
-                            f"卡在 {self.current_state} 状态 4 次，"
-                            f"刷新页面重试"
-                        )
+                        self.logger.error(f"卡在 {self.current_state} 状态 4 次，刷新页面重试")
 
                         # 保存诊断 HTML
                         try:
                             os.makedirs("logs/diagnostics", exist_ok=True)
                             html_content = await page.content()
                             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            html_path = f"logs/diagnostics/stuck_{self.current_state}_{timestamp}.html"
+                            html_path = (
+                                f"logs/diagnostics/stuck_{self.current_state}_{timestamp}.html"
+                            )
                             with open(html_path, "w", encoding="utf-8") as f:
                                 f.write(html_content)
                             self.logger.info(f"已保存卡死状态 HTML: {html_path}")
@@ -408,8 +397,7 @@ class LoginStateMachine:
             # Check if we're logged in
             if self.current_state == LoginState.LOGGED_IN:
                 self.logger.info(
-                    f"Login successful after {transition_count} transitions "
-                    f"in {elapsed:.1f}s"
+                    f"Login successful after {transition_count} transitions in {elapsed:.1f}s"
                 )
                 return True
 
@@ -438,41 +426,35 @@ class LoginStateMachine:
                     previous_state,
                     LoginState.ERROR,
                     success=False,
-                    error_message="Unrecognized page state"
+                    error_message="Unrecognized page state",
                 )
                 return False
 
             # Get handler for current state
             handler = self.handlers.get(self.current_state)
             if not handler:
-                self.logger.error(
-                    f"No handler registered for state: {self.current_state}"
-                )
+                self.logger.error(f"No handler registered for state: {self.current_state}")
                 self.current_state = LoginState.ERROR
                 self._record_transition(
                     previous_state,
                     LoginState.ERROR,
                     success=False,
-                    error_message=f"No handler for {self.current_state}"
+                    error_message=f"No handler for {self.current_state}",
                 )
                 return False
 
             # Execute handler (with timeout monitoring)
             try:
-                self.logger.debug(
-                    f"Executing handler for state: {self.current_state}"
-                )
+                self.logger.debug(f"Executing handler for state: {self.current_state}")
 
                 success = await self.diagnosis_system.monitor_execution(
-                    lambda: handler.handle(page, credentials),
+                    lambda h=handler: h.handle(page, credentials),
                     timeout=60,
-                    operation_name=f"Handle state: {self.current_state}"
+                    operation_name=f"Handle state: {self.current_state}",
                 )
 
                 if not success:
-                    self.logger.warning(
-                        f"Handler for {self.current_state} returned False"
-                    )
+                    self.logger.warning(f"Handler for {self.current_state} returned False")
                     # Continue anyway - next iteration will detect new state
 
             except TimeoutError as e:
@@ -482,22 +464,18 @@ class LoginStateMachine:
                     previous_state,
                     LoginState.ERROR,
                     success=False,
-                    error_message=f"Handler timeout: {e}"
+                    error_message=f"Handler timeout: {e}",
                 )
                 return False
             except Exception as e:
                 self.logger.error(
-                    f"Handler for {self.current_state} raised exception: {e}",
-                    exc_info=True
+                    f"Handler for {self.current_state} raised exception: {e}", exc_info=True
                 )
                 self.current_state = LoginState.ERROR
                 self._record_transition(
-                    previous_state,
-                    LoginState.ERROR,
-                    success=False,
-                    error_message=str(e)
+                    previous_state, LoginState.ERROR, success=False, error_message=str(e)
                 )
                 return False
 
             # Small delay to allow page to update
-            await page.wait_for_timeout(1000)\n
+            await page.wait_for_timeout(1000)

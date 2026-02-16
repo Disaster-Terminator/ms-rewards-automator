@@ -2,17 +2,17 @@
 账户管理器模块
 管理登录状态和会话持久化
 """
-from pathlib import Path
+
 import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 
 from playwright.async_api import BrowserContext, Page
 
 from login.edge_popup_handler import EdgePopupHandler
 from login.handlers import (
-
     AuthBlockedHandler,
     EmailInputHandler,
     GetACodeHandler,
@@ -69,44 +69,34 @@ class AccountManager:
 
         # 注册处理器
         self.state_machine.register_handler(
-            LoginState.EMAIL_INPUT,
-            EmailInputHandler(self.config, logger)
+            LoginState.EMAIL_INPUT, EmailInputHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.PASSWORD_INPUT,
-            PasswordInputHandler(self.config, logger)
+            LoginState.PASSWORD_INPUT, PasswordInputHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.TOTP_2FA,
-            Totp2FAHandler(self.config, logger)
+            LoginState.TOTP_2FA, Totp2FAHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.PASSWORDLESS,
-            PasswordlessHandler(self.config, logger)
+            LoginState.PASSWORDLESS, PasswordlessHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.GET_A_CODE,
-            GetACodeHandler(self.config, logger)
+            LoginState.GET_A_CODE, GetACodeHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.RECOVERY_EMAIL,
-            RecoveryEmailHandler(self.config, logger)
+            LoginState.RECOVERY_EMAIL, RecoveryEmailHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.LOGGED_IN,
-            LoggedInHandler(self.config, logger)
+            LoginState.LOGGED_IN, LoggedInHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.AUTH_BLOCKED,
-            AuthBlockedHandler(self.config, logger)
+            LoginState.AUTH_BLOCKED, AuthBlockedHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.OTP_CODE_ENTRY,
-            OtpCodeEntryHandler(self.config, logger)
+            LoginState.OTP_CODE_ENTRY, OtpCodeEntryHandler(self.config, logger)
         )
         self.state_machine.register_handler(
-            LoginState.STAY_SIGNED_IN,
-            StaySignedInHandler(self.config, logger)
+            LoginState.STAY_SIGNED_IN, StaySignedInHandler(self.config, logger)
         )
 
         logger.debug(f"已注册 {len(self.state_machine.handlers)} 个状态处理器")
@@ -123,7 +113,7 @@ class AccountManager:
             return None
 
         try:
-            with open(self.storage_state_path, encoding='utf-8') as f:
+            with open(self.storage_state_path, encoding="utf-8") as f:
                 state = json.load(f)
 
             # 验证会话状态格式
@@ -213,7 +203,9 @@ class AccountManager:
                     logger.debug(f"禁用 beforeunload 失败: {e}")
 
             # 并发禁用所有页面的 beforeunload
-            await asyncio.gather(*[disable_beforeunload(page) for page in all_pages], return_exceptions=True)
+            await asyncio.gather(
+                *[disable_beforeunload(page) for page in all_pages], return_exceptions=True
+            )
 
             # 步骤3: 移除所有事件监听器
             try:
@@ -245,7 +237,9 @@ class AccountManager:
                         logger.debug(f"关闭页面时出错: {e}")
 
                 # 并发关闭所有额外页面
-                await asyncio.gather(*[close_page_safely(page) for page in all_pages[1:]], return_exceptions=True)
+                await asyncio.gather(
+                    *[close_page_safely(page) for page in all_pages[1:]], return_exceptions=True
+                )
 
                 # 等待关闭完成
                 await asyncio.sleep(0.5)
@@ -263,7 +257,7 @@ class AccountManager:
             Path(self.storage_state_path).parent.mkdir(parents=True, exist_ok=True)
 
             # 保存到文件
-            with open(self.storage_state_path, 'w', encoding='utf-8') as f:
+            with open(self.storage_state_path, "w", encoding="utf-8") as f:
                 json.dump(state, f, indent=2, ensure_ascii=False)
 
             cookie_count = len(state.get("cookies", []))
@@ -277,6 +271,7 @@ class AccountManager:
         except Exception as e:
             logger.error(f"保存会话状态失败: {e}")
             import traceback
+
             logger.debug(traceback.format_exc())
             return False
 
@@ -365,22 +360,22 @@ class AccountManager:
 
         # 2FA相关的选择器
         twofa_selectors = [
-            'input[name="otc"]',           # TOTP输入框
-            'input[type="tel"]',           # 电话验证码
-            'input[aria-label*="code"]',   # 验证码输入
-            'div[data-value="PhoneAppOTP"]', # 身份验证器应用
-            'div[data-value="PhoneAppNotification"]', # 推送通知
+            'input[name="otc"]',  # TOTP输入框
+            'input[type="tel"]',  # 电话验证码
+            'input[aria-label*="code"]',  # 验证码输入
+            'div[data-value="PhoneAppOTP"]',  # 身份验证器应用
+            'div[data-value="PhoneAppNotification"]',  # 推送通知
         ]
 
         # "Stay signed in?" 提示的选择器
         stay_signed_in_selectors = [
-            'input[id="idSIButton9"]',     # Yes按钮
+            'input[id="idSIButton9"]',  # Yes按钮
             'button:has-text("Yes")',
             'input[value="Yes"]',
         ]
 
         # 登录流程相关的URL关键词
-        login_keywords = ['login', 'oauth', 'authenticate', 'signin', 'auth']
+        login_keywords = ["login", "oauth", "authenticate", "signin", "auth"]
 
         logger.info("⏳ 等待您完成登录...")
 
@@ -426,7 +421,7 @@ class AccountManager:
                 continue
 
             # 如果还在空白页，继续等待
-            if current_url == 'about:blank' or current_url == '':
+            if current_url == "about:blank" or current_url == "":
                 await asyncio.sleep(check_interval)
                 continue
 
@@ -437,7 +432,9 @@ class AccountManager:
                 try:
                     # 先检查页面是否包含"Stay signed in"文本
                     page_content = await page.content()
-                    is_stay_signed_in_page = 'stay signed in' in page_content.lower() or 'kmsi' in current_url.lower()
+                    is_stay_signed_in_page = (
+                        "stay signed in" in page_content.lower() or "kmsi" in current_url.lower()
+                    )
 
                     if is_stay_signed_in_page:
                         for selector in stay_signed_in_selectors:
@@ -472,8 +469,12 @@ class AccountManager:
 
             # 检查是否仍在登录流程中
             # 排除 OAuth 回调页面（这些页面虽然包含 auth，但实际是登录完成的标志）
-            is_oauth_callback = 'complete-client-signin' in current_url or 'oauth-silent' in current_url
-            is_in_login_flow = any(keyword in current_url for keyword in login_keywords) and not is_oauth_callback
+            is_oauth_callback = (
+                "complete-client-signin" in current_url or "oauth-silent" in current_url
+            )
+            is_in_login_flow = (
+                any(keyword in current_url for keyword in login_keywords) and not is_oauth_callback
+            )
 
             if is_in_login_flow:
                 logger.debug(f"仍在登录流程中... ({int(elapsed)}秒)")
@@ -485,7 +486,9 @@ class AccountManager:
                 logger.info("检测到 OAuth 回调页面，登录可能已完成")
                 logger.info("尝试导航到 Bing 首页验证登录状态...")
                 try:
-                    await page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=15000)
+                    await page.goto(
+                        "https://www.bing.com", wait_until="domcontentloaded", timeout=15000
+                    )
                     await asyncio.sleep(2)
                     current_url = page.url.lower()
                     logger.info(f"已导航到: {current_url}")
@@ -499,7 +502,9 @@ class AccountManager:
 
                 # 导航到 Bing 以便检测登录状态
                 try:
-                    await page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=15000)
+                    await page.goto(
+                        "https://www.bing.com", wait_until="domcontentloaded", timeout=15000
+                    )
                     logger.debug(f"已导航到 Bing: {page.url}")
 
                     # 等待页面完全加载
@@ -517,7 +522,9 @@ class AccountManager:
                 # 直接使用login_detector检测，不要调用is_logged_in（避免页面跳转）
                 try:
                     logger.info("开始检测登录状态（详细模式）...")
-                    is_logged_in = await self.login_detector.detect_login_status(page, use_cache=False)
+                    is_logged_in = await self.login_detector.detect_login_status(
+                        page, use_cache=False
+                    )
 
                     # 获取检测详情
                     detection_info = self.login_detector.get_detection_info()
@@ -532,12 +539,13 @@ class AccountManager:
                 except Exception as e:
                     logger.error(f"检测登录状态时出错: {e}")
                     import traceback
+
                     logger.debug(traceback.format_exc())
 
             # 等待一段时间再检查
             await asyncio.sleep(check_interval)
 
-    async def auto_login(self, page: Page, credentials: dict) -> bool:
+    async def auto_login(self, page: Page, credentials: dict[str, str]) -> bool:
         """
         使用登录状态机自动登录
 
@@ -597,6 +605,7 @@ class AccountManager:
         except Exception as e:
             logger.error(f"自动登录异常: {e}", exc_info=True)
             return False
+            return False
 
     def get_storage_state_path(self) -> str:
         """
@@ -642,4 +651,4 @@ class AccountManager:
             # 保存新的会话状态
             return await self.save_session(context)
 
-        return False\n
+        return False

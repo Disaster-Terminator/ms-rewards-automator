@@ -3,10 +3,12 @@ Recovery Email Handler.
 
 Handles the recovery email verification that requires manual intervention.
 """
+
 from typing import Any
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class RecoveryEmailHandler(StateHandler):
     """
@@ -19,9 +21,9 @@ class RecoveryEmailHandler(StateHandler):
 
     # Selectors for recovery email page
     RECOVERY_EMAIL_INDICATORS = [
-        'text=Verify your recovery email',
-        'text=Help us protect your account',
-        'text=recovery email',
+        "text=Verify your recovery email",
+        "text=Help us protect your account",
+        "text=recovery email",
     ]
 
     async def can_handle(self, page: Any) -> bool:
@@ -59,18 +61,10 @@ class RecoveryEmailHandler(StateHandler):
         Returns:
             False (requires manual intervention)
         """
-        self.logger.warning(
-            "=== MANUAL INTERVENTION REQUIRED ==="
-        )
-        self.logger.warning(
-            "Microsoft is requesting recovery email verification."
-        )
-        self.logger.warning(
-            "Please check your recovery email and follow the instructions."
-        )
-        self.logger.warning(
-            "The system will wait for the configured timeout period."
-        )
+        self.logger.warning("=== MANUAL INTERVENTION REQUIRED ===")
+        self.logger.warning("Microsoft is requesting recovery email verification.")
+        self.logger.warning("Please check your recovery email and follow the instructions.")
+        self.logger.warning("The system will wait for the configured timeout period.")
 
         # Wait for manual intervention timeout
         timeout = self.config.get("login.manual_intervention_timeout", 120)
@@ -91,4 +85,4 @@ class RecoveryEmailHandler(StateHandler):
         return [
             LoginState.LOGGED_IN,
             LoginState.ERROR,
-        ]\n
+        ]

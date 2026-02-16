@@ -2,6 +2,7 @@
 防置顶脚本模块
 提供增强版的JavaScript脚本来防止浏览器窗口获取焦点
 """
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -291,4 +292,4 @@ class AntiFocusScripts:
         if level == "enhanced":
             return AntiFocusScripts.get_enhanced_anti_focus_script()
         else:
-            return AntiFocusScripts.get_basic_anti_focus_script()\n
+            return AntiFocusScripts.get_basic_anti_focus_script()

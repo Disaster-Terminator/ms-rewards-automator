@@ -15,23 +15,20 @@ MSRewardsApp - 系统总线
 - TaskCoordinator: 负责协调具体任务的执行
 - 各子系统组件（BrowserSimulator、SearchEngine等）: 被组装和调用
 """
-from typing import Any
-import asyncio
+
 import logging
+from typing import Any
 
 from account.manager import AccountManager
-from account.points_detector import PointsDetector
-from browser.anti_ban_module import AntiBanModule
 from browser.simulator import BrowserSimulator
 from infrastructure.error_handler import ErrorHandler
 from infrastructure.health_monitor import HealthMonitor
 from infrastructure.notificator import Notificator
 from infrastructure.state_monitor import StateMonitor
-from search.query_engine import QueryEngine
 from search.search_engine import SearchEngine
-from search.search_term_generator import SearchTermGenerator
 from tasks import TaskManager
 from ui.real_time_status import StatusManager
+
 
 class MSRewardsApp:
     """
@@ -71,14 +68,14 @@ class MSRewardsApp:
 
         # 核心组件（延迟初始化）
         # 这些组件会在首次使用时通过SystemInitializer创建
-        self.browser_sim: \g<0>BrowserSimulator] = None
-        self.search_engine: \g<0>SearchEngine] = None
-        self.account_mgr: \g<0>AccountManager] = None
-        self.state_monitor: \g<0>StateMonitor] = None
-        self.error_handler: \g<0>ErrorHandler] = None
-        self.notificator: \g<0>Notificator] = None
-        self.health_monitor: \g<0>HealthMonitor] = None
-        self.task_manager: \g<0>TaskManager] = None
+        self.browser_sim: BrowserSimulator | None = None
+        self.search_engine: SearchEngine | None = None
+        self.account_mgr: AccountManager | None = None
+        self.state_monitor: StateMonitor | None = None
+        self.error_handler: ErrorHandler | None = None
+        self.notificator: Notificator | None = None
+        self.health_monitor: HealthMonitor | None = None
+        self.task_manager: TaskManager | None = None
 
         # 浏览器实例（运行时创建）
         self.browser = None
@@ -92,11 +89,13 @@ class MSRewardsApp:
         # 初始化器组件
         # 负责创建和配置所有核心子系统
         from .system_initializer import SystemInitializer
+
         self.initializer = SystemInitializer(config, args, self.logger)
 
         # 任务协调器组件
         # 负责协调具体任务的执行流程
         from .task_coordinator import TaskCoordinator
+
         self.coordinator = TaskCoordinator(config, args, self.logger, self.browser_sim)
 
     async def run(self) -> int:
@@ -166,6 +165,7 @@ class MSRewardsApp:
         except Exception as e:
             self.logger.error(f"\n❌ 执行失败: {e}")
             import traceback
+
             traceback.print_exc()
             raise
         finally:
@@ -196,30 +196,36 @@ class MSRewardsApp:
         TaskCoordinator <- BrowserSimulator: 浏览器操作
         """
         # 使用初始化器创建所有组件
-        self.browser_sim, self.search_engine, self.account_mgr, \
-            self.state_monitor, self.error_handler, self.notificator, \
-            self.health_monitor = self.initializer.initialize_components()
+        (
+            self.browser_sim,
+            self.search_engine,
+            self.account_mgr,
+            self.state_monitor,
+            self.error_handler,
+            self.notificator,
+            self.health_monitor,
+        ) = self.initializer.initialize_components()
 
         # 将依赖注入到TaskCoordinator中
         # 这是实现松耦合设计的关键步骤
-        self.coordinator.set_account_manager(self.account_mgr) \
-                       .set_search_engine(self.search_engine) \
-                       .set_state_monitor(self.state_monitor) \
-                       .set_health_monitor(self.health_monitor) \
-                       .set_browser_sim(self.browser_sim)
+        self.coordinator.set_account_manager(self.account_mgr).set_search_engine(
+            self.search_engine
+        ).set_state_monitor(self.state_monitor).set_health_monitor(
+            self.health_monitor
+        ).set_browser_sim(self.browser_sim)
 
         # 启动健康监控，在后台监控系统状态
         await self.health_monitor.start_monitoring()
 
     async def _create_browser(self) -> None:
         """创建浏览器实例（确保只创建一个）"""
-        if not hasattr(self, 'browser') or not self.browser:
+        if not hasattr(self, "browser") or not self.browser:
             self.logger.info("创建浏览器实例...")
             self.browser = await self.browser_sim.create_desktop_browser(self.args.browser)
             self.context, self.page = await self.browser_sim.create_context(
                 self.browser,
                 f"desktop_{self.args.browser}",
-                storage_state=self.config.get("account.storage_state_path")
+                storage_state=self.config.get("account.storage_state_path"),
             )
             self.logger.info("✓ 浏览器实例创建成功")
         else:
@@ -244,9 +250,11 @@ class MSRewardsApp:
         else:
             try:
                 current_url = self.page.url
-                if 'login' in current_url.lower() or 'oauth' in current_url.lower():
+                if "login" in current_url.lower() or "oauth" in current_url.lower():
                     self.logger.info("  页面仍在登录页面，导航到 Bing...")
-                    await self.page.goto("https://www.bing.com", wait_until="domcontentloaded", timeout=30000)
+                    await self.page.goto(
+                        "https://www.bing.com", wait_until="domcontentloaded", timeout=30000
+                    )
             except Exception as e:
                 self.logger.warning(f"  导航到 Bing 失败: {e}")
 
@@ -294,7 +302,7 @@ class MSRewardsApp:
         self.context, self.page = await self.browser_sim.create_context(
             self.browser,
             f"desktop_{self.args.browser}",
-            storage_state=self.config.get("account.storage_state_path")
+            storage_state=self.config.get("account.storage_state_path"),
         )
         self.logger.info("  ✓ 浏览器上下文已重建")
 
@@ -323,7 +331,7 @@ class MSRewardsApp:
         # 显示摘要
         self._show_summary(state)
 
-    async def _send_notification(self, state: Dict) -> None:
+    async def _send_notification(self, state: dict) -> None:
         """发送通知"""
         self.logger.info("  发送通知...")
         report_data = {
@@ -332,26 +340,34 @@ class MSRewardsApp:
             "desktop_searches": state["session_data"]["desktop_searches"],
             "mobile_searches": state["session_data"]["mobile_searches"],
             "status": "正常" if state["points_gained"] > 0 else "无积分增加",
-            "alerts": state["session_data"]["alerts"]
+            "alerts": state["session_data"]["alerts"],
         }
         await self.notificator.send_daily_report(report_data)
 
-    def _show_summary(self, state: Dict) -> None:
+    def _show_summary(self, state: dict) -> None:
         """显示执行摘要"""
         self.logger.info("\n" + "=" * 70)
         StatusManager.update_progress(8, 8)
         StatusManager.show_completion()
         self.logger.info("执行摘要")
         self.logger.info("=" * 70)
-        self.logger.info(f"初始积分: {state['initial_points']:,}" if state['initial_points'] else "初始积分: 未知")
-        self.logger.info(f"当前积分: {state['current_points']:,}" if state['current_points'] else "当前积分: 未知")
+        self.logger.info(
+            f"初始积分: {state['initial_points']:,}"
+            if state["initial_points"]
+            else "初始积分: 未知"
+        )
+        self.logger.info(
+            f"当前积分: {state['current_points']:,}"
+            if state["current_points"]
+            else "当前积分: 未知"
+        )
         self.logger.info(f"获得积分: +{state['points_gained']}")
         self.logger.info(f"桌面搜索: {state['session_data']['desktop_searches']} 次")
         self.logger.info(f"移动搜索: {state['session_data']['mobile_searches']} 次")
 
-        if 'tasks_completed' in state['session_data']:
+        if "tasks_completed" in state["session_data"]:
             self.logger.info(f"完成任务: {state['session_data']['tasks_completed']} 个")
-        if 'tasks_failed' in state['session_data']:
+        if "tasks_failed" in state["session_data"]:
             self.logger.info(f"失败任务: {state['session_data']['tasks_failed']} 个")
 
         self.logger.info(f"告警数量: {len(state['session_data']['alerts'])}")
@@ -362,8 +378,8 @@ class MSRewardsApp:
             self.health_monitor.save_health_report()
             perf_report = self.health_monitor.get_performance_report()
             self.logger.info(f"运行时间: {perf_report['uptime_formatted']}")
-            self.logger.info(f"搜索成功率: {perf_report['success_rate']*100:.1f}%")
-            if perf_report['average_response_time'] > 0:
+            self.logger.info(f"搜索成功率: {perf_report['success_rate'] * 100:.1f}%")
+            if perf_report["average_response_time"] > 0:
                 self.logger.info(f"平均响应时间: {perf_report['average_response_time']:.2f}s")
 
         self.logger.info("=" * 70)
@@ -378,7 +394,8 @@ class MSRewardsApp:
         # 日志轮替
         self.logger.info("\n清理旧日志和截图...")
         from infrastructure.log_rotation import LogRotation
+
         rotator = LogRotation()
         rotator.cleanup_all()
 
-        self.logger.info("\n✅ 任务执行完成")\n
+        self.logger.info("\n✅ 任务执行完成")

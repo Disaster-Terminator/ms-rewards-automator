@@ -46,7 +46,7 @@ def parse_arguments():
   python main.py --autonomous-test        # 运行自主测试框架
   python main.py --autonomous-test --test-type login  # 仅测试登录状态
   python main.py --autonomous-test --quick-test       # 快速测试模式
-        """
+        """,
     )
 
     # 执行模式
@@ -54,118 +54,74 @@ def parse_arguments():
         "--mode",
         choices=["normal", "fast", "slow"],
         default="normal",
-        help="执行模式: normal(正常), fast(快速), slow(慢速)"
+        help="执行模式: normal(正常), fast(快速), slow(慢速)",
     )
 
     parser.add_argument(
         "--dev",
         action="store_true",
-        help="开发模式（2+2搜索，无拟人行为，最小等待时间，DEBUG日志）"
+        help="开发模式（2+2搜索，无拟人行为，最小等待时间，DEBUG日志）",
     )
 
     parser.add_argument(
         "--usermode",
         action="store_true",
-        help="用户模式（3+3搜索，保留拟人行为和防检测，INFO日志）"
+        help="用户模式（3+3搜索，保留拟人行为和防检测，INFO日志）",
     )
 
     # 浏览器选项
-    parser.add_argument(
-        "--headless",
-        action="store_true",
-        help="无头模式（不显示浏览器窗口）"
-    )
+    parser.add_argument("--headless", action="store_true", help="无头模式（不显示浏览器窗口）")
 
     parser.add_argument(
         "--browser",
         choices=["edge", "chrome", "chromium"],
         default="chromium",
-        help="浏览器类型 (默认: chromium，使用 Playwright 内置版本)"
+        help="浏览器类型 (默认: chromium，使用 Playwright 内置版本)",
     )
 
     # 搜索选项
-    parser.add_argument(
-        "--desktop-only",
-        action="store_true",
-        help="仅执行桌面搜索"
-    )
+    parser.add_argument("--desktop-only", action="store_true", help="仅执行桌面搜索")
 
-    parser.add_argument(
-        "--mobile-only",
-        action="store_true",
-        help="仅执行移动搜索"
-    )
+    parser.add_argument("--mobile-only", action="store_true", help="仅执行移动搜索")
 
     # 任务选项
-    parser.add_argument(
-        "--skip-daily-tasks",
-        action="store_true",
-        help="跳过每日任务"
-    )
+    parser.add_argument("--skip-daily-tasks", action="store_true", help="跳过每日任务")
 
     # 测试选项
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="模拟运行，不执行实际操作"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="模拟运行，不执行实际操作")
+
+    parser.add_argument("--test-notification", action="store_true", help="测试通知功能")
 
     parser.add_argument(
-        "--test-notification",
-        action="store_true",
-        help="测试通知功能"
-    )
-
-    parser.add_argument(
-        "--autonomous-test",
-        action="store_true",
-        help="运行自主测试框架（无头模式，自动问题发现）"
+        "--autonomous-test", action="store_true", help="运行自主测试框架（无头模式，自动问题发现）"
     )
 
     parser.add_argument(
         "--test-type",
         choices=["login", "bing_access", "search", "points", "full"],
         default="full",
-        help="自主测试类型 (默认: full)"
+        help="自主测试类型 (默认: full)",
     )
 
-    parser.add_argument(
-        "--quick-test",
-        action="store_true",
-        help="快速测试模式（减少等待时间）"
-    )
+    parser.add_argument("--quick-test", action="store_true", help="快速测试模式（减少等待时间）")
 
     # 调度选项
-    parser.add_argument(
-        "--schedule",
-        action="store_true",
-        help="启用调度模式"
-    )
+    parser.add_argument("--schedule", action="store_true", help="启用调度模式")
 
-    parser.add_argument(
-        "--schedule-now",
-        action="store_true",
-        help="立即执行一次后进入调度"
-    )
+    parser.add_argument("--schedule-now", action="store_true", help="立即执行一次后进入调度")
 
     parser.add_argument(
         "--no-schedule",
         action="store_true",
-        help="仅执行一次，不进入调度（覆盖配置中的调度器启用）"
+        help="仅执行一次，不进入调度（覆盖配置中的调度器启用）",
     )
 
     parser.add_argument(
-        "--schedule-only",
-        action="store_true",
-        help="跳过首次执行，直接进入调度模式"
+        "--schedule-only", action="store_true", help="跳过首次执行，直接进入调度模式"
     )
 
     # 配置文件
-    parser.add_argument(
-        "--config",
-        default="config.yaml",
-        help="配置文件路径 (默认: config.yaml)"
-    )
+    parser.add_argument("--config", default="config.yaml", help="配置文件路径 (默认: config.yaml)")
 
     return parser.parse_args()
 
@@ -187,7 +143,7 @@ async def test_notification_func(config):
         "desktop_searches": 30,
         "mobile_searches": 20,
         "status": "测试",
-        "alerts": []
+        "alerts": [],
     }
 
     print("正在发送测试通知...")
@@ -219,19 +175,12 @@ async def run_autonomous_test(args):
         stop_on_critical=True,
         max_retries=3,
         page_timeout=30000,
-        inspection_interval=3 if args.quick_test else 5
+        inspection_interval=3 if args.quick_test else 5,
     )
 
-    runner = AutonomousTestRunner(
-        config_path=args.config,
-        test_config=test_config
-    )
+    runner = AutonomousTestRunner(config_path=args.config, test_config=test_config)
 
-    results = {
-        "session_id": runner.screenshot_manager.session_id,
-        "tests": {},
-        "reports": {}
-    }
+    results = {"session_id": runner.screenshot_manager.session_id, "tests": {}, "reports": {}}
 
     try:
         if not await runner.initialize():
@@ -268,6 +217,7 @@ async def run_autonomous_test(args):
     except Exception as e:
         print(f"❌ 测试执行失败: {e}")
         import traceback
+
         traceback.print_exc()
         results["error"] = str(e)
 
@@ -392,6 +342,7 @@ async def main():
     if scheduler_enabled:
         logger.info("启动调度模式...")
         from infrastructure.scheduler import TaskScheduler
+
         scheduler = TaskScheduler(config)
 
         # 定义调度任务
@@ -426,6 +377,7 @@ async def main():
         # 启动实时状态显示
         if not config.get("browser.headless", True):
             from ui.real_time_status import StatusManager
+
             StatusManager.start(config)
 
         await app.run()

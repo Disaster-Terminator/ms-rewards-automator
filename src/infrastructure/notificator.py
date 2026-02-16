@@ -2,9 +2,9 @@
 通知推送模块
 支持 Telegram Bot 和 Server酱 (微信推送)
 """
-from datetime import datetime
-import json
+
 import logging
+from datetime import datetime
 
 import aiohttp
 
@@ -60,11 +60,7 @@ class Notificator:
 
         url = f"https://api.telegram.org/bot{self.telegram_bot_token}/sendMessage"
 
-        payload = {
-            "chat_id": self.telegram_chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
+        payload = {"chat_id": self.telegram_chat_id, "text": message, "parse_mode": "Markdown"}
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -97,10 +93,7 @@ class Notificator:
 
         url = f"https://sctapi.ftqq.com/{self.serverchan_key}.send"
 
-        payload = {
-            "title": title,
-            "desp": content
-        }
+        payload = {"title": title, "desp": content}
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -138,11 +131,7 @@ class Notificator:
         # CallMeBot API
         url = "https://api.callmebot.com/whatsapp.php"
 
-        params = {
-            "phone": self.whatsapp_phone,
-            "text": message,
-            "apikey": self.whatsapp_apikey
-        }
+        params = {"phone": self.whatsapp_phone, "text": message, "apikey": self.whatsapp_apikey}
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -158,7 +147,7 @@ class Notificator:
             logger.error(f"WhatsApp 发送异常: {e}")
             return False
 
-    async def send_daily_report(self, report_data: Dict) -> bool:
+    async def send_daily_report(self, report_data: dict) -> bool:
         """
         发送每日报告
 
@@ -312,8 +301,7 @@ class Notificator:
         if self.serverchan_enabled:
             logger.info("测试 Server酱 通知...")
             results["serverchan"] = await self.send_serverchan(
-                "MS Rewards 测试",
-                "这是一条测试消息"
+                "MS Rewards 测试", "这是一条测试消息"
             )
 
         if self.whatsapp_enabled:
@@ -325,8 +313,7 @@ class Notificator:
         if self.serverchan_enabled:
             logger.info("测试 Server酱 通知...")
             results["serverchan"] = await self.send_serverchan(
-                "测试消息",
-                "这是一条来自 MS Rewards Automator 的测试消息"
+                "测试消息", "这是一条来自 MS Rewards Automator 的测试消息"
             )
 
-        return results\n
+        return results

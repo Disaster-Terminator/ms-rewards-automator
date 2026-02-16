@@ -7,20 +7,24 @@ Dependency Injection Container - 依赖注入容器
 - 自动解析依赖
 - 工厂方法注册
 """
-from functools import wraps
-from typing import Any, Callable, TypeVar
-import inspect
 
-T = TypeVar('T')
+import inspect
+from collections.abc import Callable
+from functools import wraps
+from typing import Any, TypeVar
+
+T = TypeVar("T")
 
 
 class ServiceNotFoundError(Exception):
     """服务未找到异常"""
+
     pass
 
 
 class CyclicDependencyError(Exception):
     """循环依赖异常"""
+
     pass
 
 
@@ -37,15 +41,15 @@ class Container:
     def __init__(self):
         self._services: dict[str, Any] = {}
         self._factories: dict[str, Callable] = {}
-        self._types: dict[str, Type] = {}
+        self._types: dict[str, type] = {}
         self._lifetimes: dict[str, str] = {}  # singleton, transient, factory
 
     def register_singleton(
         self,
-        service_type: Type[T],
-        instance: \g<0>T] = None,
-        factory: \g<0>Callable[..., T]] = None
-    ) -> 'Container':
+        service_type: type[T],
+        instance: T | None = None,
+        factory: Callable[..., T] | None = None,
+    ) -> "Container":
         """
         注册单例服务
 
@@ -59,7 +63,7 @@ class Container:
         """
         type_name = self._get_type_name(service_type)
         self._types[type_name] = service_type
-        self._lifetimes[type_name] = 'singleton'
+        self._lifetimes[type_name] = "singleton"
 
         if instance is not None:
             self._services[type_name] = instance
@@ -72,10 +76,8 @@ class Container:
         return self
 
     def register_transient(
-        self,
-        service_type: Type[T],
-        factory: \g<0>Callable[..., T]] = None
-    ) -> 'Container':
+        self, service_type: type[T], factory: Callable[..., T] | None = None
+    ) -> "Container":
         """
         注册瞬态服务（每次请求创建新实例）
 
@@ -88,7 +90,7 @@ class Container:
         """
         type_name = self._get_type_name(service_type)
         self._types[type_name] = service_type
-        self._lifetimes[type_name] = 'transient'
+        self._lifetimes[type_name] = "transient"
 
         if factory is not None:
             self._factories[type_name] = factory
@@ -97,11 +99,7 @@ class Container:
 
         return self
 
-    def register_factory(
-        self,
-        service_type: Type[T],
-        factory: Callable[..., T]
-    ) -> 'Container':
+    def register_factory(self, service_type: type[T], factory: Callable[..., T]) -> "Container":
         """
         注册工厂服务
 
@@ -114,16 +112,12 @@ class Container:
         """
         type_name = self._get_type_name(service_type)
         self._types[type_name] = service_type
-        self._lifetimes[type_name] = 'factory'
+        self._lifetimes[type_name] = "factory"
         self._factories[type_name] = factory
 
         return self
 
-    def register_instance(
-        self,
-        service_type: Type[T],
-        instance: T
-    ) -> 'Container':
+    def register_instance(self, service_type: type[T], instance: T) -> "Container":
         """
         注册实例（快捷方式，等同于 register_singleton with instance）
 
@@ -136,7 +130,7 @@ class Container:
         """
         return self.register_singleton(service_type, instance=instance)
 
-    def resolve(self, service_type: Type[T]) -> T:
+    def resolve(self, service_type: type[T]) -> T:
         """
         解析服务
 
@@ -154,16 +148,16 @@ class Container:
         if type_name not in self._factories:
             raise ServiceNotFoundError(f"服务 {service_type} 未注册")
 
-        lifetime = self._lifetimes.get(type_name, 'transient')
+        lifetime = self._lifetimes.get(type_name, "transient")
 
-        if lifetime == 'singleton' and type_name in self._services:
+        if lifetime == "singleton" and type_name in self._services:
             return self._services[type_name]
 
         # 创建实例
         factory = self._factories[type_name]
         instance = self._create_instance(factory, type_name)
 
-        if lifetime == 'singleton':
+        if lifetime == "singleton":
             self._services[type_name] = instance
 
         return instance
@@ -181,15 +175,15 @@ class Container:
         if service_name not in self._factories:
             raise ServiceNotFoundError(f"服务 {service_name} 未注册")
 
-        lifetime = self._lifetimes.get(service_name, 'transient')
+        lifetime = self._lifetimes.get(service_name, "transient")
 
-        if lifetime == 'singleton' and service_name in self._services:
+        if lifetime == "singleton" and service_name in self._services:
             return self._services[service_name]
 
         factory = self._factories[service_name]
         instance = self._create_instance(factory, service_name)
 
-        if lifetime == 'singleton':
+        if lifetime == "singleton":
             self._services[service_name] = instance
 
         return instance
@@ -227,13 +221,13 @@ class Container:
 
         except CyclicDependencyError:
             raise
-        except Exception as e:
+        except Exception:
             # 如果是单例且已存在，返回现有实例
             if type_name in self._services:
                 return self._services[type_name]
             raise
 
-    def _get_type_name(self, service_type: Type) -> str:
+    def _get_type_name(self, service_type: type) -> str:
         """获取类型名称"""
         if isinstance(service_type, str):
             return service_type
@@ -246,7 +240,7 @@ class Container:
         self._types.clear()
         self._lifetimes.clear()
 
-    def is_registered(self, service_type: Type) -> bool:
+    def is_registered(self, service_type: type) -> bool:
         """检查服务是否已注册"""
         type_name = self._get_type_name(service_type)
         return type_name in self._factories
@@ -256,7 +250,7 @@ class Container:
 # 依赖注入装饰器
 # ============================================================
 
-_injector_container: \g<0>Container] = None
+_injector_container: Container | None = None
 
 
 def set_container(container: Container) -> None:
@@ -273,7 +267,7 @@ def get_container() -> Container:
     return _injector_container
 
 
-def injectable(func_or_cls: Any = None, lifetime: str = 'singleton') -> Any:
+def injectable(func_or_cls: Any = None, lifetime: str = "singleton") -> Any:
     """
     可注入装饰器
 
@@ -286,12 +280,13 @@ def injectable(func_or_cls: Any = None, lifetime: str = 'singleton') -> Any:
     def my_factory(config: Config) -> MyService:
         return MyService(config)
     """
+
     def decorator(cls_or_func):
         container = get_container()
         service_type = cls_or_func.__name__
 
         if inspect.isclass(cls_or_func):
-            if lifetime == 'singleton':
+            if lifetime == "singleton":
                 container.register_singleton(cls_or_func)
             else:
                 container.register_transient(cls_or_func)
@@ -307,7 +302,7 @@ def injectable(func_or_cls: Any = None, lifetime: str = 'singleton') -> Any:
     return decorator
 
 
-def inject(**dependencies: Type) -> Callable:
+def inject(**dependencies: type) -> Callable:
     """
     注入依赖装饰器
 
@@ -318,6 +313,7 @@ def inject(**dependencies: Type) -> Callable:
             self.config = config
             self.logger = logger
     """
+
     def decorator(cls):
         original_init = cls.__init__
 
@@ -345,6 +341,7 @@ def inject(**dependencies: Type) -> Callable:
 # 便捷函数
 # ============================================================
 
+
 def register_services(container: Container, config: Any) -> Container:
     """
     注册所有核心服务
@@ -356,24 +353,26 @@ def register_services(container: Container, config: Any) -> Container:
     Returns:
         已注册的容器
     """
+    from account.manager import AccountManager
+    from account.points_detector import PointsDetector
     from browser.anti_ban_module import AntiBanModule
     from browser.simulator import BrowserSimulator
-    from search.search_term_generator import SearchTermGenerator
-    from search.search_engine import SearchEngine
-    from account.points_detector import PointsDetector
-    from account.manager import AccountManager
-    from infrastructure.state_monitor import StateMonitor
     from infrastructure.error_handler import ErrorHandler
-    from infrastructure.notificator import Notificator
     from infrastructure.health_monitor import HealthMonitor
+    from infrastructure.notificator import Notificator
+    from infrastructure.state_monitor import StateMonitor
+    from search.search_engine import SearchEngine
+    from search.search_term_generator import SearchTermGenerator
     from tasks import TaskManager
 
     # 注册配置
-    container.register_instance('Config', config)
+    container.register_instance("Config", config)
 
     # 注册单例服务
     container.register_singleton(AntiBanModule, lambda c: AntiBanModule(c))
-    container.register_singleton(BrowserSimulator, lambda c: BrowserSimulator(c, c.resolve(AntiBanModule)))
+    container.register_singleton(
+        BrowserSimulator, lambda c: BrowserSimulator(c, c.resolve(AntiBanModule))
+    )
     container.register_singleton(SearchTermGenerator, lambda c: SearchTermGenerator(c))
     container.register_singleton(PointsDetector)
     container.register_singleton(StateMonitor, lambda c: StateMonitor(c, c.resolve(PointsDetector)))
@@ -386,4 +385,4 @@ def register_services(container: Container, config: Any) -> Container:
     container.register_transient(AccountManager)
     container.register_transient(TaskManager)
 
-    return container\n
+    return container

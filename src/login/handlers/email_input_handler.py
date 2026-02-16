@@ -3,11 +3,13 @@ Email Input Handler.
 
 Handles the email input state in Microsoft login flow.
 """
+
 from typing import Any
 
 from ..edge_popup_handler import EdgePopupHandler
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class EmailInputHandler(StateHandler):
     """
@@ -35,12 +37,10 @@ class EmailInputHandler(StateHandler):
         # 新版页面选择器（优先）
         'button[type="submit"]',
         'input[type="submit"][id="idSIButton9"]',
-
         # 通用选择器
         'input[type="submit"]',
         'input[id="idSIButton9"]',
         'button[id="idSIButton9"]',
-
         # 文本匹配（最后备选）
         'button:has-text("Next")',
         'button:has-text("下一步")',
@@ -80,7 +80,7 @@ class EmailInputHandler(StateHandler):
         Returns:
             True if successful
         """
-        email = credentials.get('email')
+        email = credentials.get("email")
         if not email:
             self.logger.error("No email provided in credentials")
             return False
@@ -138,4 +138,4 @@ class EmailInputHandler(StateHandler):
             LoginState.PASSWORDLESS,
             LoginState.GET_A_CODE,
             LoginState.ERROR,
-        ]\n
+        ]

@@ -4,9 +4,11 @@ Type definitions module
 Centralized definition of Protocols and TypedDicts used across the project
 for improved type safety and IDE support.
 """
+
 from typing import Any, Protocol, TypedDict
 
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import Page
+
 
 class ConfigProtocol(Protocol):
     """Configuration manager protocol"""
@@ -30,6 +32,7 @@ class StateHandlerProtocol(Protocol):
 
 class HealthCheckResult(TypedDict):
     """Health check result structure"""
+
     status: str
     cpu_percent: float
     memory_percent: float
@@ -41,6 +44,7 @@ class HealthCheckResult(TypedDict):
 
 class DetectionInfo(TypedDict):
     """Login detection information"""
+
     current_state: str
     confidence: float
     detected_selectors: list[str]
@@ -50,6 +54,7 @@ class DetectionInfo(TypedDict):
 
 class DiagnosticInfo(TypedDict):
     """State machine diagnostic information"""
+
     current_state: str
     transition_count: int
     max_transitions: int
@@ -60,8 +65,9 @@ class DiagnosticInfo(TypedDict):
 
 class TaskDetail(TypedDict):
     """Task detail structure"""
+
     id: str
     name: str
     points: int
     status: str
-    url: \g<0>str]\n
+    url: str | None

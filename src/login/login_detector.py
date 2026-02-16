@@ -10,11 +10,11 @@
 1. LoginDetector 用于快速判断登录状态
 2. LoginStateMachine 用于执行登录操作
 """
-from typing import Any
-import asyncio
+
 import json
 import logging
 import time
+from typing import Any
 
 from playwright.async_api import Page
 
@@ -32,15 +32,17 @@ class LoginStatusCache:
             cache_duration: 缓存持续时间（秒）
         """
         self.cache_duration = cache_duration
-        self.cached_status: \g<0>bool] = None
-        self.cache_timestamp: \g<0>float] = None
-        self.cache_reason: \g<0>str] = None
+        self.cached_status: bool | None = None
+        self.cache_timestamp: float | None = None
+        self.cache_reason: str | None = None
 
-    def get_cached_status(self) -> \g<0>bool]:
+    def get_cached_status(self) -> bool | None:
         """获取缓存的登录状态"""
-        if (self.cached_status is not None and
-            self.cache_timestamp is not None and
-            time.time() - self.cache_timestamp < self.cache_duration):
+        if (
+            self.cached_status is not None
+            and self.cache_timestamp is not None
+            and time.time() - self.cache_timestamp < self.cache_duration
+        ):
             return self.cached_status
         return None
 
@@ -169,13 +171,13 @@ class LoginDetector:
         reason = f"多重检测: {detection_results}"
         self.cache.set_cached_status(final_status, reason)
 
-        logger.info(f"=" * 50)
+        logger.info("=" * 50)
         logger.info(f"登录状态检测完成: {'已登录' if final_status else '未登录'}")
         logger.info(f"检测结果汇总: {detection_results}")
-        logger.info(f"=" * 50)
+        logger.info("=" * 50)
         return final_status
 
-    async def _detect_by_user_elements(self, page: Page) -> \g<0>bool]:
+    async def _detect_by_user_elements(self, page: Page) -> bool | None:
         """通过用户界面元素检测登录状态"""
         logger.debug(f"[用户元素检测] 当前URL: {page.url}")
 
@@ -184,7 +186,9 @@ class LoginDetector:
                 element = await page.query_selector(selector)
                 if element:
                     is_visible = await element.is_visible()
-                    logger.debug(f"[用户元素检测] 选择器 {selector}: 存在={True}, 可见={is_visible}")
+                    logger.debug(
+                        f"[用户元素检测] 选择器 {selector}: 存在={True}, 可见={is_visible}"
+                    )
                     if is_visible:
                         logger.info(f"[用户元素检测] ✓ 找到登录元素: {selector}")
                         return True
@@ -197,7 +201,9 @@ class LoginDetector:
                 element = await page.query_selector(selector)
                 if element:
                     is_visible = await element.is_visible()
-                    logger.debug(f"[用户元素检测] 选择器 {selector}: 存在={True}, 可见={is_visible}")
+                    logger.debug(
+                        f"[用户元素检测] 选择器 {selector}: 存在={True}, 可见={is_visible}"
+                    )
                     if is_visible:
                         logger.info(f"[用户元素检测] ✗ 找到登出元素: {selector}")
                         return False
@@ -208,7 +214,7 @@ class LoginDetector:
         logger.debug("[用户元素检测] 未找到明确的登录/登出元素")
         return None
 
-    async def _detect_by_cookies(self, page: Page) -> \g<0>bool]:
+    async def _detect_by_cookies(self, page: Page) -> bool | None:
         """通过Cookie检测登录状态"""
         try:
             cookies = await page.context.cookies()
@@ -227,34 +233,37 @@ class LoginDetector:
 
             found_auth_cookies = []
             for cookie in cookies:
-                if cookie['name'] in auth_cookies:
-                    found_auth_cookies.append(cookie['name'])
+                if cookie["name"] in auth_cookies:
+                    found_auth_cookies.append(cookie["name"])
                     logger.debug(f"[Cookie检测] ✓ 找到认证Cookie: {cookie['name']}")
 
-            logger.info(f"[Cookie检测] 找到 {len(found_auth_cookies)} 个认证Cookie: {found_auth_cookies}")
+            logger.info(
+                f"[Cookie检测] 找到 {len(found_auth_cookies)} 个认证Cookie: {found_auth_cookies}"
+            )
 
             if len(found_auth_cookies) >= 2:
-                logger.info(f"[Cookie检测] ✓ 认证Cookie数量充足，判定为已登录")
+                logger.info("[Cookie检测] ✓ 认证Cookie数量充足，判定为已登录")
                 return True
             elif len(found_auth_cookies) == 0:
-                logger.info(f"[Cookie检测] ✗ 未找到认证Cookie，判定为未登录")
+                logger.info("[Cookie检测] ✗ 未找到认证Cookie，判定为未登录")
                 return False
 
-            logger.debug(f"[Cookie检测] 认证Cookie数量不足，无法判定")
+            logger.debug("[Cookie检测] 认证Cookie数量不足，无法判定")
             return None
 
         except Exception as e:
             logger.warning(f"[Cookie检测] 检测出错: {e}")
             return None
 
-    async def _detect_by_api_response(self, page: Page) -> \g<0>bool]:
+    async def _detect_by_api_response(self, page: Page) -> bool | None:
         """通过API响应检测登录状态"""
         try:
             responses = []
 
             def handle_response(response):
-                if any(pattern in response.url for pattern in
-                       ['api', 'rewards', 'account', 'profile']):
+                if any(
+                    pattern in response.url for pattern in ["api", "rewards", "account", "profile"]
+                ):
                     responses.append(response)
 
             page.on("response", handle_response)
@@ -268,19 +277,23 @@ class LoginDetector:
                 try:
                     if response.status == 200:
                         headers = response.headers
-                        if 'set-cookie' in headers:
-                            cookie_header = headers['set-cookie']
-                            if any(auth_name in cookie_header for auth_name in
-                                   ['MSPOK', 'MSPRequ', 'auth']):
+                        if "set-cookie" in headers:
+                            cookie_header = headers["set-cookie"]
+                            if any(
+                                auth_name in cookie_header
+                                for auth_name in ["MSPOK", "MSPRequ", "auth"]
+                            ):
                                 return True
 
                         try:
-                            if 'application/json' in response.headers.get('content-type', ''):
+                            if "application/json" in response.headers.get("content-type", ""):
                                 content = await response.text()
                                 data = json.loads(content)
 
-                                if any(field in data for field in
-                                       ['user', 'account', 'profile', 'authenticated']):
+                                if any(
+                                    field in data
+                                    for field in ["user", "account", "profile", "authenticated"]
+                                ):
                                     return True
                         except Exception:
                             pass
@@ -303,19 +316,18 @@ class LoginDetector:
             except Exception:
                 pass
 
-    async def _detect_by_page_content(self, page: Page) -> \g<0>bool]:
+    async def _detect_by_page_content(self, page: Page) -> bool | None:
         """通过页面内容检测登录状态"""
         try:
             content = await page.content()
             title = await page.title()
             url = page.url
 
-            if any(pattern in url.lower() for pattern in
-                   ['login', 'signin', 'auth']):
+            if any(pattern in url.lower() for pattern in ["login", "signin", "auth"]):
                 return False
 
-            logged_in_title_patterns = ['rewards', 'dashboard', 'account', 'profile']
-            logged_out_title_patterns = ['sign in', 'login', 'authenticate']
+            logged_in_title_patterns = ["rewards", "dashboard", "account", "profile"]
+            logged_out_title_patterns = ["sign in", "login", "authenticate"]
 
             title_lower = title.lower()
             if any(pattern in title_lower for pattern in logged_in_title_patterns):
@@ -326,19 +338,26 @@ class LoginDetector:
             content_lower = content.lower()
 
             logged_in_keywords = [
-                'welcome back', 'your account', 'sign out', 'logout',
-                'dashboard', 'profile', 'settings', 'your rewards'
+                "welcome back",
+                "your account",
+                "sign out",
+                "logout",
+                "dashboard",
+                "profile",
+                "settings",
+                "your rewards",
             ]
 
             logged_out_keywords = [
-                'sign in to continue', 'please sign in', 'login required',
-                'create account', 'forgot password'
+                "sign in to continue",
+                "please sign in",
+                "login required",
+                "create account",
+                "forgot password",
             ]
 
-            logged_in_score = sum(1 for keyword in logged_in_keywords
-                                  if keyword in content_lower)
-            logged_out_score = sum(1 for keyword in logged_out_keywords
-                                   if keyword in content_lower)
+            logged_in_score = sum(1 for keyword in logged_in_keywords if keyword in content_lower)
+            logged_out_score = sum(1 for keyword in logged_out_keywords if keyword in content_lower)
 
             if logged_in_score > logged_out_score and logged_in_score > 0:
                 return True
@@ -351,7 +370,7 @@ class LoginDetector:
             logger.debug(f"页面内容检测出错: {e}")
             return None
 
-    def _vote_on_status(self, detection_results: dict[str, \g<0>bool]]) -> bool:
+    def _vote_on_status(self, detection_results: dict[str, bool | None]) -> bool:
         """基于多数投票决定登录状态"""
         logged_in_score = 0
         logged_out_score = 0
@@ -368,11 +387,11 @@ class LoginDetector:
         logger.info(f"[投票] 登录分数={logged_in_score}, 登出分数={logged_out_score}")
 
         if logged_in_score == logged_out_score:
-            cookie_result = detection_results.get('cookie')
+            cookie_result = detection_results.get("cookie")
             if cookie_result is not None:
                 logger.info(f"[投票] 分数平局，使用Cookie检测结果: {cookie_result}")
                 return cookie_result
-            logger.info(f"[投票] 分数平局且无Cookie结果，默认为未登录")
+            logger.info("[投票] 分数平局且无Cookie结果，默认为未登录")
             return False
 
         return logged_in_score > logged_out_score
@@ -394,4 +413,4 @@ class LoginDetector:
             "cache_timestamp": self.cache.cache_timestamp,
             "cache_reason": self.cache.cache_reason,
             "cache_valid": self.cache.get_cached_status() is not None,
-        }\n
+        }

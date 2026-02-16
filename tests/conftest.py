@@ -7,15 +7,15 @@ This module provides:
 - Common fixtures for test isolation
 """
 
-import os
 import logging
+import os
+
 import pytest
-from hypothesis import settings, Verbosity
+from hypothesis import Verbosity, settings
 
 # Configure logging for tests
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 # ============================================================================
@@ -27,21 +27,21 @@ settings.register_profile(
     "default",
     max_examples=100,
     deadline=5000,  # 5 seconds per test
-    print_blob=True
+    print_blob=True,
 )
 
 settings.register_profile(
     "ci",
     max_examples=200,
     deadline=10000,  # 10 seconds per test in CI
-    print_blob=True
+    print_blob=True,
 )
 
 settings.register_profile(
     "dev",
     max_examples=50,
     deadline=None,  # No deadline in development
-    verbosity=Verbosity.verbose
+    verbosity=Verbosity.verbose,
 )
 
 # Load profile based on environment variable
@@ -53,22 +53,23 @@ settings.load_profile(profile)
 # Pytest Hooks
 # ============================================================================
 
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
     Hook to capture test failures and add additional context.
-    
+
     This hook runs after each test phase (setup, call, teardown) and
     adds useful debugging information to failure reports.
     """
     outcome = yield
     report = outcome.get_result()
-    
+
     if report.when == "call" and report.failed:
         # Add test arguments to failure report
-        if hasattr(item, 'funcargs'):
+        if hasattr(item, "funcargs"):
             report.sections.append(("Test Arguments", str(item.funcargs)))
-        
+
         # Log failure for debugging
         logging.error(f"Test failed: {item.nodeid}")
         logging.error(f"Failure reason: {report.longreprtext}")
@@ -78,11 +79,12 @@ def pytest_runtest_makereport(item, call):
 # Common Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def temp_workspace(tmp_path):
     """
     Provide a temporary workspace directory for file operations.
-    
+
     The directory is automatically cleaned up after the test.
     """
     workspace = tmp_path / "test_workspace"
@@ -103,13 +105,13 @@ def mock_logger():
 def mock_config():
     """
     Provide a mock ConfigManager for testing.
-    
+
     Returns a mock object with common configuration values.
     """
     from unittest.mock import MagicMock
-    
+
     config = MagicMock()
-    
+
     # Account settings
     config.get.side_effect = lambda key, default=None: {
         "account.storage_state_path": "test_storage_state.json",
@@ -122,7 +124,7 @@ def mock_config():
         "query_engine.enabled": True,
         "query_engine.cache_enabled": True,
     }.get(key, default)
-    
+
     return config
 
 
@@ -130,21 +132,18 @@ def mock_config():
 def mock_browser_context():
     """
     Provide a mock BrowserContext for testing.
-    
+
     Returns a mock Playwright BrowserContext with common methods.
     """
     from unittest.mock import AsyncMock, MagicMock
-    
+
     context = MagicMock()
-    
+
     # Mock async methods
     context.new_page = AsyncMock()
     context.close = AsyncMock()
-    context.storage_state = AsyncMock(return_value={
-        'cookies': [],
-        'origins': []
-    })
-    
+    context.storage_state = AsyncMock(return_value={"cookies": [], "origins": []})
+
     return context
 
 
@@ -157,4 +156,3 @@ pytest_plugins = [
     "tests.fixtures.mock_accounts",
     "tests.fixtures.mock_dashboards",
 ]
-

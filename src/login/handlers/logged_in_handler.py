@@ -3,10 +3,12 @@ Logged In Handler.
 
 Detects when user is successfully logged in.
 """
+
 from typing import Any
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class LoggedInHandler(StateHandler):
     """
@@ -21,22 +23,22 @@ class LoggedInHandler(StateHandler):
         'a[id="mectrl_currentAccount_primary"]',
         'button[id="mectrl_headerPicture"]',
         'div[id="meControl"]',
-        'text=Sign out',
+        "text=Sign out",
     ]
 
     # URLs that indicate logged in state
     LOGGED_IN_URLS = [
-        'rewards.bing.com',
-        'account.microsoft.com',
-        'bing.com',
+        "rewards.bing.com",
+        "account.microsoft.com",
+        "bing.com",
     ]
 
     # OAuth callback URLs (login completed, waiting for redirect)
     OAUTH_CALLBACK_URLS = [
-        'complete-client-signin',
-        'complete-sso-with-redirect',
-        'oauth-silent',
-        'oauth20',  # 通用 OAuth 回调路径（例如 oauth20_authorize.srf 等）
+        "complete-client-signin",
+        "complete-sso-with-redirect",
+        "oauth-silent",
+        "oauth20",  # 通用 OAuth 回调路径（例如 oauth20_authorize.srf 等）
     ]
 
     async def can_handle(self, page: Any) -> bool:
@@ -91,4 +93,4 @@ class LoggedInHandler(StateHandler):
         Returns:
             Empty list
         """
-        return []\n
+        return []

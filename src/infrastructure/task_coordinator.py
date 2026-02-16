@@ -4,21 +4,22 @@ TaskCoordinator - 任务协调器 (依赖注入版)
 负责协调和执行各类任务的逻辑。
 使用依赖注入接收依赖项，提高可测试性和可维护性。
 """
-from typing import Any
+
 import argparse
 import logging
+from typing import TYPE_CHECKING, Any, Optional
 
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import BrowserContext, Page
 
 from ui.real_time_status import StatusManager
 
 if TYPE_CHECKING:
-    from infrastructure.config_manager import ConfigManager
     from account.manager import AccountManager
-    from search.search_engine import SearchEngine
-    from infrastructure.state_monitor import StateMonitor
-    from infrastructure.health_monitor import HealthMonitor
     from browser.simulator import BrowserSimulator
+    from infrastructure.config_manager import ConfigManager
+    from infrastructure.health_monitor import HealthMonitor
+    from infrastructure.state_monitor import StateMonitor
+    from search.search_engine import SearchEngine
 
 
 class TaskCoordinator:
@@ -31,14 +32,14 @@ class TaskCoordinator:
 
     def __init__(
         self,
-        config: 'ConfigManager',
+        config: "ConfigManager",
         args: argparse.Namespace,
         logger: logging.Logger,
-        account_manager: \g<0>'AccountManager'] = None,
-        search_engine: \g<0>'SearchEngine'] = None,
-        state_monitor: \g<0>'StateMonitor'] = None,
-        health_monitor: \g<0>'HealthMonitor'] = None,
-        browser_sim: \g<0>'BrowserSimulator'] = None,
+        account_manager: Optional["AccountManager"] = None,
+        search_engine: Optional["SearchEngine"] = None,
+        state_monitor: Optional["StateMonitor"] = None,
+        health_monitor: Optional["HealthMonitor"] = None,
+        browser_sim: Optional["BrowserSimulator"] = None,
     ):
         """
         初始化任务协调器
@@ -63,27 +64,27 @@ class TaskCoordinator:
         self._health_monitor = health_monitor
         self._browser_sim = browser_sim
 
-    def set_account_manager(self, account_manager: 'AccountManager') -> 'TaskCoordinator':
+    def set_account_manager(self, account_manager: "AccountManager") -> "TaskCoordinator":
         """设置 AccountManager（支持链式调用）"""
         self._account_manager = account_manager
         return self
 
-    def set_search_engine(self, search_engine: 'SearchEngine') -> 'TaskCoordinator':
+    def set_search_engine(self, search_engine: "SearchEngine") -> "TaskCoordinator":
         """设置 SearchEngine"""
         self._search_engine = search_engine
         return self
 
-    def set_state_monitor(self, state_monitor: 'StateMonitor') -> 'TaskCoordinator':
+    def set_state_monitor(self, state_monitor: "StateMonitor") -> "TaskCoordinator":
         """设置 StateMonitor"""
         self._state_monitor = state_monitor
         return self
 
-    def set_health_monitor(self, health_monitor: 'HealthMonitor') -> 'TaskCoordinator':
+    def set_health_monitor(self, health_monitor: "HealthMonitor") -> "TaskCoordinator":
         """设置 HealthMonitor"""
         self._health_monitor = health_monitor
         return self
 
-    def set_browser_sim(self, browser_sim: 'BrowserSimulator') -> 'TaskCoordinator':
+    def set_browser_sim(self, browser_sim: "BrowserSimulator") -> "TaskCoordinator":
         """设置 BrowserSimulator"""
         self._browser_sim = browser_sim
         return self
@@ -126,30 +127,26 @@ class TaskCoordinator:
 
             # 优先从环境变量读取凭据（更安全），然后从配置文件读取
             email = (
-                os.environ.get("MS_REWARDS_EMAIL") or
-                auto_login_config.get("email", "") or
-                self.config.get("account.email", "")
+                os.environ.get("MS_REWARDS_EMAIL")
+                or auto_login_config.get("email", "")
+                or self.config.get("account.email", "")
             )
             password = (
-                os.environ.get("MS_REWARDS_PASSWORD") or
-                auto_login_config.get("password", "") or
-                self.config.get("account.password", "")
+                os.environ.get("MS_REWARDS_PASSWORD")
+                or auto_login_config.get("password", "")
+                or self.config.get("account.password", "")
             )
             totp_secret = (
-                os.environ.get("MS_REWARDS_TOTP_SECRET") or
-                auto_login_config.get("totp_secret", "") or
-                self.config.get("account.totp_secret", "")
+                os.environ.get("MS_REWARDS_TOTP_SECRET")
+                or auto_login_config.get("totp_secret", "")
+                or self.config.get("account.totp_secret", "")
             )
 
             if auto_login_enabled and email and password:
                 self.logger.info("  尝试自动登录...")
                 StatusManager.update_operation("自动登录")
 
-                credentials = {
-                    "email": email,
-                    "password": password,
-                    "totp_secret": totp_secret
-                }
+                credentials = {"email": email, "password": password, "totp_secret": totp_secret}
 
                 login_success = await account_mgr.auto_login(page, credentials)
 
@@ -245,7 +242,7 @@ class TaskCoordinator:
             context, page = await browser_sim.create_context(
                 browser_sim.browser,
                 "mobile_iphone",
-                storage_state=self.config.get("account.storage_state_path")
+                storage_state=self.config.get("account.storage_state_path"),
             )
 
             # 验证移动端登录状态
@@ -279,7 +276,7 @@ class TaskCoordinator:
             new_desktop_context, new_desktop_page = await browser_sim.create_context(
                 browser_sim.browser,
                 f"desktop_{self.args.browser}",
-                storage_state=self.config.get("account.storage_state_path")
+                storage_state=self.config.get("account.storage_state_path"),
             )
 
             self.logger.info("  ✓ 已切换回桌面上下文")
@@ -309,6 +306,7 @@ class TaskCoordinator:
         if task_system_enabled:
             try:
                 from tasks import TaskManager
+
                 task_manager = TaskManager(self.config)
 
                 # 检查传入的 page 是否有效
@@ -328,14 +326,14 @@ class TaskCoordinator:
                         _, page = await browser_sim.create_context(
                             browser_sim.browser,
                             f"desktop_{self.args.browser}",
-                            storage_state=self.config.get("account.storage_state_path")
+                            storage_state=self.config.get("account.storage_state_path"),
                         )
                     else:
                         await self._create_desktop_browser_if_needed(browser_sim)
                         _, page = await browser_sim.create_context(
                             browser_sim.browser,
                             f"desktop_{self.args.browser}",
-                            storage_state=self.config.get("account.storage_state_path")
+                            storage_state=self.config.get("account.storage_state_path"),
                         )
 
                 # 发现任务
@@ -360,16 +358,19 @@ class TaskCoordinator:
                         state_monitor.session_data["tasks_failed"] = report.failed
                         state_monitor.session_data["points_gained"] += report.points_earned
 
-                        self.logger.info(f"  ✓ 任务执行完成")
-                        self.logger.info(f"    完成: {report.completed}, 失败: {report.failed}, 跳过: {report.skipped}")
+                        self.logger.info("  ✓ 任务执行完成")
+                        self.logger.info(
+                            f"    完成: {report.completed}, 失败: {report.failed}, 跳过: {report.skipped}"
+                        )
                         self.logger.info(f"    获得积分: +{report.points_earned}")
 
             except ImportError as e:
                 self.logger.warning(f"  ⚠ 任务系统模块导入失败: {e}")
-                self.logger.warning(f"  请确保已安装所有依赖: pip install -r requirements.txt")
+                self.logger.warning("  请确保已安装所有依赖: pip install -r requirements.txt")
             except Exception as e:
                 self.logger.error(f"  ✗ 任务执行失败: {e}")
                 import traceback
+
                 traceback.print_exc()
         else:
             if not task_system_enabled:
@@ -398,15 +399,16 @@ class TaskCoordinator:
         """获取 AccountManager"""
         if self._account_manager is None:
             from account.manager import AccountManager
+
             self._account_manager = AccountManager(self.config)
         return self._account_manager
 
     def _get_search_engine(self) -> Any:
         """获取 SearchEngine"""
         if self._search_engine is None:
+            from browser.anti_ban_module import AntiBanModule
             from search.search_engine import SearchEngine
             from search.search_term_generator import SearchTermGenerator
-            from browser.anti_ban_module import AntiBanModule
 
             term_gen = SearchTermGenerator(self.config)
             anti_ban = AntiBanModule(self.config)
@@ -416,8 +418,8 @@ class TaskCoordinator:
     def _get_state_monitor(self) -> Any:
         """获取 StateMonitor"""
         if self._state_monitor is None:
-            from infrastructure.state_monitor import StateMonitor
             from account.points_detector import PointsDetector
+            from infrastructure.state_monitor import StateMonitor
 
             points_det = PointsDetector()
             self._state_monitor = StateMonitor(self.config, points_det)
@@ -427,6 +429,7 @@ class TaskCoordinator:
         """获取 HealthMonitor"""
         if self._health_monitor is None:
             from infrastructure.health_monitor import HealthMonitor
+
             self._health_monitor = HealthMonitor(self.config)
         return self._health_monitor
 
@@ -439,6 +442,6 @@ class TaskCoordinator:
     async def _create_desktop_browser_if_needed(self, browser_sim: Any) -> None:
         """如果需要时创建桌面浏览器"""
         if not browser_sim.browser:
-            logger.info("  创建桌面浏览器...")
+            self.logger.info("  创建桌面浏览器...")
             browser_sim.browser = await browser_sim.create_desktop_browser(self.args.browser)
-            logger.info("  ✓ 桌面浏览器创建成功")\n
+            self.logger.info("  ✓ 桌面浏览器创建成功")

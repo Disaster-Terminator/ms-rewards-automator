@@ -3,15 +3,15 @@
 生成结构化的测试报告，包含截图、诊断结果和建议
 """
 
-import logging
 import json
-from typing import Dict, List, Any, Optional
+import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from dataclasses import dataclass, field
+from typing import Any
 
-from .page_inspector import DetectedIssue, IssueSeverity
 from .diagnostic_engine import DiagnosisResult
+from .page_inspector import DetectedIssue, IssueSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -19,70 +19,72 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TestStep:
     """测试步骤"""
+
     name: str
     status: str  # "passed", "failed", "skipped"
     duration_ms: int
-    message: Optional[str] = None
-    screenshot: Optional[str] = None
-    issues: List[DetectedIssue] = field(default_factory=list)
+    message: str | None = None
+    screenshot: str | None = None
+    issues: list[DetectedIssue] = field(default_factory=list)
 
 
-@dataclass 
+@dataclass
 class TestResult:
     """测试结果"""
+
     name: str
     status: str  # "passed", "failed", "error"
     start_time: str
     end_time: str
     duration_ms: int
-    steps: List[TestStep] = field(default_factory=list)
-    issues: List[DetectedIssue] = field(default_factory=list)
-    diagnoses: List[DiagnosisResult] = field(default_factory=list)
-    points_tracking: Dict[str, Any] = field(default_factory=dict)
+    steps: list[TestStep] = field(default_factory=list)
+    issues: list[DetectedIssue] = field(default_factory=list)
+    diagnoses: list[DiagnosisResult] = field(default_factory=list)
+    points_tracking: dict[str, Any] = field(default_factory=dict)
 
 
 class TestReporter:
     """测试报告生成器"""
-    
+
     def __init__(self, output_dir: str = "logs/test_reports"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.test_results: List[TestResult] = []
+
+        self.test_results: list[TestResult] = []
         self.session_start = datetime.now()
         self.session_id = self.session_start.strftime("%Y%m%d_%H%M%S")
-        
-        self.screenshots: List[Dict[str, Any]] = []
+
+        self.screenshots: list[dict[str, Any]] = []
         self.summary = {
             "total_tests": 0,
             "passed": 0,
             "failed": 0,
             "errors": 0,
             "skipped": 0,
-            "points_gained": 0
+            "points_gained": 0,
         }
-        
+
         logger.info(f"测试报告生成器初始化: {self.output_dir}")
-    
+
     def start_test(self, name: str) -> str:
         """开始测试"""
         return datetime.now().isoformat()
-    
+
     def end_test(
         self,
         name: str,
         status: str,
         start_time: str,
-        steps: List[TestStep],
-        issues: List[DetectedIssue] = None,
-        diagnoses: List[DiagnosisResult] = None,
-        points_tracking: Dict[str, Any] = None
+        steps: list[TestStep],
+        issues: list[DetectedIssue] = None,
+        diagnoses: list[DiagnosisResult] = None,
+        points_tracking: dict[str, Any] = None,
     ):
         """结束测试"""
         end_time = datetime.now()
         start_dt = datetime.fromisoformat(start_time)
         duration_ms = int((end_time - start_dt).total_seconds() * 1000)
-        
+
         result = TestResult(
             name=name,
             status=status,
@@ -92,48 +94,48 @@ class TestReporter:
             steps=steps,
             issues=issues or [],
             diagnoses=diagnoses or [],
-            points_tracking=points_tracking or {}
+            points_tracking=points_tracking or {},
         )
-        
+
         self.test_results.append(result)
         self._update_summary(status)
-        
+
         if points_tracking and points_tracking.get("gained"):
             self.summary["points_gained"] = points_tracking["gained"]
-    
+
     def _update_summary(self, status: str):
         """更新摘要"""
         self.summary["total_tests"] += 1
         if status in self.summary:
             self.summary[status] += 1
-    
-    def add_screenshot(self, screenshot_info: Dict[str, Any]):
+
+    def add_screenshot(self, screenshot_info: dict[str, Any]):
         """添加截图信息"""
         self.screenshots.append(screenshot_info)
-    
+
     def generate_report(self) -> str:
         """生成报告"""
         report_path = self.output_dir / f"test_report_{self.session_id}.json"
-        
+
         report = {
             "meta": {
                 "session_id": self.session_id,
                 "generated_at": datetime.now().isoformat(),
-                "report_version": "1.0"
+                "report_version": "1.0",
             },
             "summary": self.summary,
             "tests": [self._test_result_to_dict(t) for t in self.test_results],
             "screenshots": self.screenshots,
-            "recommendations": self._generate_recommendations()
+            "recommendations": self._generate_recommendations(),
         }
-        
-        with open(report_path, 'w', encoding='utf-8') as f:
+
+        with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
-        
+
         logger.info(f"测试报告已生成: {report_path}")
         return str(report_path)
-    
-    def _test_result_to_dict(self, result: TestResult) -> Dict[str, Any]:
+
+    def _test_result_to_dict(self, result: TestResult) -> dict[str, Any]:
         """转换测试结果为字典"""
         result_dict = {
             "name": result.name,
@@ -149,7 +151,7 @@ class TestReporter:
                     "duration_ms": s.duration_ms,
                     "message": s.message,
                     "screenshot": s.screenshot,
-                    "issues_count": len(s.issues)
+                    "issues_count": len(s.issues),
                 }
                 for s in result.steps
             ],
@@ -161,7 +163,7 @@ class TestReporter:
                     "description": i.description,
                     "url": i.url,
                     "evidence": i.evidence,
-                    "suggestions": i.suggestions
+                    "suggestions": i.suggestions,
                 }
                 for i in result.issues
             ],
@@ -171,22 +173,22 @@ class TestReporter:
                     "root_cause": d.root_cause,
                     "confidence": d.confidence,
                     "description": d.description,
-                    "solutions_count": len(d.solutions)
+                    "solutions_count": len(d.solutions),
                 }
                 for d in result.diagnoses
-            ]
+            ],
         }
-        
+
         if result.points_tracking:
             result_dict["points_tracking"] = {
                 "initial": result.points_tracking.get("initial"),
                 "final": result.points_tracking.get("final"),
                 "gained": result.points_tracking.get("gained", 0),
-                "history": result.points_tracking.get("history", [])
+                "history": result.points_tracking.get("history", []),
             }
-        
+
         return result_dict
-    
+
     def _format_duration(self, duration_ms: int) -> str:
         """格式化持续时间"""
         seconds = duration_ms / 1000
@@ -195,91 +197,89 @@ class TestReporter:
         minutes = int(seconds // 60)
         secs = seconds % 60
         return f"{minutes}m {secs:.2f}s"
-    
-    def _generate_recommendations(self) -> List[Dict[str, Any]]:
+
+    def _generate_recommendations(self) -> list[dict[str, Any]]:
         """生成建议"""
         recommendations = []
-        
+
         failed_tests = [t for t in self.test_results if t.status == "failed"]
         if failed_tests:
-            recommendations.append({
-                "priority": "high",
-                "category": "test_failures",
-                "message": f"有 {len(failed_tests)} 个测试失败",
-                "details": [t.name for t in failed_tests],
-                "action": "检查失败测试的详细日志和截图"
-            })
-        
+            recommendations.append(
+                {
+                    "priority": "high",
+                    "category": "test_failures",
+                    "message": f"有 {len(failed_tests)} 个测试失败",
+                    "details": [t.name for t in failed_tests],
+                    "action": "检查失败测试的详细日志和截图",
+                }
+            )
+
         critical_issues = []
         for result in self.test_results:
             for issue in result.issues:
                 if issue.severity in [IssueSeverity.CRITICAL, IssueSeverity.ERROR]:
                     critical_issues.append(issue)
-        
+
         if critical_issues:
-            recommendations.append({
-                "priority": "critical",
-                "category": "critical_issues",
-                "message": f"发现 {len(critical_issues)} 个严重问题",
-                "details": list(set(i.title for i in critical_issues)),
-                "action": "立即处理严重问题"
-            })
-        
+            recommendations.append(
+                {
+                    "priority": "critical",
+                    "category": "critical_issues",
+                    "message": f"发现 {len(critical_issues)} 个严重问题",
+                    "details": list({i.title for i in critical_issues}),
+                    "action": "立即处理严重问题",
+                }
+            )
+
         all_diagnoses = []
         for result in self.test_results:
             all_diagnoses.extend(result.diagnoses)
-        
+
         auto_fixable = []
         for diagnosis in all_diagnoses:
             for solution in diagnosis.solutions:
                 if solution.get("auto_fixable") and solution.get("applicable"):
-                    auto_fixable.append({
-                        "diagnosis": diagnosis.root_cause,
-                        "solution": solution["description"]
-                    })
-        
+                    auto_fixable.append(
+                        {"diagnosis": diagnosis.root_cause, "solution": solution["description"]}
+                    )
+
         if auto_fixable:
-            recommendations.append({
-                "priority": "medium",
-                "category": "auto_fixable",
-                "message": f"有 {len(auto_fixable)} 个问题可自动修复",
-                "details": auto_fixable[:5],
-                "action": "考虑应用自动修复方案"
-            })
-        
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "category": "auto_fixable",
+                    "message": f"有 {len(auto_fixable)} 个问题可自动修复",
+                    "details": auto_fixable[:5],
+                    "action": "考虑应用自动修复方案",
+                }
+            )
+
         return recommendations
-    
+
     def generate_html_report(self) -> str:
         """生成HTML报告"""
         html_path = self.output_dir / f"test_report_{self.session_id}.html"
-        
+
         html_content = self._build_html()
-        
-        with open(html_path, 'w', encoding='utf-8') as f:
+
+        with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        
+
         logger.info(f"HTML报告已生成: {html_path}")
         return str(html_path)
-    
+
     def _build_html(self) -> str:
         """构建HTML内容"""
         summary = self.summary
         results = self.test_results
-        
+
         status_colors = {
             "passed": "#28a745",
             "failed": "#dc3545",
             "error": "#fd7e14",
-            "skipped": "#6c757d"
+            "skipped": "#6c757d",
         }
-        
-        severity_colors = {
-            "critical": "#dc3545",
-            "error": "#fd7e14",
-            "warning": "#ffc107",
-            "info": "#17a2b8"
-        }
-        
+
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -337,30 +337,30 @@ class TestReporter:
                 会话ID: {self.session_id} | 生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             </div>
         </div>
-        
+
         <div class="summary">
             <div class="summary-card">
-                <div class="number">{summary['total_tests']}</div>
+                <div class="number">{summary["total_tests"]}</div>
                 <div class="label">总测试数</div>
             </div>
             <div class="summary-card">
-                <div class="number" style="color: #28a745;">{summary['passed']}</div>
+                <div class="number" style="color: #28a745;">{summary["passed"]}</div>
                 <div class="label">通过</div>
             </div>
             <div class="summary-card">
-                <div class="number" style="color: #dc3545;">{summary['failed']}</div>
+                <div class="number" style="color: #dc3545;">{summary["failed"]}</div>
                 <div class="label">失败</div>
             </div>
             <div class="summary-card">
-                <div class="number" style="color: #fd7e14;">{summary['errors']}</div>
+                <div class="number" style="color: #fd7e14;">{summary["errors"]}</div>
                 <div class="label">错误</div>
             </div>
         </div>
 """
-        
+
         for result in results:
             status_color = status_colors.get(result.status, "#6c757d")
-            
+
             html += f"""
         <div class="test-section">
             <div class="test-header">
@@ -370,7 +370,7 @@ class TestReporter:
             <div class="test-content">
                 <p><strong>持续时间:</strong> {self._format_duration(result.duration_ms)}</p>
 """
-            
+
             if result.points_tracking and result.points_tracking.get("initial") is not None:
                 pts = result.points_tracking
                 gained = pts.get("gained", 0)
@@ -381,11 +381,11 @@ class TestReporter:
                     <h3>📊 积分追踪</h3>
                     <div class="points-grid">
                         <div class="points-item">
-                            <div class="value">{pts.get('initial', 'N/A')}</div>
+                            <div class="value">{pts.get("initial", "N/A")}</div>
                             <div class="label">初始积分</div>
                         </div>
                         <div class="points-item">
-                            <div class="value">{pts.get('final', 'N/A')}</div>
+                            <div class="value">{pts.get("final", "N/A")}</div>
                             <div class="label">最终积分</div>
                         </div>
                         <div class="points-item">
@@ -395,7 +395,7 @@ class TestReporter:
                     </div>
                 </div>
 """
-            
+
             if result.steps:
                 html += "<h4 style='margin: 15px 0 10px;'>测试步骤</h4>"
                 for step in result.steps:
@@ -406,7 +406,7 @@ class TestReporter:
                     <span class="step-status" style="background: {step_color}; color: white;">{step.status}</span>
                 </div>
 """
-            
+
             if result.issues:
                 html += "<h4 style='margin: 15px 0 10px;'>发现问题</h4>"
                 for issue in result.issues:
@@ -418,7 +418,7 @@ class TestReporter:
                     {"<p><small>建议: " + ", ".join(issue.suggestions[:2]) + "</small></p>" if issue.suggestions else ""}
                 </div>
 """
-            
+
             if result.diagnoses:
                 html += "<h4 style='margin: 15px 0 10px;'>诊断结果</h4>"
                 for diag in result.diagnoses:
@@ -426,18 +426,18 @@ class TestReporter:
                 <div class="diagnosis">
                     <div class="diagnosis-header">🔍 {diag.root_cause}</div>
                     <p>{diag.description}</p>
-                    <p><small>置信度: {diag.confidence*100:.0f}%</small></p>
+                    <p><small>置信度: {diag.confidence * 100:.0f}%</small></p>
                 </div>
 """
-            
+
             if not result.issues and not result.diagnoses:
                 html += '<div class="no-issues">✅ 无问题发现</div>'
-            
+
             html += """
             </div>
         </div>
 """
-        
+
         recommendations = self._generate_recommendations()
         if recommendations:
             html += """
@@ -448,22 +448,22 @@ class TestReporter:
                 priority_class = f"recommendation-{rec['priority']}"
                 html += f"""
             <div class="recommendation {priority_class}">
-                <strong>{rec['message']}</strong>
-                <p style="margin-top: 5px; color: #666;">{rec['action']}</p>
+                <strong>{rec["message"]}</strong>
+                <p style="margin-top: 5px; color: #666;">{rec["action"]}</p>
             </div>
 """
             html += """
         </div>
 """
-        
+
         html += """
     </div>
 </body>
 </html>
 """
-        
+
         return html
-    
+
     def print_summary(self):
         """打印摘要"""
         print("\n" + "=" * 70)
@@ -475,24 +475,25 @@ class TestReporter:
         print(f"  ❌ 失败: {self.summary['failed']}")
         print(f"  ⚠️  错误: {self.summary['errors']}")
         print(f"  ⏭️  跳过: {self.summary['skipped']}")
-        
-        if self.summary.get('points_gained', 0) != 0:
-            points = self.summary['points_gained']
+
+        if self.summary.get("points_gained", 0) != 0:
+            points = self.summary["points_gained"]
             sign = "+" if points >= 0 else ""
             print(f"\n📊 积分变化: {sign}{points}")
-        
+
         total_issues = sum(len(t.issues) for t in self.test_results)
         critical_issues = sum(
-            1 for t in self.test_results 
-            for i in t.issues 
+            1
+            for t in self.test_results
+            for i in t.issues
             if i.severity in [IssueSeverity.CRITICAL, IssueSeverity.ERROR]
         )
-        
+
         print(f"\n发现问题: {total_issues} 个")
         print(f"  🔴 严重: {critical_issues} 个")
-        
+
         print("=" * 70)
-    
+
     def generate_text_report(self) -> str:
         """生成纯文本报告"""
         lines = []
@@ -502,7 +503,7 @@ class TestReporter:
         lines.append(f"会话ID: {self.session_id}")
         lines.append(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("")
-        
+
         lines.append("-" * 70)
         lines.append("测试摘要")
         lines.append("-" * 70)
@@ -511,37 +512,39 @@ class TestReporter:
         lines.append(f"  失败: {self.summary['failed']}")
         lines.append(f"  错误: {self.summary['errors']}")
         lines.append(f"  跳过: {self.summary['skipped']}")
-        
-        if self.summary.get('points_gained', 0) != 0:
-            points = self.summary['points_gained']
+
+        if self.summary.get("points_gained", 0) != 0:
+            points = self.summary["points_gained"]
             sign = "+" if points >= 0 else ""
             lines.append(f"\n积分变化: {sign}{points}")
         lines.append("")
-        
+
         for result in self.test_results:
             lines.append("-" * 70)
             lines.append(f"测试: {result.name}")
             lines.append(f"状态: {result.status.upper()}")
             lines.append(f"持续时间: {self._format_duration(result.duration_ms)}")
             lines.append("")
-            
+
             if result.points_tracking and result.points_tracking.get("initial") is not None:
                 pts = result.points_tracking
                 gained = pts.get("gained", 0)
                 sign = "+" if gained >= 0 else ""
-                lines.append(f"[积分追踪]")
+                lines.append("[积分追踪]")
                 lines.append(f"  初始积分: {pts.get('initial', 'N/A')}")
                 lines.append(f"  最终积分: {pts.get('final', 'N/A')}")
                 lines.append(f"  积分变化: {sign}{gained}")
                 lines.append("")
-            
+
             if result.steps:
                 lines.append("[测试步骤]")
                 for step in result.steps:
                     status_icon = "[OK]" if step.status == "passed" else "[FAIL]"
-                    lines.append(f"  {status_icon} {step.name} ({self._format_duration(step.duration_ms)})")
+                    lines.append(
+                        f"  {status_icon} {step.name} ({self._format_duration(step.duration_ms)})"
+                    )
                 lines.append("")
-            
+
             if result.issues:
                 lines.append("[发现问题]")
                 for issue in result.issues:
@@ -553,15 +556,15 @@ class TestReporter:
                     if issue.suggestions:
                         lines.append(f"      建议: {', '.join(issue.suggestions[:2])}")
                 lines.append("")
-            
+
             if result.diagnoses:
                 lines.append("[诊断结果]")
                 for diag in result.diagnoses:
                     lines.append(f"  根因: {diag.root_cause}")
                     lines.append(f"      {diag.description}")
-                    lines.append(f"      置信度: {diag.confidence*100:.0f}%")
+                    lines.append(f"      置信度: {diag.confidence * 100:.0f}%")
                 lines.append("")
-        
+
         recommendations = self._generate_recommendations()
         if recommendations:
             lines.append("-" * 70)
@@ -571,9 +574,9 @@ class TestReporter:
                 lines.append(f"[{rec['priority'].upper()}] {rec['message']}")
                 lines.append(f"    {rec['action']}")
             lines.append("")
-        
+
         lines.append("=" * 70)
         lines.append("报告结束")
         lines.append("=" * 70)
-        
+
         return "\n".join(lines)

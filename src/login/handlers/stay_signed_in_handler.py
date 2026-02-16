@@ -3,10 +3,12 @@ Stay Signed In Handler.
 
 Handles the "Stay signed in?" prompt after successful authentication.
 """
+
 from typing import Any
 
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
+
 
 class StaySignedInHandler(StateHandler):
     """
@@ -28,8 +30,8 @@ class StaySignedInHandler(StateHandler):
 
     # Page indicators
     KMSI_PAGE_INDICATORS = [
-        'text=Stay signed in?',
-        'text=保持登录状态',
+        "text=Stay signed in?",
+        "text=保持登录状态",
         'h1:has-text("Stay signed in")',
         '[data-testid="kmsiVideo"]',  # Video element on KMSI page
         '[data-testid="kmsiImage"]',  # Image fallback
@@ -47,14 +49,14 @@ class StaySignedInHandler(StateHandler):
         """
         # Check URL
         current_url = page.url
-        if 'kmsi' in current_url.lower():
+        if "kmsi" in current_url.lower():
             self.logger.debug("KMSI page detected by URL")
             return True
 
         # Check title
         try:
             title = await page.title()
-            if title and 'stay signed in' in title.lower():
+            if title and "stay signed in" in title.lower():
                 self.logger.debug(f"KMSI page detected by title: {title}")
                 return True
         except Exception:
@@ -116,4 +118,4 @@ class StaySignedInHandler(StateHandler):
         return [
             LoginState.LOGGED_IN,
             LoginState.ERROR,
-        ]\n
+        ]

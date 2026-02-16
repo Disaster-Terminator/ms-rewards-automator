@@ -6,7 +6,7 @@ random accounts for property-based testing.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+
 import pytest
 from hypothesis import strategies as st
 
@@ -14,9 +14,10 @@ from hypothesis import strategies as st
 @dataclass
 class MockAccount:
     """Mock account for testing."""
+
     email: str
     password: str
-    totp_secret: Optional[str] = None
+    totp_secret: str | None = None
     account_type: str = "standard"  # standard, 2fa, passwordless
 
 
@@ -29,20 +30,17 @@ TEST_ACCOUNTS = {
         email="test@example.com",
         password="TestPassword123",
         totp_secret=None,
-        account_type="standard"
+        account_type="standard",
     ),
     "2fa": MockAccount(
         email="test2fa@example.com",
         password="TestPassword123",
         totp_secret="JBSWY3DPEHPK3PXP",  # Base32 encoded secret
-        account_type="2fa"
+        account_type="2fa",
     ),
     "passwordless": MockAccount(
-        email="testpwdless@example.com",
-        password="",
-        totp_secret=None,
-        account_type="passwordless"
-    )
+        email="testpwdless@example.com", password="", totp_secret=None, account_type="passwordless"
+    ),
 }
 
 
@@ -54,21 +52,26 @@ TEST_ACCOUNTS = {
 mock_account_strategy = st.builds(
     MockAccount,
     email=st.emails(),
-    password=st.text(min_size=8, max_size=50, alphabet=st.characters(
-        whitelist_categories=('Lu', 'Ll', 'Nd'),  # Uppercase, lowercase, digits
-        min_codepoint=33, max_codepoint=126  # Printable ASCII
-    )),
-    totp_secret=st.one_of(
-        st.none(),
-        st.text(min_size=16, max_size=16, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567')
+    password=st.text(
+        min_size=8,
+        max_size=50,
+        alphabet=st.characters(
+            whitelist_categories=("Lu", "Ll", "Nd"),  # Uppercase, lowercase, digits
+            min_codepoint=33,
+            max_codepoint=126,  # Printable ASCII
+        ),
     ),
-    account_type=st.sampled_from(["standard", "2fa", "passwordless"])
+    totp_secret=st.one_of(
+        st.none(), st.text(min_size=16, max_size=16, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
+    ),
+    account_type=st.sampled_from(["standard", "2fa", "passwordless"]),
 )
 
 
 # ============================================================================
 # Pytest Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_account_standard():
@@ -92,4 +95,3 @@ def mock_account_passwordless():
 def mock_account_all_types(request):
     """Parametrized fixture that provides all account types."""
     return TEST_ACCOUNTS[request.param]
-

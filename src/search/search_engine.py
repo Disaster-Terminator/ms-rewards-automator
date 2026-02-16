@@ -2,6 +2,7 @@
 搜索引擎模块
 执行搜索任务，协调各个组件
 """
+
 import asyncio
 import logging
 import random
@@ -62,7 +63,7 @@ class SearchEngine:
                 try:
                     count = max(
                         self.config.get("search.desktop_count", 30),
-                        self.config.get("search.mobile_count", 20)
+                        self.config.get("search.mobile_count", 20),
                     )
                     self._query_cache = await self.query_engine.generate_queries(count)
                     logger.debug(f"预生成了 {len(self._query_cache)} 个查询")
@@ -132,8 +133,7 @@ class SearchEngine:
             if not search_box:
                 logger.error("未找到搜索框")
                 await self.element_detector.take_diagnostic_screenshot(
-                    page,
-                    f"search_box_not_found_{term[:20]}.png"
+                    page, f"search_box_not_found_{term[:20]}.png"
                 )
 
                 errors = await self.element_detector.detect_page_errors(page)
@@ -206,14 +206,15 @@ class SearchEngine:
                             if input_value == term:
                                 logger.info(f"✓ 方法3成功输入: {term}")
                             else:
-                                logger.error(f"方法3输入验证失败: 期望'{term}', 实际'{input_value}'")
+                                logger.error(
+                                    f"方法3输入验证失败: 期望'{term}', 实际'{input_value}'"
+                                )
                                 raise Exception("JavaScript方法输入验证失败")
 
                         except Exception as e3:
                             logger.error(f"所有输入方法都失败: {e1}, {e2}, {e3}")
                             await self.element_detector.take_diagnostic_screenshot(
-                                page,
-                                f"input_all_methods_failed_{term[:20]}.png"
+                                page, f"input_all_methods_failed_{term[:20]}.png"
                             )
                             return False
 
@@ -301,8 +302,7 @@ class SearchEngine:
                                 else:
                                     logger.error(f"所有提交方法都失败，当前URL: {current_url}")
                                     await self.element_detector.take_diagnostic_screenshot(
-                                        page,
-                                        f"submit_all_methods_failed_{term[:20]}.png"
+                                        page, f"submit_all_methods_failed_{term[:20]}.png"
                                     )
                             except Exception as e4:
                                 logger.error(f"方法4失败: {e4}")
@@ -310,12 +310,13 @@ class SearchEngine:
             except Exception as e:
                 logger.error(f"提交搜索过程异常: {e}")
                 await self.element_detector.take_diagnostic_screenshot(
-                    page,
-                    f"submit_exception_{term[:20]}.png"
+                    page, f"submit_exception_{term[:20]}.png"
                 )
 
             try:
-                await self.element_detector.wait_for_page_ready(page, timeout=15000, check_network=True)
+                await self.element_detector.wait_for_page_ready(
+                    page, timeout=15000, check_network=True
+                )
             except Exception:
                 logger.warning("等待页面加载超时，继续...")
 
@@ -325,8 +326,7 @@ class SearchEngine:
             if "search" not in current_url.lower() and "/search?" not in current_url:
                 logger.warning(f"搜索可能未成功，当前URL: {current_url}")
                 await self.element_detector.take_diagnostic_screenshot(
-                    page,
-                    f"search_not_submitted_{term[:20]}.png"
+                    page, f"search_not_submitted_{term[:20]}.png"
                 )
                 return False
             else:
@@ -354,13 +354,15 @@ class SearchEngine:
 
             tab_manager = TabManager(page.context)
 
-            result_links = await self.element_detector.find_search_results(page, timeout=5000, min_results=1)
+            result_links = await self.element_detector.find_search_results(
+                page, timeout=5000, min_results=1
+            )
 
             if not result_links:
                 logger.debug("未找到搜索结果链接")
                 return
 
-            available_links = result_links[:min(5, len(result_links))]
+            available_links = result_links[: min(5, len(result_links))]
             link = random.choice(available_links)
 
             try:
@@ -453,10 +455,11 @@ class SearchEngine:
         for i in range(count):
             term = await self._get_search_term()
 
-            logger.info(f"[{i+1}/{count}] 搜索: {term}")
+            logger.info(f"[{i + 1}/{count}] 搜索: {term}")
 
             try:
                 from src.ui.real_time_status import StatusManager
+
                 StatusManager.update_desktop_searches(i, count)
             except Exception:
                 pass
@@ -470,7 +473,7 @@ class SearchEngine:
                     response_time = time.time() - start_time
                     health_monitor.record_search_result(True, response_time)
             else:
-                logger.warning(f"搜索 {i+1} 失败，继续...")
+                logger.warning(f"搜索 {i + 1} 失败，继续...")
                 if health_monitor:
                     health_monitor.record_search_result(False)
 
@@ -481,6 +484,7 @@ class SearchEngine:
 
         try:
             from src.ui.real_time_status import StatusManager
+
             StatusManager.update_desktop_searches(success_count, count)
         except Exception:
             pass
@@ -497,10 +501,11 @@ class SearchEngine:
         for i in range(count):
             term = await self._get_search_term()
 
-            logger.info(f"[{i+1}/{count}] 搜索: {term}")
+            logger.info(f"[{i + 1}/{count}] 搜索: {term}")
 
             try:
                 from src.ui.real_time_status import StatusManager
+
                 StatusManager.update_mobile_searches(i, count)
             except Exception:
                 pass
@@ -514,7 +519,7 @@ class SearchEngine:
                     response_time = time.time() - start_time
                     health_monitor.record_search_result(True, response_time)
             else:
-                logger.warning(f"搜索 {i+1} 失败，继续...")
+                logger.warning(f"搜索 {i + 1} 失败，继续...")
                 if health_monitor:
                     health_monitor.record_search_result(False)
 
@@ -525,9 +530,10 @@ class SearchEngine:
 
         try:
             from src.ui.real_time_status import StatusManager
+
             StatusManager.update_mobile_searches(success_count, count)
         except Exception:
             pass
 
         logger.info(f"✓ 移动搜索完成: {success_count}/{count} 成功")
-        return success_count\n
+        return success_count

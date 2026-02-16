@@ -1,3 +1,11 @@
+# ⚠️ WARNING: This workflow runs on GitHub Actions cloud servers.
+# Running automation on cloud servers may violate Microsoft Rewards Terms of Service
+# and could result in account restrictions or bans.
+# 
+# Recommended: Run locally using `python main.py --schedule` instead.
+# See README.md "安全建议" section for details.
+#
+# This workflow is provided for educational/research purposes only.
 name: MS Rewards Daily Automation
 
 on:

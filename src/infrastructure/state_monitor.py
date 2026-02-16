@@ -2,10 +2,11 @@
 状态监控器模块
 监控搜索会话，检测积分变化，触发告警
 """
-from datetime import datetime
-from pathlib import Path
+
 import json
 import logging
+from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +45,14 @@ class StateMonitor:
             "mobile_searches": 0,
             "points_gained": 0,
             "alerts": [],
-            "status": "running"
+            "status": "running",
         }
 
-        logger.info(f"状态监控器初始化完成 (enabled={self.enabled}, check_interval={self.check_interval})")
+        logger.info(
+            f"状态监控器初始化完成 (enabled={self.enabled}, check_interval={self.check_interval})"
+        )
 
-    async def check_points_before_task(self, page) -> \g<0>int]:
+    async def check_points_before_task(self, page) -> int | None:
         """
         任务开始前检查积分
 
@@ -75,11 +78,9 @@ class StateMonitor:
                 self.initial_points = points
                 self.last_points = points
                 self.session_data["start_time"] = datetime.now().isoformat()
-                self.points_history.append({
-                    "time": datetime.now().isoformat(),
-                    "points": points,
-                    "event": "task_start"
-                })
+                self.points_history.append(
+                    {"time": datetime.now().isoformat(), "points": points, "event": "task_start"}
+                )
                 # 限制历史记录长度，防止内存泄漏
                 if len(self.points_history) > 100:
                     self.points_history = self.points_history[-100:]
@@ -98,11 +99,7 @@ class StateMonitor:
             except Exception:
                 pass
 
-    async def check_points_after_searches(
-        self,
-        page,
-        search_type: str = "desktop"
-    ) -> \g<0>int]:
+    async def check_points_after_searches(self, page, search_type: str = "desktop") -> int | None:
         """
         搜索后检查积分
 
@@ -141,12 +138,14 @@ class StateMonitor:
 
             if points is not None:
                 # 记录积分历史
-                self.points_history.append({
-                    "time": datetime.now().isoformat(),
-                    "points": points,
-                    "event": f"{search_type}_search",
-                    "search_count": self.search_count
-                })
+                self.points_history.append(
+                    {
+                        "time": datetime.now().isoformat(),
+                        "points": points,
+                        "event": f"{search_type}_search",
+                        "search_count": self.search_count,
+                    }
+                )
                 # 限制历史记录长度，防止内存泄漏
                 if len(self.points_history) > 100:
                     self.points_history = self.points_history[-100:]
@@ -163,12 +162,14 @@ class StateMonitor:
                         logger.warning(f"⚠ 积分未增加 (连续 {self.no_increase_count} 次)")
 
                         # 记录告警
-                        self.session_data["alerts"].append({
-                            "time": datetime.now().isoformat(),
-                            "type": "no_increase",
-                            "message": f"连续 {self.no_increase_count} 次检查积分未增加",
-                            "search_count": self.search_count
-                        })
+                        self.session_data["alerts"].append(
+                            {
+                                "time": datetime.now().isoformat(),
+                                "type": "no_increase",
+                                "message": f"连续 {self.no_increase_count} 次检查积分未增加",
+                                "search_count": self.search_count,
+                            }
+                        )
 
                 self.last_points = points
                 return points
@@ -196,7 +197,9 @@ class StateMonitor:
             return False
 
         if self.no_increase_count >= self.max_no_increase:
-            logger.error(f"❌ 积分连续 {self.no_increase_count} 次未增加，达到阈值 {self.max_no_increase}")
+            logger.error(
+                f"❌ 积分连续 {self.no_increase_count} 次未增加，达到阈值 {self.max_no_increase}"
+            )
             return True
 
         return False
@@ -221,18 +224,20 @@ class StateMonitor:
         logger.error("=" * 60)
 
         # 记录告警
-        self.session_data["alerts"].append({
-            "time": datetime.now().isoformat(),
-            "type": "critical",
-            "reason": reason,
-            "search_count": self.search_count,
-            "no_increase_count": self.no_increase_count
-        })
+        self.session_data["alerts"].append(
+            {
+                "time": datetime.now().isoformat(),
+                "type": "critical",
+                "reason": reason,
+                "search_count": self.search_count,
+                "no_increase_count": self.no_increase_count,
+            }
+        )
 
         self.session_data["status"] = "stopped"
         self.session_data["end_time"] = datetime.now().isoformat()
 
-    def get_account_state(self) -> Dict:
+    def get_account_state(self) -> dict:
         """
         获取账户状态摘要
 
@@ -245,19 +250,17 @@ class StateMonitor:
             "no_increase_count": self.no_increase_count,
             "initial_points": self.initial_points,
             "current_points": self.last_points,
-            "points_gained": (self.last_points - self.initial_points) if (self.initial_points and self.last_points) else 0,
+            "points_gained": (self.last_points - self.initial_points)
+            if (self.initial_points and self.last_points)
+            else 0,
             "session_data": self.session_data,
-            "points_history": self.points_history
+            "points_history": self.points_history,
         }
 
         return state
 
     async def monitor_search_session(
-        self,
-        page,
-        search_func,
-        search_count: int,
-        search_type: str = "desktop"
+        self, page, search_func, search_count: int, search_type: str = "desktop"
     ) -> bool:
         """
         监控搜索会话
@@ -285,7 +288,7 @@ class StateMonitor:
                 success = await search_func(page, 1)
 
                 if not success:
-                    logger.warning(f"搜索 {i+1} 失败")
+                    logger.warning(f"搜索 {i + 1} 失败")
 
                 # 每隔 check_interval 次检查积分
                 if (i + 1) % self.check_interval == 0:
@@ -325,7 +328,7 @@ class StateMonitor:
             reports = []
             if Path(filepath).exists():
                 try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
+                    with open(filepath, encoding="utf-8") as f:
                         reports = json.load(f)
                 except Exception:
                     reports = []
@@ -335,16 +338,16 @@ class StateMonitor:
                 "date": datetime.now().strftime("%Y-%m-%d"),
                 "timestamp": datetime.now().isoformat(),
                 "session": self.session_data,
-                "state": self.get_account_state()
+                "state": self.get_account_state(),
             }
 
             reports.append(report)
 
             # 保存报告
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(reports, f, indent=2, ensure_ascii=False)
 
             logger.info(f"✓ 每日报告已保存: {filepath}")
 
         except Exception as e:
-            logger.error(f"保存每日报告失败: {e}")\n
+            logger.error(f"保存每日报告失败: {e}")

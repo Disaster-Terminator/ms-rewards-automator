@@ -10,4 +10,4 @@ Browser module - 浏览器模拟和管理
 - ElementDetector: 元素检测器
 - BrowserPopupHandler: 弹窗处理器
 - BrowserStateManager: 浏览器状态管理
-"""\n
+"""

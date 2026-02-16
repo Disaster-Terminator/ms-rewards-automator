@@ -2,12 +2,14 @@
 浏览器状态管理器模块
 跟踪和管理浏览器的健康状态，处理浏览器生命周期
 """
+
 import asyncio
 import logging
 import time
+from typing import Any
 
-from playwright.async_api import Browser, BrowserContext, Page
 import psutil
+from playwright.async_api import Browser, BrowserContext, Page
 
 logger = logging.getLogger(__name__)
 
@@ -79,17 +81,19 @@ class BrowserStateManager:
         """
         try:
             # 查找Chrome/Chromium进程
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
                 try:
                     proc_info = proc.info
-                    name = proc_info['name'].lower()
-                    cmdline = ' '.join(proc_info['cmdline'] or []).lower()
+                    name = proc_info["name"].lower()
+                    cmdline = " ".join(proc_info["cmdline"] or []).lower()
 
                     # 检查是否是浏览器进程
-                    if any(browser_name in name for browser_name in ['chrome', 'chromium', 'msedge']):
+                    if any(
+                        browser_name in name for browser_name in ["chrome", "chromium", "msedge"]
+                    ):
                         # 检查是否包含playwright相关参数
-                        if 'remote-debugging-port' in cmdline or 'automation' in cmdline:
-                            return proc_info['pid']
+                        if "remote-debugging-port" in cmdline or "automation" in cmdline:
+                            return proc_info["pid"]
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
         except Exception as e:
@@ -112,8 +116,10 @@ class BrowserStateManager:
             current_time = time.time()
 
             # 检查是否需要进行健康检查
-            if (self.last_health_check and
-                current_time - self.last_health_check < self.health_check_interval):
+            if (
+                self.last_health_check
+                and current_time - self.last_health_check < self.health_check_interval
+            ):
                 return self.is_healthy
 
             logger.debug("开始浏览器健康检查...")
@@ -271,21 +277,23 @@ class BrowserStateManager:
         try:
             zombie_pids = []
 
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'status']):
+            for proc in psutil.process_iter(["pid", "name", "cmdline", "status"]):
                 try:
                     proc_info = proc.info
-                    name = proc_info['name'].lower()
-                    cmdline = ' '.join(proc_info['cmdline'] or []).lower()
+                    name = proc_info["name"].lower()
+                    cmdline = " ".join(proc_info["cmdline"] or []).lower()
 
                     # 查找可能的僵尸浏览器进程
-                    if any(browser_name in name for browser_name in ['chrome', 'chromium', 'msedge']):
-                        if 'remote-debugging-port' in cmdline or 'automation' in cmdline:
+                    if any(
+                        browser_name in name for browser_name in ["chrome", "chromium", "msedge"]
+                    ):
+                        if "remote-debugging-port" in cmdline or "automation" in cmdline:
                             # 检查进程状态
-                            if proc_info['status'] == psutil.STATUS_ZOMBIE:
-                                zombie_pids.append(proc_info['pid'])
+                            if proc_info["status"] == psutil.STATUS_ZOMBIE:
+                                zombie_pids.append(proc_info["pid"])
                             elif proc.cpu_percent() == 0 and proc.memory_percent() < 0.1:
                                 # 可能是无响应的进程
-                                zombie_pids.append(proc_info['pid'])
+                                zombie_pids.append(proc_info["pid"])
 
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
@@ -313,7 +321,7 @@ class BrowserStateManager:
         except Exception as e:
             logger.debug(f"清理僵尸进程失败: {e}")
 
-    def get_performance_stats(self) -> dict[str, any]:
+    def get_performance_stats(self) -> dict[str, Any]:
         """
         获取性能统计信息
 
@@ -391,6 +399,4 @@ class BrowserStateManager:
 
     def is_browser_registered(self) -> bool:
         """检查浏览器是否已注册"""
-        return (self.browser is not None and
-                self.context is not None and
-                self.main_page is not None)\n
+        return self.browser is not None and self.context is not None and self.main_page is not None
