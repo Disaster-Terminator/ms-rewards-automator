@@ -10,9 +10,9 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary-500 text-white shadow-sm hover:bg-primary-600 shadow-primary-500/25",
         destructive: "bg-danger-500 text-white shadow-sm hover:bg-danger-600 shadow-danger-500/25",
-        outline: "border border-dark-600 bg-transparent hover:bg-dark-700/50 hover:text-dark-100",
-        secondary: "bg-dark-700 text-dark-100 shadow-sm hover:bg-dark-600",
-        ghost: "hover:bg-dark-700/50 hover:text-dark-100",
+        outline: "border bg-transparent hover:text-dark-100 dark:hover:bg-dark-700/50 dark:border-dark-600 light:border-light-400 light:text-light-700 light:hover:bg-light-200",
+        secondary: "shadow-sm hover:bg-dark-600 dark:bg-dark-700 dark:text-dark-100 light:bg-light-200 light:text-light-800 light:hover:bg-light-300",
+        ghost: "hover:text-dark-100 dark:hover:bg-dark-700/50 light:text-light-600 light:hover:text-light-900 light:hover:bg-light-200",
         link: "text-primary-400 underline-offset-4 hover:underline",
         success: "bg-success-500 text-white shadow-sm hover:bg-success-600 shadow-success-500/25",
         warning: "bg-warning-500 text-dark-900 shadow-sm hover:bg-warning-600 shadow-warning-500/25",

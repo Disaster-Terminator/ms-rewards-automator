@@ -43,6 +43,7 @@ function StatCard({
   badge?: string
   loading?: boolean
 }) {
+  const { darkMode } = useStore()
   const colorClasses: Record<string, { icon: string; gradient: string }> = {
     primary: { icon: 'text-primary-400', gradient: 'from-primary-500/20 to-transparent' },
     success: { icon: 'text-success-400', gradient: 'from-success-500/20 to-transparent' },
@@ -67,7 +68,8 @@ function StatCard({
         <CardContent className="relative p-5">
           <div className="flex items-center justify-between mb-3">
             <div className={cn(
-              'p-2 rounded-lg bg-dark-600/30',
+              'p-2 rounded-lg',
+              darkMode ? 'bg-dark-600/30' : 'bg-light-200',
               colorClasses[color].icon
             )}>
               <Icon size={18} />
@@ -81,16 +83,19 @@ function StatCard({
           
           {loading ? (
             <div className="space-y-2">
-              <div className="h-7 w-20 rounded animate-pulse bg-dark-700/50" />
-              <div className="h-4 w-16 rounded animate-pulse bg-dark-700/50" />
+              <div className={cn('h-7 w-20 rounded animate-pulse', darkMode ? 'bg-dark-700/50' : 'bg-light-300')} />
+              <div className={cn('h-4 w-16 rounded animate-pulse', darkMode ? 'bg-dark-700/50' : 'bg-light-300')} />
             </div>
           ) : (
             <>
-              <div className="text-2xl font-bold tracking-tight text-dark-100">
+              <div className={cn(
+                'text-2xl font-bold tracking-tight',
+                darkMode ? 'text-dark-100' : 'text-light-900'
+              )}>
                 {value ?? '---'}
-                {subValue && <span className="text-base font-normal ml-1 text-dark-400">{subValue}</span>}
+                {subValue && <span className={cn('text-base font-normal ml-1', darkMode ? 'text-dark-400' : 'text-light-500')}>{subValue}</span>}
               </div>
-              <div className="text-sm mt-1 text-dark-400">{label}</div>
+              <div className={cn('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>{label}</div>
               
               {change !== undefined && (
                 <div className={cn(
@@ -133,6 +138,7 @@ export default function Dashboard() {
     lastDataUpdate,
     dataLoading,
     dataError,
+    darkMode,
   } = useStore()
 
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -181,11 +187,11 @@ export default function Dashboard() {
     >
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-dark-100">仪表盘</h1>
-          <p className="text-sm mt-1 text-dark-400">MS Rewards Automator 运行状态概览</p>
+          <h1 className={cn('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-light-900')}>仪表盘</h1>
+          <p className={cn('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>MS Rewards Automator 运行状态概览</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-dark-400">
+          <div className={cn('flex items-center gap-2 text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
             <Clock size={14} />
             <span>更新于: {formatLastUpdate(lastDataUpdate)}</span>
           </div>
@@ -215,7 +221,7 @@ export default function Dashboard() {
                   <AlertTriangle className="text-danger-500" size={20} />
                   <div>
                     <div className="text-danger-500 font-medium">连接错误</div>
-                    <div className="text-sm text-dark-300">{dataError}</div>
+                    <div className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>{dataError}</div>
                   </div>
                 </div>
               </CardContent>
@@ -275,13 +281,13 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg bg-surface-400/50">
+            <div className={cn('p-4 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Monitor size={16} className="text-success-500" />
-                  <span className="text-sm font-medium text-dark-200">桌面搜索</span>
+                  <span className={cn('text-sm font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}>桌面搜索</span>
                 </div>
-                <span className="text-sm font-mono text-dark-300">
+                <span className={cn('text-sm font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}>
                   {taskStatus?.desktop_searches_completed ?? 0} / {taskStatus?.desktop_searches_total || config?.search.desktop_count || 30}
                 </span>
               </div>
@@ -291,13 +297,13 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="p-4 rounded-lg bg-surface-400/50">
+            <div className={cn('p-4 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Smartphone size={16} className="text-warning-500" />
-                  <span className="text-sm font-medium text-dark-200">移动搜索</span>
+                  <span className={cn('text-sm font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}>移动搜索</span>
                 </div>
-                <span className="text-sm font-mono text-dark-300">
+                <span className={cn('text-sm font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}>
                   {taskStatus?.mobile_searches_completed ?? 0} / {taskStatus?.mobile_searches_total || config?.search.mobile_count || 20}
                 </span>
               </div>
@@ -307,17 +313,17 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="p-4 rounded-lg bg-surface-400/50">
+            <div className={cn('p-4 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Award size={16} className="text-primary-500" />
-                  <span className="text-sm font-medium text-dark-200">每日任务</span>
+                  <span className={cn('text-sm font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}>每日任务</span>
                 </div>
-                <span className="text-sm font-mono text-dark-300">
+                <span className={cn('text-sm font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}>
                   {points?.points_gained_today ?? 0} 积分
                 </span>
               </div>
-              <div className="text-xs mt-1 text-dark-400">
+              <div className={cn('text-xs mt-1', darkMode ? 'text-dark-400' : 'text-light-500')}>
                 今日已获得积分
               </div>
             </div>
@@ -373,7 +379,7 @@ export default function Dashboard() {
                 return (
                   <div className="flex items-center gap-3 p-4 rounded-lg border bg-success-500/5 border-success-500/20">
                     <CheckCircle size={18} className="text-success-500" />
-                    <span className="text-dark-200">
+                    <span className={darkMode ? 'text-dark-200' : 'text-light-700'}>
                       {allCompleted ? '所有任务已完成' : '暂无提示'}
                     </span>
                   </div>
@@ -403,7 +409,7 @@ export default function Dashboard() {
                         tip.type === 'warning' ? 'text-warning-500' :
                         'text-primary-500'
                       )} />
-                      <span className="text-sm text-dark-200">{tip.message}</span>
+                      <span className={cn('text-sm', darkMode ? 'text-dark-200' : 'text-light-700')}>{tip.message}</span>
                     </motion.div>
                   ))}
                 </div>
@@ -423,7 +429,7 @@ export default function Dashboard() {
             <Card className="border-primary-500/30 bg-primary-500/5">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold flex items-center gap-2.5 text-dark-100">
+                  <h2 className={cn('text-lg font-semibold flex items-center gap-2.5', darkMode ? 'text-dark-100' : 'text-light-900')}>
                     <motion.div 
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 1, repeat: Infinity }}
@@ -431,15 +437,15 @@ export default function Dashboard() {
                     />
                     任务执行中
                   </h2>
-                  <span className="text-sm text-dark-400">
+                  <span className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
                     已运行 {formatUptime(taskStatus.elapsed_seconds)}
                   </span>
                 </div>
                 
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-dark-300">{taskStatus.current_operation}</span>
-                    <span className="text-sm font-mono text-dark-400">{taskStatus.progress}/{taskStatus.total_steps}</span>
+                    <span className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>{taskStatus.current_operation}</span>
+                    <span className={cn('text-sm font-mono', darkMode ? 'text-dark-400' : 'text-light-500')}>{taskStatus.progress}/{taskStatus.total_steps}</span>
                   </div>
                   <Progress 
                     value={(taskStatus.progress / taskStatus.total_steps) * 100}
@@ -447,23 +453,23 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="flex flex-col items-start gap-1 p-3 rounded-lg bg-surface-400/50">
-                    <div className="text-sm text-dark-400">初始积分</div>
-                    <div className="text-lg font-medium text-dark-100">{taskStatus.initial_points?.toLocaleString() ?? '---'}</div>
+                  <div className={cn('flex flex-col items-start gap-1 p-3 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
+                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>初始积分</div>
+                    <div className={cn('text-lg font-medium', darkMode ? 'text-dark-100' : 'text-light-900')}>{taskStatus.initial_points?.toLocaleString() ?? '---'}</div>
                   </div>
-                  <div className="flex flex-col items-start gap-1 p-3 rounded-lg bg-surface-400/50">
-                    <div className="text-sm text-dark-400">当前积分</div>
-                    <div className="text-lg font-medium text-dark-100">{taskStatus.current_points?.toLocaleString() ?? '---'}</div>
+                  <div className={cn('flex flex-col items-start gap-1 p-3 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
+                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>当前积分</div>
+                    <div className={cn('text-lg font-medium', darkMode ? 'text-dark-100' : 'text-light-900')}>{taskStatus.current_points?.toLocaleString() ?? '---'}</div>
                   </div>
-                  <div className="flex flex-col items-start gap-1 p-3 rounded-lg bg-surface-400/50">
-                    <div className="text-sm text-dark-400">获得积分</div>
+                  <div className={cn('flex flex-col items-start gap-1 p-3 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
+                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>获得积分</div>
                     <div className="text-lg font-medium text-success-500">+{taskStatus.points_gained}</div>
                   </div>
-                  <div className="flex flex-col items-start gap-1 p-3 rounded-lg bg-surface-400/50">
-                    <div className="text-sm text-dark-400">错误/警告</div>
+                  <div className={cn('flex flex-col items-start gap-1 p-3 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
+                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>错误/警告</div>
                     <div className="text-lg font-medium">
                       <span className="text-danger-500">{taskStatus.error_count}</span>
-                      <span className="mx-1 text-dark-500">/</span>
+                      <span className={cn('mx-1', darkMode ? 'text-dark-500' : 'text-light-400')}>/</span>
                       <span className="text-warning-500">{taskStatus.warning_count}</span>
                     </div>
                   </div>

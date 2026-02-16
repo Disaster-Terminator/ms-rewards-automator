@@ -99,6 +99,9 @@ export const fetchDashboard = async () => {
   return response.data
 }
 
+let heartbeatFailures = 0
+const MAX_HEARTBEAT_FAILURES = 3
+
 export const startHeartbeat = () => {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval)
@@ -112,10 +115,20 @@ export const startHeartbeat = () => {
       store.setLastHeartbeat(new Date().toISOString())
       store.setBackendReady(true)
       store.setDataError(null)
+      heartbeatFailures = 0
     } catch (error) {
+      heartbeatFailures++
       const store = useStore.getState()
       store.setBackendReady(false)
-      store.setWsConnected(false)
+      
+      if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
+        store.setWsConnected(false)
+        if (ws && ws.readyState !== WebSocket.CONNECTING) {
+          ws.close()
+        }
+        connectWebSocket()
+        heartbeatFailures = 0
+      }
     }
   }, 5000)
 }
@@ -130,29 +143,52 @@ export const stopHeartbeat = () => {
 let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempts = 0
-const MAX_RECONNECT_ATTEMPTS = 5
+const MAX_RECONNECT_DELAY = 30000
+
+const scheduleReconnect = () => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+  }
+  
+  const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
+  reconnectAttempts++
+  
+  reconnectTimer = setTimeout(() => {
+    console.log(`Attempting to reconnect WebSocket (attempt ${reconnectAttempts})...`)
+    connectWebSocket()
+  }, delay)
+}
 
 export const connectWebSocket = async () => {
-  if (ws?.readyState === WebSocket.OPEN) return
+  if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return
 
   let wsUrl: string
+  let port = dynamicPort
   
   if (isTauri) {
-    const port = dynamicPort || (await (async () => {
+    if (!port) {
       try {
         const { invoke } = await import('@tauri-apps/api/core')
-        return await invoke<number>('get_backend_port')
-      } catch {
-        return 8000
+        port = await invoke<number>('get_backend_port')
+        dynamicPort = port
+        useStore.getState().setBackendPort(port)
+      } catch (e) {
+        console.warn('Failed to get backend port:', e)
       }
-    })())
-    wsUrl = `ws://localhost:${port}/ws`
+    }
+    wsUrl = `ws://localhost:${port || 8000}/ws`
   } else {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     wsUrl = `${protocol}//${window.location.host}/ws`
   }
 
-  ws = new WebSocket(wsUrl)
+  try {
+    ws = new WebSocket(wsUrl)
+  } catch (error) {
+    console.error('Failed to create WebSocket:', error)
+    scheduleReconnect()
+    return
+  }
 
   ws.onopen = () => {
     console.log('WebSocket connected')
@@ -167,16 +203,7 @@ export const connectWebSocket = async () => {
   ws.onclose = () => {
     console.log('WebSocket disconnected')
     useStore.getState().setWsConnected(false)
-    
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
-      reconnectAttempts++
-      
-      reconnectTimer = setTimeout(() => {
-        console.log(`Attempting to reconnect WebSocket (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`)
-        connectWebSocket()
-      }, delay)
-    }
+    scheduleReconnect()
   }
 
   ws.onerror = (error) => {

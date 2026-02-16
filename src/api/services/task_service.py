@@ -118,14 +118,17 @@ class TaskService:
         self.is_running = True
         self._stop_event.clear()
         
+        desktop_count = self.config_service.get("search.desktop_count", 30)
+        mobile_count = self.config_service.get("search.mobile_count", 20)
+        
         self.status.update({
             "is_running": True,
             "current_operation": "初始化",
             "progress": 0,
             "desktop_searches_completed": 0,
-            "desktop_searches_total": 30,
+            "desktop_searches_total": desktop_count,
             "mobile_searches_completed": 0,
-            "mobile_searches_total": 20,
+            "mobile_searches_total": mobile_count,
             "initial_points": None,
             "current_points": None,
             "points_gained": 0,

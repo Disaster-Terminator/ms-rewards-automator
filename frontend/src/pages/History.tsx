@@ -20,13 +20,15 @@ function StatCard({
   label,
   value,
   subValue,
-  color = 'primary'
+  color = 'primary',
+  darkMode = true
 }: {
   icon: React.ElementType
   label: string
   value: string | number
   subValue?: string
   color?: 'primary' | 'success' | 'warning' | 'danger' | 'cyan'
+  darkMode?: boolean
 }) {
   const colorClasses = {
     primary: { icon: 'text-primary-400', gradient: 'from-primary-500/20 to-transparent', value: 'text-primary-400' },
@@ -43,7 +45,7 @@ function StatCard({
     )}>
       <div className="flex items-center gap-2 mb-3">
         <Icon size={18} className={colorClasses[color].icon} />
-        <span className="text-dark-400 text-sm">{label}</span>
+        <span className={clsx('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>{label}</span>
       </div>
       <div className={clsx('stat-value', colorClasses[color].value)}>
         {value}
@@ -57,12 +59,14 @@ function ChartBar({
   date,
   points,
   maxPoints,
-  delay
+  delay,
+  darkMode = true
 }: {
   date: string
   points: number
   maxPoints: number
   delay: number
+  darkMode?: boolean
 }) {
   const height = maxPoints > 0 ? (points / maxPoints) * 140 : 0
   
@@ -76,12 +80,15 @@ function ChartBar({
             animationDelay: `${delay}ms`
           }}
         >
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-dark-700 rounded text-xs text-dark-100 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          <div className={clsx(
+            'absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none',
+            darkMode ? 'bg-dark-700 text-dark-100' : 'bg-light-800 text-light-100'
+          )}>
             +{points} 积分
           </div>
         </div>
       </div>
-      <span className="text-xs text-dark-500 transform -rotate-45 origin-left whitespace-nowrap">
+      <span className={clsx('text-xs transform -rotate-45 origin-left whitespace-nowrap', darkMode ? 'text-dark-500' : 'text-light-500')}>
         {date}
       </span>
     </div>
@@ -90,7 +97,8 @@ function ChartBar({
 
 function HistoryRow({
   item,
-  index
+  index,
+  darkMode = true
 }: {
   item: {
     timestamp: string
@@ -101,6 +109,7 @@ function HistoryRow({
     duration_seconds: number
   }
   index: number
+  darkMode?: boolean
 }) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -120,19 +129,22 @@ function HistoryRow({
 
   return (
     <tr 
-      className="border-b border-dark-600/30 hover:bg-surface-400/50 transition-colors duration-200 animate-fade-in"
+      className={clsx(
+        'border-b transition-colors duration-200 animate-fade-in',
+        darkMode ? 'border-dark-600/30 hover:bg-surface-400/50' : 'border-light-300 hover:bg-light-100'
+      )}
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-dark-400" />
-          <span className="text-dark-200 text-sm">{formatDate(item.timestamp)}</span>
+          <Calendar size={14} className={darkMode ? 'text-dark-400' : 'text-light-500'} />
+          <span className={clsx('text-sm', darkMode ? 'text-dark-200' : 'text-light-700')}>{formatDate(item.timestamp)}</span>
         </div>
       </td>
       <td className="py-3 px-4">
         <span className={clsx(
           'font-medium text-sm',
-          item.points_gained > 0 ? 'text-success-400' : 'text-dark-500'
+          item.points_gained > 0 ? 'text-success-400' : darkMode ? 'text-dark-500' : 'text-light-500'
         )}>
           {item.points_gained > 0 ? `+${item.points_gained}` : '0'}
         </span>
@@ -140,25 +152,25 @@ function HistoryRow({
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
           <Monitor size={14} className="text-success-400" />
-          <span className="text-dark-200 text-sm">{item.desktop_searches}</span>
+          <span className={clsx('text-sm', darkMode ? 'text-dark-200' : 'text-light-700')}>{item.desktop_searches}</span>
         </div>
       </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
           <Smartphone size={14} className="text-warning-400" />
-          <span className="text-dark-200 text-sm">{item.mobile_searches}</span>
+          <span className={clsx('text-sm', darkMode ? 'text-dark-200' : 'text-light-700')}>{item.mobile_searches}</span>
         </div>
       </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <Clock size={14} className="text-dark-400" />
-          <span className="text-dark-200 text-sm font-mono">{formatDuration(item.duration_seconds)}</span>
+          <Clock size={14} className={darkMode ? 'text-dark-400' : 'text-light-500'} />
+          <span className={clsx('text-sm font-mono', darkMode ? 'text-dark-200' : 'text-light-700')}>{formatDuration(item.duration_seconds)}</span>
         </div>
       </td>
       <td className="py-3 px-4">
         <span className={clsx(
           'font-medium text-sm',
-          item.errors > 0 ? 'text-danger-400' : 'text-dark-500'
+          item.errors > 0 ? 'text-danger-400' : darkMode ? 'text-dark-500' : 'text-light-500'
         )}>
           {item.errors}
         </span>
@@ -168,7 +180,7 @@ function HistoryRow({
 }
 
 export default function History() {
-  const { history, setHistory } = useStore()
+  const { history, setHistory, darkMode } = useStore()
   const [loading, setLoading] = useState(false)
   const [days, setDays] = useState(7)
 
@@ -205,8 +217,8 @@ export default function History() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-dark-100">历史记录</h1>
-          <p className="text-sm text-dark-400 mt-1">查看任务执行历史和积分统计</p>
+          <h1 className={clsx('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-light-900')}>历史记录</h1>
+          <p className={clsx('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>查看任务执行历史和积分统计</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -232,6 +244,7 @@ export default function History() {
           value={`+${totalPoints.toLocaleString()}`}
           subValue={`过去 ${days} 天`}
           color="primary"
+          darkMode={darkMode}
         />
         <StatCard
           icon={TrendingUp}
@@ -239,6 +252,7 @@ export default function History() {
           value={`+${avgPoints}`}
           subValue="平均每天"
           color="success"
+          darkMode={darkMode}
         />
         <StatCard
           icon={BarChart3}
@@ -246,6 +260,7 @@ export default function History() {
           value={totalSearches.toLocaleString()}
           subValue="次搜索"
           color="cyan"
+          darkMode={darkMode}
         />
         <StatCard
           icon={AlertTriangle}
@@ -253,6 +268,7 @@ export default function History() {
           value={totalErrors}
           subValue="次错误"
           color="danger"
+          darkMode={darkMode}
         />
       </div>
 
@@ -270,6 +286,7 @@ export default function History() {
                 points={d.points}
                 maxPoints={maxPoints}
                 delay={i * 50}
+                darkMode={darkMode}
               />
             ))}
           </div>
@@ -283,34 +300,34 @@ export default function History() {
         </h2>
 
         {loading ? (
-          <div className="flex items-center justify-center h-32 text-dark-400">
+          <div className={clsx('flex items-center justify-center h-32', darkMode ? 'text-dark-400' : 'text-light-500')}>
             <RefreshCw size={24} className="animate-spin" />
           </div>
         ) : history.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-dark-600/50">
-                  <th className="text-left py-3 px-4 text-dark-400 font-medium text-sm">时间</th>
-                  <th className="text-left py-3 px-4 text-dark-400 font-medium text-sm">积分</th>
-                  <th className="text-left py-3 px-4 text-dark-400 font-medium text-sm">桌面搜索</th>
-                  <th className="text-left py-3 px-4 text-dark-400 font-medium text-sm">移动搜索</th>
-                  <th className="text-left py-3 px-4 text-dark-400 font-medium text-sm">耗时</th>
-                  <th className="text-left py-3 px-4 text-dark-400 font-medium text-sm">错误</th>
+                <tr className={clsx('border-b', darkMode ? 'border-dark-600/50' : 'border-light-300')}>
+                  <th className={clsx('text-left py-3 px-4 font-medium text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>时间</th>
+                  <th className={clsx('text-left py-3 px-4 font-medium text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>积分</th>
+                  <th className={clsx('text-left py-3 px-4 font-medium text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>桌面搜索</th>
+                  <th className={clsx('text-left py-3 px-4 font-medium text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>移动搜索</th>
+                  <th className={clsx('text-left py-3 px-4 font-medium text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>耗时</th>
+                  <th className={clsx('text-left py-3 px-4 font-medium text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>错误</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((item, index) => (
-                  <HistoryRow key={index} item={item} index={index} />
+                  <HistoryRow key={index} item={item} index={index} darkMode={darkMode} />
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-32 text-dark-400">
+          <div className={clsx('flex flex-col items-center justify-center h-32', darkMode ? 'text-dark-400' : 'text-light-500')}>
             <HistoryIcon size={32} className="mb-2 opacity-50" />
             <p className="text-sm">暂无历史记录</p>
-            <p className="text-xs text-dark-500 mt-1">执行任务后将显示历史记录</p>
+            <p className={clsx('text-xs mt-1', darkMode ? 'text-dark-500' : 'text-light-500')}>执行任务后将显示历史记录</p>
           </div>
         )}
       </div>

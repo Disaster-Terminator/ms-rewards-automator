@@ -21,12 +21,14 @@ function TabButton({
   label, 
   icon: Icon, 
   active, 
-  onClick 
+  onClick,
+  darkMode = true
 }: {
   label: string
   icon: React.ElementType
   active: boolean
   onClick: () => void
+  darkMode?: boolean
 }) {
   return (
     <button
@@ -35,7 +37,9 @@ function TabButton({
         'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ease-smooth',
         active
           ? 'bg-primary-500/10 text-primary-400 border border-primary-500/30'
-          : 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/30 border border-transparent'
+          : darkMode 
+            ? 'text-dark-400 hover:text-dark-100 hover:bg-dark-600/30 border border-transparent'
+            : 'text-light-500 hover:text-light-900 hover:bg-light-200 border border-transparent'
       )}
     >
       <Icon size={18} />
@@ -98,7 +102,8 @@ function Toggle({
   checked,
   onChange,
   icon: Icon,
-  iconColor = 'primary'
+  iconColor = 'primary',
+  darkMode = true
 }: {
   label: string
   description?: string
@@ -106,16 +111,22 @@ function Toggle({
   onChange: (checked: boolean) => void
   icon?: React.ElementType
   iconColor?: 'primary' | 'success' | 'warning' | 'neutral'
+  darkMode?: boolean
 }) {
   const colorClasses = {
     primary: { icon: 'text-primary-400', check: 'bg-primary-400' },
     success: { icon: 'text-success-400', check: 'bg-success-400' },
     warning: { icon: 'text-warning-400', check: 'bg-warning-400' },
-    neutral: { icon: 'text-dark-400', check: 'bg-dark-300' },
+    neutral: { icon: darkMode ? 'text-dark-400' : 'text-light-500', check: darkMode ? 'bg-dark-300' : 'bg-light-500' },
   }
 
   return (
-    <label className="flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all duration-200 bg-surface-400/50 hover:bg-surface-400 border border-transparent hover:border-dark-600/50">
+    <label className={clsx(
+      'flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all duration-200 border border-transparent',
+      darkMode 
+        ? 'bg-surface-400/50 hover:bg-surface-400 hover:border-dark-600/50' 
+        : 'bg-light-100 hover:bg-light-200 hover:border-light-300'
+    )}>
       <div className="relative">
         <input
           type="checkbox"
@@ -125,13 +136,13 @@ function Toggle({
         />
         <div className={clsx(
           'w-10 h-6 rounded-full transition-all duration-200 flex items-center',
-          checked ? 'bg-primary-500/30' : 'bg-dark-600'
+          checked ? 'bg-primary-500/30' : darkMode ? 'bg-dark-600' : 'bg-light-300'
         )}>
           <div className={clsx(
             'w-4 h-4 rounded-full transition-all duration-200 shadow-sm',
             checked 
               ? `translate-x-5 ${colorClasses[iconColor].check} shadow-primary-400/50` 
-              : 'translate-x-1 bg-dark-400'
+              : `translate-x-1 ${darkMode ? 'bg-dark-400' : 'bg-light-400'}`
           )} />
         </div>
       </div>
@@ -139,18 +150,20 @@ function Toggle({
         {Icon && (
           <Icon size={18} className={clsx(
             'transition-colors',
-            checked ? colorClasses[iconColor].icon : 'text-dark-400'
+            checked ? colorClasses[iconColor].icon : darkMode ? 'text-dark-400' : 'text-light-500'
           )} />
         )}
         <div>
           <div className={clsx(
             'font-medium text-sm transition-colors',
-            checked ? 'text-dark-100' : 'text-dark-300'
+            checked 
+              ? darkMode ? 'text-dark-100' : 'text-light-900'
+              : darkMode ? 'text-dark-300' : 'text-light-600'
           )}>
             {label}
           </div>
           {description && (
-            <div className="text-xs text-dark-500 mt-0.5">{description}</div>
+            <div className={clsx('text-xs mt-0.5', darkMode ? 'text-dark-500' : 'text-light-500')}>{description}</div>
           )}
         </div>
       </div>
@@ -159,7 +172,7 @@ function Toggle({
 }
 
 export default function ConfigPage() {
-  const { config, setConfig } = useStore()
+  const { config, setConfig, darkMode } = useStore()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('search')
@@ -244,8 +257,8 @@ export default function ConfigPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-dark-100">配置管理</h1>
-          <p className="text-sm text-dark-400 mt-1">管理应用程序的各项设置</p>
+          <h1 className={clsx('text-xl font-bold', darkMode ? 'text-dark-100' : 'text-light-900')}>配置管理</h1>
+          <p className={clsx('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>管理应用程序的各项设置</p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={loadConfig} className="btn-secondary">
@@ -280,6 +293,7 @@ export default function ConfigPage() {
               {...tab}
               active={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
+              darkMode={darkMode}
             />
           ))}
         </div>
@@ -345,6 +359,7 @@ export default function ConfigPage() {
                   checked={localConfig.browser.headless}
                   onChange={(checked) => updateLocalConfig('browser.headless', checked)}
                   icon={localConfig.browser.headless ? EyeOff : Eye}
+                  darkMode={darkMode}
                 />
 
                 <Toggle
@@ -352,6 +367,7 @@ export default function ConfigPage() {
                   checked={localConfig.browser.force_dark_mode}
                   onChange={(checked) => updateLocalConfig('browser.force_dark_mode', checked)}
                   iconColor="neutral"
+                  darkMode={darkMode}
                 />
               </div>
             </ConfigSection>
@@ -372,10 +388,11 @@ export default function ConfigPage() {
                 label="启用自动登录"
                 checked={localConfig.login.auto_login.enabled}
                 onChange={(checked) => updateLocalConfig('login.auto_login.enabled', checked)}
+                darkMode={darkMode}
               />
 
               {localConfig.login.auto_login.enabled && (
-                <div className="space-y-4 mt-4 p-4 bg-surface-400/50 rounded-xl">
+                <div className={clsx('space-y-4 mt-4 p-4 rounded-xl', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
                   <FormField label="邮箱">
                     <input
                       type="email"
@@ -425,11 +442,12 @@ export default function ConfigPage() {
                 label="启用通知"
                 checked={localConfig.notification.enabled}
                 onChange={(checked) => updateLocalConfig('notification.enabled', checked)}
+                darkMode={darkMode}
               />
 
               {localConfig.notification.enabled && (
-                <div className="space-y-4 mt-4 p-4 bg-surface-400/50 rounded-xl">
-                  <h3 className="font-medium text-dark-100 flex items-center gap-2">
+                <div className={clsx('space-y-4 mt-4 p-4 rounded-xl', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
+                  <h3 className={clsx('font-medium flex items-center gap-2', darkMode ? 'text-dark-100' : 'text-light-900')}>
                     <Shield size={16} className="text-primary-400" />
                     Telegram 配置
                   </h3>
@@ -464,6 +482,7 @@ export default function ConfigPage() {
                 label="启用调度器"
                 checked={localConfig.scheduler.enabled}
                 onChange={(checked) => updateLocalConfig('scheduler.enabled', checked)}
+                darkMode={darkMode}
               />
 
               {localConfig.scheduler.enabled && (
@@ -513,6 +532,7 @@ export default function ConfigPage() {
                   label="启用健康监控"
                   checked={localConfig.monitoring.health_check.enabled}
                   onChange={(checked) => updateLocalConfig('monitoring.health_check.enabled', checked)}
+                  darkMode={darkMode}
                 />
 
                 {localConfig.monitoring.health_check.enabled && (
@@ -533,11 +553,13 @@ export default function ConfigPage() {
                     label="启用任务系统"
                     checked={localConfig.task_system.enabled}
                     onChange={(checked) => updateLocalConfig('task_system.enabled', checked)}
+                    darkMode={darkMode}
                   />
                   <Toggle
                     label="启用主题管理"
                     checked={localConfig.bing_theme.enabled}
                     onChange={(checked) => updateLocalConfig('bing_theme.enabled', checked)}
+                    darkMode={darkMode}
                   />
                 </div>
               </div>
