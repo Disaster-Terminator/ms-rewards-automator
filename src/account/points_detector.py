@@ -17,6 +17,10 @@ class PointsDetector:
     DASHBOARD_URL = "https://rewards.bing.com/"
     
     POINTS_SELECTORS = [
+        "p.text-title1.font-semibold",
+        "p.text-title1",
+        "img[alt='可用积分'] + div p",
+        "img[alt='Available'] + div p",
         "span.mee-rewards-user-status-balance",
         "span[class*='balance']",
         "div[class*='user-status'] span",
@@ -176,6 +180,10 @@ class PointsDetector:
             await page.wait_for_timeout(2000)
             
             user_balance_selectors = [
+                "p.text-title1.font-semibold",
+                "p.text-title1",
+                "img[alt='可用积分'] + div p",
+                "img[alt='Available'] + div p",
                 "span.mee-rewards-user-status-balance",
                 "div[class*='user-status']",
                 "[class*='balance']",
