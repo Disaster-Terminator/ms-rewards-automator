@@ -1,0 +1,104 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy black isort
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-timeout hypothesis
+
+      - name: Check PR title format
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "PR Title: $PR_TITLE"
+          
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:\ .+ ]]; then
+            echo "::error::PR title must follow Conventional Commits format: type(scope): description"
+            echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+            echo "Example: feat(scheduler): add timezone support"
+            exit 1
+          fi
+          echo "✅ PR title format is valid"
+
+      - name: Run Ruff linter on changed files
+        run: |
+          git fetch origin main
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.py')
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "Checking files:"
+            echo "$CHANGED_FILES"
+            echo "$CHANGED_FILES" | xargs ruff check --output-format=github
+          else
+            echo "No Python files changed"
+          fi
+
+      - name: Run Black check on changed files
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.py')
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "$CHANGED_FILES" | xargs black --check
+          fi
+
+      - name: Run isort check on changed files
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.py')
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "$CHANGED_FILES" | xargs isort --check-only --diff
+          fi
+
+      - name: Run unit tests for changed modules
+        run: |
+          pytest tests/unit/ -m "not real" -v --tb=short --timeout=60 -q
+
+      - name: Check for sensitive data
+        run: |
+          echo "Checking for sensitive data..."
+          SENSITIVE_PATTERNS=(
+            "password\s*=\s*['\"][^'\"]+['\"]"
+            "api_key\s*=\s*['\"][^'\"]+['\"]"
+            "secret\s*=\s*['\"][^'\"]+['\"]"
+            "token\s*=\s*['\"][^'\"]+['\"]"
+          )
+          
+          FOUND=0
+          for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+            if git diff -U0 origin/main...HEAD | grep -iE "$pattern" | grep -v "your_" | grep -v "example" | grep -v "xxx"; then
+              FOUND=1
+            fi
+          done
+          
+          if [ $FOUND -eq 1 ]; then
+            echo "::warning::Possible sensitive data detected. Please review your changes."
+          else
+            echo "✅ No sensitive data detected"
+          fi
+
+      - name: Generate PR summary
+        run: |
+          echo "## PR Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All checks passed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changed Files" >> $GITHUB_STEP_SUMMARY
+          git diff --name-only origin/main...HEAD >> $GITHUB_STEP_SUMMARY

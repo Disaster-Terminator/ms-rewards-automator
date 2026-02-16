@@ -9,6 +9,9 @@ main                          # 核心分支：登录 + 搜索（必须稳定）
 ├── feature/health-monitor    # 健康监控与进度跟踪（已合并）
 ├── feature/notifications     # 通知系统
 ├── feature/scheduler-enhanced # 调度器增强（先执行一次，再进入调度）
+├── feature/error-handling-enhanced # 异常处理增强（精确异常类型）
+├── feature/frontend-ui       # Web前端界面
+├── feature/ci-test-workflow  # CI测试工作流
 ├── fix/xxx                   # Bug修复分支
 ├── integration/xxx           # 临时集成分支（需要时创建）
 └── backup-before-cleanup-*   # 备份分支
@@ -47,6 +50,9 @@ monitoring.health_check.enabled: false  # 健康监控
 | `feature/health-monitor` | 健康监控+进度跟踪 | `src/infrastructure/health_monitor.py`, `src/ui/real_time_status.py` |
 | `feature/notifications` | 通知系统 | `src/infrastructure/notificator.py` |
 | `feature/scheduler-enhanced` | 调度器增强 | `src/infrastructure/scheduler.py` |
+| `feature/error-handling-enhanced` | 异常处理增强 | `src/search/search_engine.py`, `src/ui/bing_theme_manager.py` |
+| `feature/frontend-ui` | Web前端界面 | `frontend/`, `src/api/` |
+| `feature/ci-test-workflow` | CI测试工作流 | `.github/workflows/ci_tests.yml`, `.github/workflows/pr_check.yml` |
 
 ### 2.3 临时集成分支
 
