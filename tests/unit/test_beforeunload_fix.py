@@ -1,17 +1,21 @@
 """
 测试 beforeunload 对话框修复
 验证在保存会话状态和清理资源时不会被对话框阻塞
+
+注意: 此测试需要真实浏览器，默认被排除在CI测试之外
 """
 
 import asyncio
 import logging
 
+import pytest
 from playwright.async_api import async_playwright
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.real
 async def test_beforeunload_fix():
     """测试 beforeunload 对话框的修复"""
 

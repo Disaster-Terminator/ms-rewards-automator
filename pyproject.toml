@@ -37,3 +37,14 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+markers = [
+    "real: marks tests that require real browser (deselected by default)",
+    "slow: marks tests as slow",
+]
+addopts = "-v --tb=short -m 'not real'"

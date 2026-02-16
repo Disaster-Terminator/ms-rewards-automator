@@ -57,7 +57,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
-        run: pytest tests/unit/ -m "not real" -v --tb=short --timeout=60
+        run: pytest tests/unit/ -v --tb=short --timeout=60 -m "not real"
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
