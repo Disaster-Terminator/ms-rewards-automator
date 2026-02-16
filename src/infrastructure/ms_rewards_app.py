@@ -211,7 +211,8 @@ class MSRewardsApp:
                        .set_browser_sim(self.browser_sim)
 
         # 启动健康监控，在后台监控系统状态
-        await self.health_monitor.start_monitoring()
+        if self.health_monitor.enabled:
+            await self.health_monitor.start_monitoring()
 
     async def _create_browser(self) -> None:
         """创建浏览器实例（确保只创建一个）"""

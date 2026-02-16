@@ -103,10 +103,10 @@ class TestBingThemePersistence:
     @pytest.mark.asyncio
     async def test_load_theme_state(self, theme_manager, temp_theme_file):
         """测试加载主题状态"""
-        # 准备测试数据
+        import time
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {"test": "data"},
@@ -190,10 +190,10 @@ class TestBingThemePersistence:
     @pytest.mark.asyncio
     async def test_restore_theme_from_state_success(self, theme_manager, mock_page, temp_theme_file):
         """测试成功从状态恢复主题"""
-        # 准备保存的状态
+        import time
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {},
@@ -221,10 +221,10 @@ class TestBingThemePersistence:
     @pytest.mark.asyncio
     async def test_restore_theme_from_state_already_correct(self, theme_manager, mock_page, temp_theme_file):
         """测试当前主题已经正确时的恢复"""
-        # 准备保存的状态
+        import time
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {},
@@ -288,10 +288,10 @@ class TestBingThemePersistence:
     @pytest.mark.asyncio
     async def test_check_theme_persistence_integrity(self, theme_manager, mock_page, temp_theme_file):
         """测试检查主题持久化完整性"""
-        # 准备测试数据
+        import time
         test_data = {
             "theme": "dark",
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "preferred_theme": "dark",
             "force_theme": True,
             "context_info": {},
@@ -320,13 +320,14 @@ class TestBingThemePersistence:
     @pytest.mark.asyncio
     async def test_cleanup_theme_persistence(self, theme_manager, temp_theme_file):
         """测试清理主题持久化数据"""
+        import time
         # 创建测试文件
         with open(temp_theme_file, 'w') as f:
             json.dump({"test": "data"}, f)
         
         # 设置缓存
         theme_manager._theme_state_cache = {"test": "cache"}
-        theme_manager._last_cache_update = asyncio.get_running_loop().time()
+        theme_manager._last_cache_update = time.time()
         
         result = await theme_manager.cleanup_theme_persistence()
         assert result is True

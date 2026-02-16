@@ -27,7 +27,7 @@ class HealthMonitor:
             config: 配置管理器实例
         """
         self.config = config
-        self.enabled = config.get("monitoring.health_check.enabled", True) if config else True
+        self.enabled = config.get("monitoring.health_check.enabled", False) if config else False
         self.check_interval = config.get("monitoring.health_check.interval", 30) if config else 30
         
         # 性能指标
