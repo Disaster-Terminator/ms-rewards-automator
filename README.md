@@ -190,9 +190,6 @@ python main.py --usermode
 # 开发模式（快速迭代）
 python main.py --dev
 
-# 显示浏览器（调试模式，默认显示）
-python main.py
-
 # 无头模式（后台运行）
 python main.py --headless
 
