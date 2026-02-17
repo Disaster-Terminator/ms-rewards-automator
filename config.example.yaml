@@ -3,6 +3,10 @@
 # ============================================================
 # 复制此文件为 config.yaml 并填写你的配置
 
+# 执行模式（可选）
+execution:
+  mode: "normal"  # fast(快速), normal(默认), slow(安全)
+
 # 搜索任务
 search:
   desktop_count: 30 # 桌面端搜索次数

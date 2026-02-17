@@ -12,8 +12,26 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-# 默认配置（完整的技术参数）
+EXECUTION_MODE_PRESETS = {
+    "fast": {
+        "search": {"wait_interval": {"min": 2, "max": 5}},
+        "browser": {"slow_mo": 50},
+    },
+    "normal": {
+        "search": {"wait_interval": {"min": 5, "max": 15}},
+        "browser": {"slow_mo": 100},
+    },
+    "slow": {
+        "search": {"wait_interval": {"min": 15, "max": 30}},
+        "browser": {"slow_mo": 200},
+    },
+}
+
+
 DEFAULT_CONFIG = {
+    "execution": {
+        "mode": "normal",
+    },
     "search": {
         "desktop_count": 30,
         "mobile_count": 20,
@@ -189,6 +207,8 @@ class ConfigManager:
         self.config_data: dict[str, Any] = {}
         self._load_config()
 
+        self._apply_execution_mode()
+
         self._init_typed_config()
 
         if self.dev_mode:
@@ -207,6 +227,18 @@ class ConfigManager:
         except Exception as e:
             logger.warning(f"类型化配置初始化失败，使用字典配置: {e}")
             self.app = None
+
+    def _apply_execution_mode(self) -> None:
+        """应用执行模式预设配置"""
+        mode = self.config.get("execution", {}).get("mode", "normal")
+        if mode not in EXECUTION_MODE_PRESETS:
+            logger.warning(f"未知的执行模式: {mode}，使用 normal")
+            mode = "normal"
+
+        if mode != "normal":
+            preset = EXECUTION_MODE_PRESETS[mode]
+            self.config = self._merge_configs(self.config, preset)
+            logger.info(f"⚡ 执行模式: {mode}")
 
     def _apply_dev_mode(self) -> None:
         """应用开发模式覆盖配置"""
