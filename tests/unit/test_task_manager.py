@@ -2,11 +2,11 @@
 Unit tests for TaskManager and Task System components
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from dataclasses import asdict
 
-from tasks.task_base import Task, TaskMetadata, TaskExecutionReport
+import pytest
+
+from tasks.task_base import Task, TaskExecutionReport, TaskMetadata
 from tasks.task_manager import TaskManager
 
 
