@@ -9,6 +9,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from infrastructure.config_manager import ConfigManager
@@ -156,7 +158,10 @@ async def run_full_test():
     return await run_scheduler_test(test_delay_seconds=5)
 
 
-import pytest
+@pytest.fixture
+def test_config_path():
+    """测试配置文件路径"""
+    return Path(__file__).parent.parent.parent / "config.example.yaml"
 
 
 @pytest.mark.asyncio
@@ -167,10 +172,10 @@ async def test_scheduler_basic_flow():
 
 
 @pytest.mark.asyncio
-async def test_scheduler_config_defaults():
+async def test_scheduler_config_defaults(test_config_path):
     """测试调度器默认配置"""
-    config = ConfigManager("config.example.yaml")
-    assert config.get("scheduler.enabled") == True
+    config = ConfigManager(str(test_config_path))
+    assert config.get("scheduler.enabled") is True
     assert config.get("scheduler.scheduled_hour") == 17
     assert config.get("scheduler.max_offset_minutes") == 45
 
