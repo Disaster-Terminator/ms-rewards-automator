@@ -48,11 +48,10 @@ monitoring.health_check.enabled: false  # 健康监控
 |------|------|----------|------|
 | `feature/daily-tasks` | 每日任务 | `src/tasks/` | 开发中 |
 | `feature/frontend-ui` | Tauri 2.0 前端 | `src-tauri/`, `src-ui/` | 开发中 |
-| `feature/theme-management` | 主题管理 | `src/ui/bing_theme_manager.py` | 开发中 |
 | `feature/notifications` | 通知系统 | `src/infrastructure/notificator.py` | 开发中 |
-| `feature/ci-test-workflow` | CI测试工作流 | `.github/workflows/` | 开发中 |
 | `feature/health-monitor` | 健康监控+进度跟踪 | `src/infrastructure/health_monitor.py`, `src/ui/real_time_status.py` | ✅ 已合并 |
 | `feature/scheduler-enhanced` | 调度器增强 | `src/infrastructure/scheduler.py` | ✅ 已合并 |
+| `feature/theme-management` | Bing主题管理 | `src/ui/bing_theme_manager.py` | ✅ 已合并 |
 
 ### 2.3 临时集成分支
 
@@ -346,29 +345,62 @@ python main.py --usermode     # 完整行为验收
 
 ## 五、测试验证命令
 
-### 5.1 main 分支验证命令
+### 5.1 命令行参数参考
+
+#### 执行模式
+
+| 参数 | 搜索次数 | 拟人行为 | 防检测 | 日志级别 | 用途 |
+|------|----------|----------|--------|----------|------|
+| 默认 | 30+20 | ✅ | ✅ | INFO | 生产环境 |
+| `--usermode` | 3+3 | ✅ | ✅ | INFO | 稳定性测试 |
+| `--dev` | 2+2 | ❌ | ❌ | DEBUG | 快速调试 |
+
+#### 测试参数
+
+| 参数 | 说明 |
+|------|------|
+| `--dry-run` | 模拟运行，不执行实际操作 |
+| `--test-notification` | 测试通知功能 |
+| `--autonomous-test` | 运行自主测试框架 |
+| `--test-type {login,bing_access,search,points,full}` | 自主测试类型 |
+| `--quick-test` | 快速测试模式 |
+
+#### 调度参数
+
+| 参数 | 说明 |
+|------|------|
+| `--schedule` | 启用调度模式 |
+| `--schedule-now` | 立即执行一次后进入调度 |
+| `--no-schedule` | 仅执行一次，不进入调度 |
+| `--schedule-only` | 跳过首次执行，直接进入调度 |
+
+#### 其他参数
+
+| 参数 | 说明 |
+|------|------|
+| `--mode {normal,fast,slow}` | 执行模式 |
+| `--headless` | 无头模式 |
+| `--browser {chromium,edge,chrome}` | 浏览器类型 |
+| `--desktop-only` | 仅桌面搜索 |
+| `--mobile-only` | 仅移动搜索 |
+| `--skip-daily-tasks` | 跳过每日任务 |
+| `--config FILE` | 配置文件路径 |
+
+### 5.2 main 分支验证命令
 
 ```bash
-# 开发模式（2+2搜索，无拟人行为，最小等待时间，DEBUG日志）
+# 开发模式（快速调试）
 python main.py --dev
 
-# 测试模式（3+3搜索，保留拟人行为和防检测，INFO日志）
+# 测试模式（稳定性验证）
 python main.py --usermode
 
-# 生产环境（30+20搜索，完整功能）
+# 生产环境（完整功能）
 python main.py
 
 # 仅测试登录
 python main.py --dev --desktop-only --dry-run
 ```
-
-### 5.2 模式对比
-
-| 模式 | 桌面搜索 | 移动搜索 | 拟人行为 | 防检测 | 日志级别 | 用途 |
-|------|----------|----------|----------|--------|----------|------|
-| `--dev` | 2 | 2 | ❌ 禁用 | ❌ 禁用 | DEBUG | 快速迭代调试 |
-| `--usermode` | 3 | 3 | ✅ 启用 | ✅ 启用 | INFO | 稳定性测试 |
-| 默认 | 30 | 20 | ✅ 启用 | ✅ 启用 | INFO | **生产环境** |
 
 ### 5.3 功能分支验证
 
@@ -393,7 +425,9 @@ pytest tests/unit/test_task_manager.py
 search:
   desktop_count: 30
   mobile_count: 20
-  wait_interval: 5
+  wait_interval:
+    min: 5
+    max: 15
 
 browser:
   headless: false
@@ -632,12 +666,9 @@ git fetch --all
 
 | 分支 | 最新提交 | 状态 |
 |------|----------|------|
-| `main` | `b1720d1` - fix: 禁用非核心功能默认启用状态 | 稳定 |
+| `main` | `c718a0e` - feat: Bing主题管理功能 - 主动设置模式 | 稳定 |
 | `feature/daily-tasks` | `9661056` - merge: 合并 main 分支 | 开发中 |
-| `feature/frontend-ui` | `f96c456` - docs: 更新文档反映 Tauri 2.0 架构变更 | 开发中 |
-| `feature/theme-management` | `f0e8110` - merge: 合并main分支 | 开发中 |
+| `feature/frontend-ui` | `8ea7b4c` - style: 运行 ruff format 格式化代码 | 开发中 |
 | `feature/notifications` | `52f692a` - fix: 更新积分选择器 | 开发中 |
-| `feature/ci-test-workflow` | `5370eab` - fix: 确保MyPy类型检查不会导致CI失败 | 开发中 |
-| `fix/login` | `fee02ac` - fix: 添加 ppsecure/post.srf 到 OAuth 回调检测 | 待合并 |
 
-*最后更新：2026-02-16*
+*最后更新：2026-02-17*

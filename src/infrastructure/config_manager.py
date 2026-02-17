@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
     "search": {
         "desktop_count": 30,
         "mobile_count": 20,
-        "wait_interval": 5,  # 简化为单个值
+        "wait_interval": {"min": 5, "max": 15},
         "search_terms_file": "tools/search_terms.txt",
     },
     "browser": {
@@ -235,15 +235,17 @@ class ConfigManager:
             # 合并加载的配置和默认配置
             self.config = self._merge_configs(DEFAULT_CONFIG, loaded_config)
 
-            # 向后兼容：处理 wait_interval 从 dict 到 int 的变化
-            if isinstance(self.config.get("search", {}).get("wait_interval"), dict):
-                wait_min = self.config["search"]["wait_interval"].get("min", 3)
-                wait_max = self.config["search"]["wait_interval"].get("max", 8)
-                # 使用中间值
-                self.config["search"]["wait_interval"] = (wait_min + wait_max) // 2
-                logger.debug(
-                    f"wait_interval 已从 dict 转换为 int: {self.config['search']['wait_interval']}"
+            # 向后兼容：处理 wait_interval 从 int 到 dict 的变化
+            wait_interval = self.config.get("search", {}).get("wait_interval")
+            if isinstance(wait_interval, (int, float)):
+                logger.warning(
+                    f"wait_interval 使用旧格式 (int: {wait_interval})，"
+                    "建议更新为 {min: X, max: Y} 格式"
                 )
+                self.config["search"]["wait_interval"] = {
+                    "min": wait_interval,
+                    "max": wait_interval + 10,
+                }
 
             # 向后兼容：处理旧的 account.email/password/totp_secret
             if "account" in self.config:

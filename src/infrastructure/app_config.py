@@ -15,9 +15,8 @@ class SearchConfig:
 
     desktop_count: int = 30
     mobile_count: int = 20
-    wait_interval: int = 5  # 简化：单个值
-    wait_interval_min: int = 2  # 扩展配置
-    wait_interval_max: int = 8
+    wait_interval_min: int = 5
+    wait_interval_max: int = 15
     search_terms_file: str = "tools/search_terms.txt"
 
 
@@ -265,9 +264,8 @@ class AppConfig:
             search=SearchConfig(
                 desktop_count=get_nested(config_dict, "desktop_count", 30),
                 mobile_count=get_nested(config_dict, "mobile_count", 20),
-                wait_interval=get_nested(config_dict, "wait_interval", 5),
-                wait_interval_min=get_nested(config_dict.get("wait_interval"), "min", 2),
-                wait_interval_max=get_nested(config_dict.get("wait_interval"), "max", 8),
+                wait_interval_min=get_nested(config_dict.get("wait_interval"), "min", 5),
+                wait_interval_max=get_nested(config_dict.get("wait_interval"), "max", 15),
                 search_terms_file=get_nested(
                     config_dict, "search_terms_file", "tools/search_terms.txt"
                 ),

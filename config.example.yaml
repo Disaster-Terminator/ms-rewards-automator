@@ -7,7 +7,9 @@
 search:
   desktop_count: 30 # 桌面端搜索次数
   mobile_count: 20 # 移动端搜索次数
-  wait_interval: 5 # 搜索间隔（秒），建议 3-8
+  wait_interval:
+    min: 5  # 最小等待时间（秒）
+    max: 15  # 最大等待时间（秒）
 
 # 浏览器
 browser:

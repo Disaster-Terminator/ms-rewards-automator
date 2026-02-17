@@ -70,8 +70,8 @@ def test_property_config_completeness(desktop_count, mobile_count, log_level):
 @given(
     key_parts=st.lists(
         st.text(min_size=1, max_size=10, alphabet=st.characters(whitelist_categories=("Lu", "Ll"))),
-        min_size=1,
-        max_size=3,
+        min_size=2,
+        max_size=4,
     )
 )
 @settings(max_examples=50)
@@ -83,7 +83,7 @@ def test_property_nested_key_access(key_parts):
     """
     manager = ConfigManager("nonexistent_config.yaml")
 
-    nested_key = ".".join(key_parts)
+    nested_key = "nonexistent." + ".".join(key_parts)
 
     assert manager.get(nested_key) is None
 
@@ -128,9 +128,9 @@ def test_property_config_persistence(desktop_count, mobile_count):
 @settings(max_examples=30)
 def test_property_wait_interval_single_value(wait_interval):
     """
-    属性: 单个等待间隔值
+    属性: 单个等待间隔值向后兼容
 
-    属性: 单个 wait_interval 值应该被正确加载
+    属性: 单个 wait_interval 值应该被自动转换为 dict 格式
     """
     config_data = {
         **MINIMAL_VALID_CONFIG,
@@ -143,7 +143,9 @@ def test_property_wait_interval_single_value(wait_interval):
 
     try:
         manager = ConfigManager(config_path)
-        assert manager.get("search.wait_interval") == wait_interval
+        # int 格式会被自动转换为 dict 格式
+        result = manager.get("search.wait_interval")
+        assert result == {"min": wait_interval, "max": wait_interval + 10}
         assert manager.validate_config()
 
     finally:

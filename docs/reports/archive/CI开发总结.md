@@ -115,31 +115,7 @@ indent-style = "space"
 
 ---
 
-## 五、未提交更改
-
-当前有 3 个文件尚未提交（本次会话的最终修复）：
-
-```
-modified:   src/ui/bing_theme_manager.py
-modified:   tests/unit/test_bing_theme_persistence.py
-modified:   tests/unit/test_config_manager_properties.py
-```
-
-这些更改修复了 CI 测试失败问题，建议提交：
-
-```powershell
-git add -A
-git commit -m "fix: 修复时间函数和属性测试问题
-
-- 将 asyncio.get_running_loop().time() 改为 time.time()
-- 修复属性测试的值范围以匹配验证器限制
-- 简化 wait_interval 测试为单值测试"
-git push
-```
-
----
-
-## 六、后续建议
+## 五、后续建议
 
 1. **提交 PR** - 将 `feature/ci-test-workflow` 分支合并到主分支
 2. **配置分支保护** - 要求 PR 必须通过 CI 检查才能合并
