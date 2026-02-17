@@ -334,7 +334,9 @@ class AppConfig:
             monitoring=MonitoringWithHealth(
                 enabled=get_nested(monitoring_dict, "enabled", True),
                 check_interval=get_nested(monitoring_dict, "check_interval", 5),
-                check_points_before_task=get_nested(monitoring_dict, "check_points_before_task", True),
+                check_points_before_task=get_nested(
+                    monitoring_dict, "check_points_before_task", True
+                ),
                 alert_on_no_increase=get_nested(monitoring_dict, "alert_on_no_increase", True),
                 max_no_increase_count=get_nested(monitoring_dict, "max_no_increase_count", 3),
                 real_time_display=get_nested(monitoring_dict, "real_time_display", True),
