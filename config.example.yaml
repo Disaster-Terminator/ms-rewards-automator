@@ -3,11 +3,17 @@
 # ============================================================
 # 复制此文件为 config.yaml 并填写你的配置
 
+# 执行模式（可选）
+execution:
+  mode: "normal"  # fast(快速), normal(默认), slow(安全)
+
 # 搜索任务
 search:
   desktop_count: 30 # 桌面端搜索次数
   mobile_count: 20 # 移动端搜索次数
-  wait_interval: 5 # 搜索间隔（秒），建议 3-8
+  wait_interval:
+    min: 5  # 最小等待时间（秒）
+    max: 15  # 最大等待时间（秒）
 
 # 浏览器
 browser:
@@ -49,19 +55,16 @@ notification:
     bot_token: ""
     chat_id: ""
 
-# 调度器（可选）
+# 调度器（默认启用）
 scheduler:
-  enabled: false
-  timezone: "Asia/Shanghai" # 时区设置（如 America/New_York, Europe/London 等）
-  mode: "scheduled" # scheduled（定时+随机偏移，推荐）, random（随机时间范围）, fixed（固定时间）
-  run_once_on_start: true # 启动时先执行一次，再进入调度
-  # 定时+随机偏移模式（mode: scheduled）
-  scheduled_hour: 10 # 基准整点时间（如 10 表示 10:00）
-  max_offset_minutes: 30 # 最大偏移量（分钟），实际执行时间 = 基准时间 ± 偏移量
-  # 随机模式（mode: random）
+  enabled: true
+  timezone: "Asia/Shanghai"
+  mode: "scheduled"
+  run_once_on_start: true
+  scheduled_hour: 17
+  max_offset_minutes: 45
   random_start_hour: 8
   random_end_hour: 22
-  # 固定模式（mode: fixed）
   fixed_hour: 10
   fixed_minute: 0
 

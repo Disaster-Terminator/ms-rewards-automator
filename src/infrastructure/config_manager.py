@@ -12,12 +12,30 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-# 默认配置（完整的技术参数）
+EXECUTION_MODE_PRESETS = {
+    "fast": {
+        "search": {"wait_interval": {"min": 2, "max": 5}},
+        "browser": {"slow_mo": 50},
+    },
+    "normal": {
+        "search": {"wait_interval": {"min": 5, "max": 15}},
+        "browser": {"slow_mo": 100},
+    },
+    "slow": {
+        "search": {"wait_interval": {"min": 15, "max": 30}},
+        "browser": {"slow_mo": 200},
+    },
+}
+
+
 DEFAULT_CONFIG = {
+    "execution": {
+        "mode": "normal",
+    },
     "search": {
         "desktop_count": 30,
         "mobile_count": 20,
-        "wait_interval": 5,  # 简化为单个值
+        "wait_interval": {"min": 5, "max": 15},
         "search_terms_file": "tools/search_terms.txt",
     },
     "browser": {
@@ -83,8 +101,10 @@ DEFAULT_CONFIG = {
         "whatsapp": {"enabled": False, "phone": "", "apikey": ""},
     },
     "scheduler": {
-        "enabled": False,
-        "mode": "random",
+        "enabled": True,
+        "mode": "scheduled",
+        "scheduled_hour": 17,
+        "max_offset_minutes": 45,
         "random_start_hour": 8,
         "random_end_hour": 22,
         "fixed_hour": 10,
@@ -122,6 +142,9 @@ DEV_MODE_OVERRIDES = {
         "debug_mode": True,
         "max_tasks": 2,
     },
+    "scheduler": {
+        "enabled": False,
+    },
     "logging": {"level": "DEBUG"},
 }
 
@@ -156,6 +179,9 @@ USER_MODE_OVERRIDES = {
         "enabled": False,
         "debug_mode": False,
     },
+    "scheduler": {
+        "enabled": False,
+    },
     "logging": {"level": "INFO"},
 }
 
@@ -181,6 +207,8 @@ class ConfigManager:
         self.config_data: dict[str, Any] = {}
         self._load_config()
 
+        self._apply_execution_mode()
+
         self._init_typed_config()
 
         if self.dev_mode:
@@ -199,6 +227,28 @@ class ConfigManager:
         except Exception as e:
             logger.warning(f"类型化配置初始化失败，使用字典配置: {e}")
             self.app = None
+
+    def _apply_execution_mode(self) -> None:
+        """应用执行模式预设配置"""
+        execution = self.config.get("execution")
+        if isinstance(execution, dict):
+            mode = execution.get("mode", "normal")
+        else:
+            if execution is not None:
+                logger.warning(
+                    "配置项 execution 应为字典类型，实际为 %s，已忽略并使用 normal",
+                    type(execution).__name__,
+                )
+            mode = "normal"
+        if mode not in EXECUTION_MODE_PRESETS:
+            logger.warning(f"未知的执行模式: {mode}，使用 normal")
+            mode = "normal"
+
+        if mode != "normal":
+            preset = EXECUTION_MODE_PRESETS[mode]
+            self.config = self._merge_configs(self.config, preset)
+            self.config_data = self.config
+            logger.info(f"⚡ 执行模式: {mode}")
 
     def _apply_dev_mode(self) -> None:
         """应用开发模式覆盖配置"""
@@ -235,15 +285,17 @@ class ConfigManager:
             # 合并加载的配置和默认配置
             self.config = self._merge_configs(DEFAULT_CONFIG, loaded_config)
 
-            # 向后兼容：处理 wait_interval 从 dict 到 int 的变化
-            if isinstance(self.config.get("search", {}).get("wait_interval"), dict):
-                wait_min = self.config["search"]["wait_interval"].get("min", 3)
-                wait_max = self.config["search"]["wait_interval"].get("max", 8)
-                # 使用中间值
-                self.config["search"]["wait_interval"] = (wait_min + wait_max) // 2
-                logger.debug(
-                    f"wait_interval 已从 dict 转换为 int: {self.config['search']['wait_interval']}"
+            # 向后兼容：处理 wait_interval 从 int 到 dict 的变化
+            wait_interval = self.config.get("search", {}).get("wait_interval")
+            if isinstance(wait_interval, (int, float)):
+                logger.warning(
+                    f"wait_interval 使用旧格式 (int: {wait_interval})，"
+                    "建议更新为 {min: X, max: Y} 格式"
                 )
+                self.config["search"]["wait_interval"] = {
+                    "min": wait_interval,
+                    "max": wait_interval + 10,
+                }
 
             # 向后兼容：处理旧的 account.email/password/totp_secret
             if "account" in self.config:

@@ -33,28 +33,13 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python main.py                          # 生产环境（完整配置，30+20搜索）
-  python main.py --usermode               # 测试模式（3+3搜索，验证稳定性）
-  python main.py --dev                    # 开发模式（2+2搜索，快速迭代）
-  python main.py --headless               # 无头模式执行
-  python main.py --mode fast              # 快速模式（减少等待时间）
-  python main.py --schedule               # 调度模式（每天自动执行）
-  python main.py --schedule --schedule-now # 调度模式（立即执行一次后进入调度）
-  python main.py --desktop-only           # 仅执行桌面搜索
-  python main.py --mobile-only            # 仅执行移动搜索
+  python main.py                          # 生产环境（30+20搜索，自动调度）
+  python main.py --headless               # 后台运行
+  python main.py --user                   # 用户模式（3+3搜索，验证稳定性）
+  python main.py --dev                    # 开发模式（2+2搜索，快速调试）
+  python main.py --browser chrome         # 使用 Chrome 浏览器
   python main.py --test-notification      # 测试通知功能
-  python main.py --autonomous-test        # 运行自主测试框架
-  python main.py --autonomous-test --test-type login  # 仅测试登录状态
-  python main.py --autonomous-test --quick-test       # 快速测试模式
         """,
-    )
-
-    # 执行模式
-    parser.add_argument(
-        "--mode",
-        choices=["normal", "fast", "slow"],
-        default="normal",
-        help="执行模式: normal(正常), fast(快速), slow(慢速)",
     )
 
     parser.add_argument(
@@ -64,7 +49,7 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--usermode",
+        "--user",
         action="store_true",
         help="用户模式（3+3搜索，保留拟人行为和防检测，INFO日志）",
     )
@@ -103,24 +88,12 @@ def parse_arguments():
         help="自主测试类型 (默认: full)",
     )
 
-    parser.add_argument("--quick-test", action="store_true", help="快速测试模式（减少等待时间）")
-
-    # 调度选项
-    parser.add_argument("--schedule", action="store_true", help="启用调度模式")
-
-    parser.add_argument("--schedule-now", action="store_true", help="立即执行一次后进入调度")
-
     parser.add_argument(
-        "--no-schedule",
+        "--quick-test",
         action="store_true",
-        help="仅执行一次，不进入调度（覆盖配置中的调度器启用）",
+        help="自主测试快速模式：仅在 --autonomous-test 下生效，缩短测试检查间隔（不影响搜索等待/slow_mo）",
     )
 
-    parser.add_argument(
-        "--schedule-only", action="store_true", help="跳过首次执行，直接进入调度模式"
-    )
-
-    # 配置文件
     parser.add_argument("--config", default="config.yaml", help="配置文件路径 (默认: config.yaml)")
 
     return parser.parse_args()
@@ -263,24 +236,15 @@ async def main():
     """主函数"""
     global logger
 
-    # 解析参数
     args = parse_arguments()
 
-    # 初始化日志
-    # dev模式: DEBUG日志, 快速配置
-    # usermode模式: INFO日志, 完整配置（模拟真实使用）
-    # 默认: INFO日志, 完整配置
     log_level = "DEBUG" if args.dry_run or args.dev else "INFO"
     setup_logging(log_level=log_level, log_file="logs/automator.log", console=True)
     logger = logging.getLogger(__name__)
 
-    # 加载配置
-    # dev模式: 2+2搜索，无拟人行为，最小等待时间
-    # usermode模式: 3+3搜索，保留拟人行为和防检测
     try:
-        config = ConfigManager(args.config, dev_mode=args.dev, user_mode=args.usermode)
+        config = ConfigManager(args.config, dev_mode=args.dev, user_mode=args.user)
 
-        # 验证配置
         logger.info("验证配置文件...")
         validator = ConfigValidator(config)
         is_valid, errors, warnings = validator.validate_config(config.config)
@@ -290,12 +254,10 @@ async def main():
             for error in errors:
                 logger.error(f"  - {error}")
 
-            # 尝试自动修复
             logger.info("尝试自动修复配置问题...")
             fixed_config = validator.fix_common_issues(config.config)
             config.config = fixed_config
 
-            # 重新验证
             is_valid, errors, warnings = validator.validate_config(config.config)
             if is_valid:
                 logger.info("✓ 配置问题已自动修复")
@@ -303,13 +265,11 @@ async def main():
                 logger.error("自动修复失败，请手动检查配置文件")
                 return 1
 
-        # 显示警告
         if warnings:
             logger.warning("配置警告:")
             for warning in warnings:
                 logger.warning(f"  - {warning}")
 
-        # 显示验证报告（仅在调试模式下）
         if args.dry_run:
             print(validator.get_validation_report())
 
@@ -317,64 +277,40 @@ async def main():
         print(f"❌ 配置文件加载失败: {e}")
         sys.exit(1)
 
-    # 注册信号处理
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # 测试通知
     if args.test_notification:
         await test_notification_func(config)
         return
 
-    # 自主测试模式
     if args.autonomous_test:
         return await run_autonomous_test(args)
 
-    # 判断调度器是否启用
-    scheduler_enabled = config.get("scheduler.enabled", False)
+    scheduler_enabled = config.get("scheduler.enabled", True)
 
-    # --no-schedule 参数覆盖配置
-    if args.no_schedule:
-        scheduler_enabled = False
-        logger.info("⚡ --no-schedule 参数已设置，跳过调度模式")
-
-    # 调度模式
     if scheduler_enabled:
         logger.info("启动调度模式...")
         from infrastructure.scheduler import TaskScheduler
 
         scheduler = TaskScheduler(config)
 
-        # 定义调度任务
         async def scheduled_task():
             app = MSRewardsApp(config, args)
             await app.run()
 
-        # --schedule-only 跳过首次执行，直接进入调度
-        run_once_first = not args.schedule_only
-        if args.schedule_only:
-            logger.info("⚡ --schedule-only 参数已设置，跳过首次执行，直接进入调度")
-
-        # 兼容旧的 --schedule-now 参数（等同于默认行为）
-        if args.schedule_now:
-            logger.info("⚡ --schedule-now 参数已设置（现在这是默认行为）")
-
-        await scheduler.run_scheduled_task(scheduled_task, run_once_first=run_once_first)
+        await scheduler.run_scheduled_task(scheduled_task, run_once_first=True)
     else:
-        # 立即执行 - 使用新的架构
         app = MSRewardsApp(config, args)
 
-        # 输出基本信息
         logger.info("=" * 70)
         logger.info("MS Rewards Automator - 开始执行")
         logger.info("=" * 70)
         logger.info(f"执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info(f"执行模式: {args.mode}")
         logger.info(f"浏览器: {args.browser}")
         logger.info(f"无头模式: {config.get('browser.headless', True)}")
         logger.info("=" * 70)
 
-        # 启动实时状态显示
         if not config.get("browser.headless", True):
             from ui.real_time_status import StatusManager
 

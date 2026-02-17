@@ -35,8 +35,8 @@ class SearchConfig:
 
     desktop_count: int = 30
     mobile_count: int = 20
-    wait_interval_min: int = 8
-    wait_interval_max: int = 20
+    wait_interval_min: int = 5
+    wait_interval_max: int = 15
     search_terms_file: str = "tools/search_terms.txt"
 
 

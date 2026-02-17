@@ -109,24 +109,8 @@ class SystemInitializer:
             self.logger.info("检测到首次运行（无登录状态），自动切换到有头模式以便登录")
             self.config.config["browser"]["headless"] = False
 
-        # 应用命令行参数
         if self.args.headless:
             self.config.config["browser"]["headless"] = True
-
-        if self.args.mode == "fast":
-            if isinstance(self.config.config["search"].get("wait_interval"), dict):
-                self.config.config["search"]["wait_interval"]["min"] = 2
-                self.config.config["search"]["wait_interval"]["max"] = 5
-            else:
-                self.config.config["search"]["wait_interval"] = {"min": 2, "max": 5}
-            self.config.config["browser"]["slow_mo"] = 50
-        elif self.args.mode == "slow":
-            if isinstance(self.config.config["search"].get("wait_interval"), dict):
-                self.config.config["search"]["wait_interval"]["min"] = 15
-                self.config.config["search"]["wait_interval"]["max"] = 30
-            else:
-                self.config.config["search"]["wait_interval"] = {"min": 15, "max": 30}
-            self.config.config["browser"]["slow_mo"] = 200
 
     def _init_query_engine(self) -> QueryEngine | None:
         """初始化查询引擎"""

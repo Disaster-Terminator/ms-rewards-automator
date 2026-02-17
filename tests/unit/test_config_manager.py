@@ -49,7 +49,7 @@ class TestConfigManager:
         manager = ConfigManager("nonexistent_config.yaml")
 
         # 测试嵌套访问
-        assert manager.get("search.wait_interval") == 5
+        assert manager.get("search.wait_interval") == {"min": 5, "max": 15}
         assert not manager.get("login.auto_login.enabled")
         assert not manager.get("browser.headless")
 
@@ -98,9 +98,9 @@ class TestConfigManager:
             os.unlink(config_path)
 
     def test_validate_config_invalid_wait_interval(self):
-        """测试 wait_interval 的向后兼容转换"""
-        # 当 wait_interval 是 dict 格式时，会自动转换为 int（使用 min 和 max 的中间值）
-        config_data = {"search": {"wait_interval": {"min": 3, "max": 8}}}
+        """测试 wait_interval 的向后兼容转换（int -> dict）"""
+        # 当 wait_interval 是 int 格式时，会自动转换为 dict 格式
+        config_data = {"search": {"wait_interval": 5}}
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
@@ -108,8 +108,8 @@ class TestConfigManager:
 
         try:
             manager = ConfigManager(config_path)
-            # dict 格式会被转换为 int（中间值）
-            assert manager.get("search.wait_interval") == 5  # (3+8)//2 = 5
+            # int 格式会被转换为 dict 格式
+            assert manager.get("search.wait_interval") == {"min": 5, "max": 15}
             assert manager.validate_config()
         finally:
             os.unlink(config_path)

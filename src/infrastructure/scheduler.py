@@ -32,12 +32,10 @@ class TaskScheduler:
         """
         self.config = config
 
-        # 调度配置
-        self.enabled = config.get("scheduler.enabled", False)
-        self.mode = config.get("scheduler.mode", "scheduled")  # "scheduled", "random", "fixed"
+        self.enabled = config.get("scheduler.enabled", True)
+        self.mode = config.get("scheduler.mode", "scheduled")
         self.run_once_on_start = config.get("scheduler.run_once_on_start", True)
 
-        # 时区配置
         self.timezone_str = config.get("scheduler.timezone", "Asia/Shanghai")
         try:
             if ZoneInfo is not None:
@@ -51,11 +49,8 @@ class TaskScheduler:
             self.timezone = ZoneInfo("Asia/Shanghai") if ZoneInfo else None
             self.timezone_str = "Asia/Shanghai"
 
-        # 定时+随机偏移模式配置（推荐）
-        self.scheduled_hour = config.get("scheduler.scheduled_hour", 10)  # 整点时间
-        self.max_offset_minutes = config.get(
-            "scheduler.max_offset_minutes", 30
-        )  # 最大偏移量（分钟）
+        self.scheduled_hour = config.get("scheduler.scheduled_hour", 17)
+        self.max_offset_minutes = config.get("scheduler.max_offset_minutes", 45)
 
         # 随机模式配置（旧）
         self.random_start_hour = config.get("scheduler.random_start_hour", 8)
