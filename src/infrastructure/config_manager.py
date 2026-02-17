@@ -235,9 +235,9 @@ class ConfigManager:
             logger.warning(f"未知的执行模式: {mode}，使用 normal")
             mode = "normal"
 
-        preset = EXECUTION_MODE_PRESETS[mode]
-        self.config = self._merge_configs(self.config, preset)
         if mode != "normal":
+            preset = EXECUTION_MODE_PRESETS[mode]
+            self.config = self._merge_configs(self.config, preset)
             logger.info(f"⚡ 执行模式: {mode}")
 
     def _apply_dev_mode(self) -> None:
