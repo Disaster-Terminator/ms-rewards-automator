@@ -269,7 +269,7 @@ streamlit run tools/dashboard.py
 ### 技术文档
 
 - **[技术参考](docs/reports/技术参考.md)** - 防检测策略、健康监控和技术实现细节
-- **[分支管理指南](docs/BRANCH_GUIDE.md)** - 开发工作流和验收标准
+- **[分支管理指南](docs/reference/BRANCH_GUIDE.md)** - 开发工作流和验收标准
 
 ### 配置文件说明
 
