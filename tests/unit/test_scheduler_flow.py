@@ -161,9 +161,9 @@ def test_config_path():
 
 
 @pytest.mark.asyncio
-async def test_scheduler_basic_flow():
+async def test_scheduler_basic_flow(test_config_path):
     """测试调度器基本流程"""
-    result = await run_scheduler_test(test_delay_seconds=2)
+    result = await run_scheduler_test(test_delay_seconds=2, config_path=str(test_config_path))
     assert result.is_passed(), f"调度器测试失败: {result.errors}"
 
 

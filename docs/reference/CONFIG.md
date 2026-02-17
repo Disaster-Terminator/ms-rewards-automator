@@ -1,6 +1,29 @@
 # 配置文件参考
 
-## 一、搜索配置
+## 一、执行模式配置
+
+```yaml
+execution:
+  mode: "normal"  # fast(快速), normal(默认), slow(安全)
+```
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `mode` | normal | 执行速度模式 |
+
+**执行模式预设**：
+
+| 模式 | wait_interval | slow_mo | 说明 |
+|------|---------------|---------|------|
+| `fast` | 2-5秒 | 50ms | 快速模式，适合测试环境 |
+| `normal` | 5-15秒 | 100ms | 默认模式，速度与安全平衡 |
+| `slow` | 15-30秒 | 200ms | 安全模式，更接近人工操作 |
+
+> **注意**：`fast` 和 `slow` 模式会覆盖 `search.wait_interval` 和 `browser.slow_mo` 配置。`normal` 模式尊重用户配置。
+
+---
+
+## 二、搜索配置
 
 ```yaml
 search:
@@ -21,7 +44,7 @@ search:
 
 ---
 
-## 二、浏览器配置
+## 三、浏览器配置
 
 ```yaml
 browser:
@@ -37,7 +60,7 @@ browser:
 
 ---
 
-## 三、登录配置
+## 四、登录配置
 
 ```yaml
 login:
@@ -52,7 +75,7 @@ login:
 
 ---
 
-## 四、调度器配置
+## 五、调度器配置
 
 ```yaml
 scheduler:
@@ -77,7 +100,7 @@ scheduler:
 
 ---
 
-## 五、通知配置
+## 六、通知配置
 
 ```yaml
 notification:
@@ -97,7 +120,7 @@ notification:
 
 ---
 
-## 六、任务系统配置
+## 七、任务系统配置
 
 ```yaml
 task_system:
@@ -107,7 +130,7 @@ task_system:
 
 ---
 
-## 七、监控配置
+## 八、监控配置
 
 ```yaml
 monitoring:
@@ -118,7 +141,7 @@ monitoring:
 
 ---
 
-## 八、完整配置示例
+## 九、完整配置示例
 
 ```yaml
 search:
