@@ -247,6 +247,7 @@ class ConfigManager:
         if mode != "normal":
             preset = EXECUTION_MODE_PRESETS[mode]
             self.config = self._merge_configs(self.config, preset)
+            self.config_data = self.config
             logger.info(f"⚡ 执行模式: {mode}")
 
     def _apply_dev_mode(self) -> None:

@@ -194,12 +194,16 @@ class NotificationConfig:
 class SchedulerConfig:
     """调度器配置"""
 
-    enabled: bool = False
-    mode: str = "random"  # random, fixed
+    enabled: bool = True
+    mode: str = "scheduled"  # scheduled, random, fixed
+    scheduled_hour: int = 17
+    max_offset_minutes: int = 45
     random_start_hour: int = 8
     random_end_hour: int = 22
     fixed_hour: int = 10
     fixed_minute: int = 0
+    timezone: str = "local"
+    run_once_on_start: bool = False
 
 
 @dataclass
@@ -345,10 +349,16 @@ class AppConfig:
                 enabled=get_nested(notification_dict, "enabled", False),
             ),
             scheduler=SchedulerConfig(
-                enabled=get_nested(scheduler_dict, "enabled", False),
-                mode=get_nested(scheduler_dict, "mode", "random"),
+                enabled=get_nested(scheduler_dict, "enabled", True),
+                mode=get_nested(scheduler_dict, "mode", "scheduled"),
+                scheduled_hour=get_nested(scheduler_dict, "scheduled_hour", 17),
+                max_offset_minutes=get_nested(scheduler_dict, "max_offset_minutes", 45),
                 random_start_hour=get_nested(scheduler_dict, "random_start_hour", 8),
                 random_end_hour=get_nested(scheduler_dict, "random_end_hour", 22),
+                fixed_hour=get_nested(scheduler_dict, "fixed_hour", 10),
+                fixed_minute=get_nested(scheduler_dict, "fixed_minute", 0),
+                timezone=get_nested(scheduler_dict, "timezone", "local"),
+                run_once_on_start=get_nested(scheduler_dict, "run_once_on_start", False),
             ),
             error_handling=ErrorHandlingConfig(
                 max_retries=get_nested(error_handling_dict, "max_retries", 3),
