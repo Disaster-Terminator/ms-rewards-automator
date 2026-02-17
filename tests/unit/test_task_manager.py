@@ -277,20 +277,37 @@ class TestTaskManager:
         result = manager._create_task_from_metadata(metadata)
         assert result is None
 
-    def test_task_manager_create_task_skips_quiz_keywords(self, mock_config):
-        """Test that tasks with quiz keywords are skipped"""
+    def test_task_manager_creates_puzzle_task(self, mock_config):
+        """Test that puzzle tasks are created (puzzle is just a URL task)"""
+        manager = TaskManager(mock_config)
+
+        metadata = TaskMetadata(
+            task_id="puzzle-task",
+            task_type="urlreward",
+            title="Daily Puzzle Challenge",
+            points=10,
+            is_completed=False,
+        )
+
+        result = manager._create_task_from_metadata(metadata)
+        assert result is not None
+        assert result.get_type() == "urlreward"
+
+    def test_task_manager_converts_quiz_to_urlreward(self, mock_config):
+        """Test that quiz tasks are converted to urlreward tasks"""
         manager = TaskManager(mock_config)
 
         metadata = TaskMetadata(
             task_id="quiz-task",
-            task_type="urlreward",
+            task_type="quiz",
             title="Daily Quiz Challenge",
             points=10,
             is_completed=False,
         )
 
         result = manager._create_task_from_metadata(metadata)
-        assert result is None
+        assert result is not None
+        assert result.get_type() == "urlreward"
 
     def test_task_manager_create_task_skips_unregistered_type(self, mock_config):
         """Test that unregistered task types return None"""

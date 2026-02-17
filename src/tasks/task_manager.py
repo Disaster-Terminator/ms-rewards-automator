@@ -91,12 +91,20 @@ class TaskManager:
             self.logger.debug(f"⏭️  跳过0积分任务: {metadata.title}")
             return None
 
-        # Skip tasks with specific keywords (immature implementations)
-        skip_keywords = ["拼图", "puzzle", "问答", "quiz", "测验", "test"]
-        title_lower = metadata.title.lower()
-        if any(keyword in title_lower or keyword in metadata.title for keyword in skip_keywords):
-            self.logger.debug(f"⏭️  跳过不成熟任务类型: {metadata.title}")
-            return None
+        # Quiz and poll tasks are treated as URL reward tasks (just visit the URL)
+        if task_type in ("quiz", "poll"):
+            self.logger.debug(f"📝 将{task_type}任务作为URL任务处理: {metadata.title}")
+            metadata = TaskMetadata(
+                task_id=metadata.task_id,
+                task_type="urlreward",
+                title=metadata.title,
+                points=metadata.points,
+                is_completed=metadata.is_completed,
+                destination_url=metadata.destination_url,
+                promotion_type=metadata.promotion_type,
+                is_button=metadata.is_button,
+            )
+            task_type = "urlreward"
 
         # Check if task type is enabled in config
         task_type_key = task_type.replace("urlreward", "url_reward")  # Handle naming difference
