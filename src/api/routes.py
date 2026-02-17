@@ -5,13 +5,10 @@ API 路由定义
 
 import asyncio
 import logging
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
+
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-
-from .websocket import ConnectionManager
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -34,12 +31,12 @@ class TaskStatusResponse(BaseModel):
     desktop_searches_total: int
     mobile_searches_completed: int
     mobile_searches_total: int
-    initial_points: Optional[int]
-    current_points: Optional[int]
+    initial_points: int | None
+    current_points: int | None
     points_gained: int
     error_count: int
     warning_count: int
-    start_time: Optional[float]
+    start_time: float | None
     elapsed_seconds: float
 
 
@@ -57,16 +54,16 @@ class ConfigResponse(BaseModel):
 
 
 class ConfigUpdateRequest(BaseModel):
-    search: Optional[dict] = None
-    browser: Optional[dict] = None
-    account: Optional[dict] = None
-    login: Optional[dict] = None
-    task_system: Optional[dict] = None
-    notification: Optional[dict] = None
-    scheduler: Optional[dict] = None
-    logging: Optional[dict] = None
-    bing_theme: Optional[dict] = None
-    monitoring: Optional[dict] = None
+    search: dict | None = None
+    browser: dict | None = None
+    account: dict | None = None
+    login: dict | None = None
+    task_system: dict | None = None
+    notification: dict | None = None
+    scheduler: dict | None = None
+    logging: dict | None = None
+    bing_theme: dict | None = None
+    monitoring: dict | None = None
 
 
 class HealthResponse(BaseModel):
@@ -76,14 +73,14 @@ class HealthResponse(BaseModel):
     browser: dict
     search_stats: dict
     uptime_seconds: float
-    recommendations: List[str]
+    recommendations: list[str]
 
 
 class PointsResponse(BaseModel):
-    current_points: Optional[int]
-    lifetime_points: Optional[int]
+    current_points: int | None
+    lifetime_points: int | None
     points_gained_today: int
-    last_updated: Optional[str]
+    last_updated: str | None
 
 
 def get_services(request: Request):
@@ -95,11 +92,11 @@ def get_services(request: Request):
         "health_service": getattr(request.app.state, 'health_service', None),
         "connection_manager": getattr(request.app.state, 'connection_manager', None),
     }
-    
+
     for name, service in services.items():
         if service is None:
             raise HTTPException(status_code=503, detail=f"服务未就绪: {name}")
-    
+
     return services
 
 
@@ -108,7 +105,7 @@ async def get_task_status(request: Request):
     """获取当前任务状态"""
     services = get_services(request)
     task_service = services["task_service"]
-    
+
     status = task_service.get_status()
     return TaskStatusResponse(**status)
 
@@ -119,10 +116,10 @@ async def start_task(request: Request, task_request: TaskStartRequest):
     try:
         services = get_services(request)
         task_service = services["task_service"]
-        
+
         if task_service.is_running:
             raise HTTPException(status_code=400, detail="任务正在运行中")
-        
+
         asyncio.create_task(task_service.start_task(
             mode=task_request.mode,
             headless=task_request.headless,
@@ -130,13 +127,13 @@ async def start_task(request: Request, task_request: TaskStartRequest):
             mobile_only=task_request.mobile_only,
             skip_daily_tasks=task_request.skip_daily_tasks,
         ))
-        
+
         return {"message": "任务已启动", "status": "starting"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"启动任务失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"启动任务失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"启动任务失败: {str(e)}") from None
 
 
 @router.post("/task/stop")
@@ -144,10 +141,10 @@ async def stop_task(request: Request):
     """停止任务"""
     services = get_services(request)
     task_service = services["task_service"]
-    
+
     if not task_service.is_running:
         raise HTTPException(status_code=400, detail="没有正在运行的任务")
-    
+
     await task_service.stop_task()
     return {"message": "任务已停止", "status": "stopped"}
 
@@ -157,7 +154,7 @@ async def get_config(request: Request):
     """获取当前配置"""
     services = get_services(request)
     config_service = services["config_service"]
-    
+
     config = config_service.get_config()
     return ConfigResponse(**config)
 
@@ -167,10 +164,10 @@ async def update_config(request: Request, config_update: ConfigUpdateRequest):
     """更新配置"""
     services = get_services(request)
     config_service = services["config_service"]
-    
+
     update_dict = config_update.model_dump(exclude_unset=True)
     config_service.update_config(update_dict)
-    
+
     return {"message": "配置已更新"}
 
 
@@ -179,7 +176,7 @@ async def get_health(request: Request):
     """获取健康状态"""
     services = get_services(request)
     health_service = services["health_service"]
-    
+
     health = health_service.get_health()
     return HealthResponse(**health)
 
@@ -189,7 +186,7 @@ async def get_points(request: Request):
     """获取积分信息"""
     services = get_services(request)
     task_service = services["task_service"]
-    
+
     points = task_service.get_points_info()
     return PointsResponse(**points)
 
@@ -199,7 +196,7 @@ async def get_recent_logs(request: Request, lines: int = 100):
     """获取最近的日志"""
     services = get_services(request)
     log_service = services["log_service"]
-    
+
     logs = log_service.get_recent_logs(lines)
     return {"logs": logs, "count": len(logs)}
 
@@ -209,11 +206,11 @@ async def stream_logs(request: Request):
     """实时日志流"""
     services = get_services(request)
     log_service = services["log_service"]
-    
+
     async def log_generator():
         async for line in log_service.log_stream():
             yield f"data: {line}\n\n"
-    
+
     return StreamingResponse(
         log_generator(),
         media_type="text/event-stream",
@@ -225,7 +222,7 @@ async def get_history(request: Request, days: int = 7):
     """获取历史记录"""
     services = get_services(request)
     task_service = services["task_service"]
-    
+
     history = task_service.get_history(days)
     return {"history": history, "days": days}
 
@@ -237,12 +234,12 @@ async def get_dashboard(request: Request):
     task_service = services["task_service"]
     health_service = services["health_service"]
     config_service = services["config_service"]
-    
+
     dashboard_data = {
         "status": task_service.get_status(),
         "health": health_service.get_health(),
         "config_summary": config_service.get_summary(),
         "points": task_service.get_points_info(),
     }
-    
+
     return dashboard_data

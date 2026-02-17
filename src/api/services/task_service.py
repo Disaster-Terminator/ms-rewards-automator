@@ -4,31 +4,30 @@
 """
 
 import asyncio
+import json
 import logging
+import sys
 import time
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
-import json
+from typing import Any
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from infrastructure.config_manager import ConfigManager
 from infrastructure.ms_rewards_app import MSRewardsApp
 from ui.real_time_status import StatusManager
 
-
 logger = logging.getLogger(__name__)
 
 
 class TaskService:
     """任务服务类"""
-    
+
     def __init__(self, connection_manager, config_service):
         """
         初始化任务服务
-        
+
         Args:
             connection_manager: WebSocket 连接管理器
             config_service: 配置服务
@@ -36,9 +35,9 @@ class TaskService:
         self.connection_manager = connection_manager
         self.config_service = config_service
         self.is_running = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
-        
+
         self.status = {
             "is_running": False,
             "current_operation": "空闲",
@@ -56,19 +55,19 @@ class TaskService:
             "start_time": None,
             "elapsed_seconds": 0.0,
         }
-        
+
         self._history_file = Path("logs/task_history.json")
-    
-    def get_status(self) -> Dict[str, Any]:
+
+    def get_status(self) -> dict[str, Any]:
         """获取当前任务状态"""
         status = self.status.copy()
-        
+
         if status["start_time"]:
             status["elapsed_seconds"] = time.time() - status["start_time"]
-        
+
         return status
-    
-    def get_points_info(self) -> Dict[str, Any]:
+
+    def get_points_info(self) -> dict[str, Any]:
         """获取积分信息"""
         return {
             "current_points": self.status["current_points"],
@@ -76,34 +75,34 @@ class TaskService:
             "points_gained_today": self.status["points_gained"],
             "last_updated": datetime.now().isoformat() if self.status["current_points"] else None,
         }
-    
-    def get_history(self, days: int = 7) -> List[Dict[str, Any]]:
+
+    def get_history(self, days: int = 7) -> list[dict[str, Any]]:
         """
         获取历史记录
-        
+
         Args:
             days: 查询天数
-            
+
         Returns:
             历史记录列表
         """
         history = []
-        
+
         if self._history_file.exists():
             try:
-                with open(self._history_file, 'r', encoding='utf-8') as f:
+                with open(self._history_file, encoding='utf-8') as f:
                     all_history = json.load(f)
-                
+
                 cutoff = datetime.now().timestamp() - (days * 24 * 3600)
                 history = [
-                    h for h in all_history 
+                    h for h in all_history
                     if datetime.fromisoformat(h["timestamp"]).timestamp() >= cutoff
                 ]
             except Exception as e:
                 logger.error(f"加载历史记录失败: {e}")
-        
+
         return history
-    
+
     async def start_task(
         self,
         mode: str = "normal",
@@ -115,13 +114,13 @@ class TaskService:
         if self.is_running:
             logger.warning("任务已在运行中")
             return
-        
+
         self.is_running = True
         self._stop_event.clear()
-        
+
         desktop_count = self.config_service.get("search.desktop_count", 30)
         mobile_count = self.config_service.get("search.mobile_count", 20)
-        
+
         self.status.update({
             "is_running": True,
             "current_operation": "初始化",
@@ -138,42 +137,42 @@ class TaskService:
             "start_time": time.time(),
             "elapsed_seconds": 0.0,
         })
-        
+
         await self.connection_manager.broadcast_task_event(
-            "started", 
+            "started",
             "任务已启动",
             {"mode": mode, "headless": headless}
         )
-        
+
         await self._broadcast_status_update()
-        
+
         self._task = asyncio.current_task()
-        
+
         def operation_callback(operation: str):
             self.status["current_operation"] = operation
             asyncio.create_task(self._broadcast_status_update())
-        
+
         def progress_callback(progress: int, total: int):
             self.status["progress"] = progress
             self.status["total_steps"] = total
             asyncio.create_task(self._broadcast_status_update())
-        
+
         def desktop_search_callback(completed: int, total: int):
             self.status["desktop_searches_completed"] = completed
             self.status["desktop_searches_total"] = total
             asyncio.create_task(self._broadcast_status_update())
-        
+
         def mobile_search_callback(completed: int, total: int):
             self.status["mobile_searches_completed"] = completed
             self.status["mobile_searches_total"] = total
             asyncio.create_task(self._broadcast_status_update())
-        
+
         def points_callback(current: int, initial: int):
             self.status["current_points"] = current
             self.status["initial_points"] = initial
             self.status["points_gained"] = current - initial if initial else 0
             asyncio.create_task(self._broadcast_points_update())
-        
+
         StatusManager.set_callbacks({
             'operation': operation_callback,
             'progress': progress_callback,
@@ -181,13 +180,13 @@ class TaskService:
             'mobile_searches': mobile_search_callback,
             'points': points_callback,
         })
-        
+
         try:
             config = ConfigManager("config.yaml")
-            
+
             if headless:
                 config.set("browser.headless", True)
-            
+
             class Args:
                 def __init__(self):
                     self.mode = mode
@@ -199,17 +198,17 @@ class TaskService:
                     self.mobile_only = mobile_only
                     self.skip_daily_tasks = skip_daily_tasks
                     self.dry_run = False
-            
+
             args = Args()
             app = MSRewardsApp(config, args)
-            
+
             exit_code = await app.run()
-            
+
             self.status["current_operation"] = "完成"
             self.status["progress"] = self.status["total_steps"]
-            
+
             await self._save_history()
-            
+
             await self.connection_manager.broadcast_task_event(
                 "completed",
                 "任务执行完成",
@@ -219,63 +218,63 @@ class TaskService:
                     "duration": time.time() - self.status["start_time"] if self.status["start_time"] else 0,
                 }
             )
-            
+
         except asyncio.CancelledError:
             logger.info("任务被取消")
             self.status["current_operation"] = "已取消"
             await self.connection_manager.broadcast_task_event("cancelled", "任务已取消")
-            
+
         except Exception as e:
             logger.error(f"任务执行失败: {e}")
             self.status["error_count"] += 1
             self.status["current_operation"] = f"错误: {str(e)}"
             await self.connection_manager.broadcast_task_event("error", f"任务执行失败: {e}")
-            
+
         finally:
             self.is_running = False
             self.status["is_running"] = False
             self._task = None
             await self._broadcast_status_update()
-    
+
     async def stop_task(self):
         """停止当前任务"""
         if not self.is_running:
             return
-        
+
         logger.info("正在停止任务...")
         self._stop_event.set()
-        
+
         if self._task and not self._task.done():
             self._task.cancel()
             try:
                 await self._task
             except asyncio.CancelledError:
                 pass
-        
+
         self.is_running = False
         self.status["is_running"] = False
         self.status["current_operation"] = "已停止"
-        
+
         await self._broadcast_status_update()
-    
+
     async def _broadcast_status_update(self):
         """广播状态更新"""
         await self.connection_manager.broadcast_status(self.get_status())
-    
+
     async def _broadcast_points_update(self):
         """广播积分更新"""
         await self.connection_manager.broadcast_points(self.get_points_info())
-    
+
     async def _save_history(self):
         """保存历史记录"""
         try:
             self._history_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             history = []
             if self._history_file.exists():
-                with open(self._history_file, 'r', encoding='utf-8') as f:
+                with open(self._history_file, encoding='utf-8') as f:
                     history = json.load(f)
-            
+
             history.append({
                 "timestamp": datetime.now().isoformat(),
                 "points_gained": self.status["points_gained"],
@@ -284,9 +283,9 @@ class TaskService:
                 "errors": self.status["error_count"],
                 "duration_seconds": time.time() - self.status["start_time"] if self.status["start_time"] else 0,
             })
-            
+
             with open(self._history_file, 'w', encoding='utf-8') as f:
                 json.dump(history[-100:], f, ensure_ascii=False, indent=2)
-                
+
         except Exception as e:
             logger.error(f"保存历史记录失败: {e}")

@@ -22,15 +22,14 @@ logging.basicConfig(
     ]
 )
 
-import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+import uvicorn  # noqa: E402
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from api.app import lifespan
-from api.routes import router as api_router
-
+from api.app import lifespan  # noqa: E402
+from api.routes import router as api_router  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ logger = logging.getLogger(__name__)
 def create_web_app() -> FastAPI:
     """
     创建 Web 应用实例
-    
+
     Returns:
         配置好的 FastAPI 应用实例
     """
@@ -48,7 +47,7 @@ def create_web_app() -> FastAPI:
         version="1.0.0",
         lifespan=lifespan,
     )
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -56,22 +55,22 @@ def create_web_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     app.include_router(api_router, prefix="/api")
-    
+
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
         from api.app import connection_manager
         if not connection_manager:
             await websocket.close(code=1011, reason="Server not ready")
             return
-            
+
         await connection_manager.connect(websocket)
         try:
             while True:
                 try:
                     data = await asyncio.wait_for(
-                        websocket.receive_text(), 
+                        websocket.receive_text(),
                         timeout=60.0
                     )
                     try:
@@ -79,14 +78,14 @@ def create_web_app() -> FastAPI:
                         message = json.loads(data)
                         if message.get("type") == "ping":
                             await connection_manager.send_personal_message(
-                                {"type": "pong", "timestamp": __import__('datetime').datetime.now().isoformat()}, 
+                                {"type": "pong", "timestamp": __import__('datetime').datetime.now().isoformat()},
                                 websocket
                             )
                     except json.JSONDecodeError:
                         pass
                 except asyncio.TimeoutError:
                     await connection_manager.send_personal_message(
-                        {"type": "ping", "timestamp": __import__('datetime').datetime.now().isoformat()}, 
+                        {"type": "ping", "timestamp": __import__('datetime').datetime.now().isoformat()},
                         websocket
                     )
         except WebSocketDisconnect:
@@ -95,11 +94,11 @@ def create_web_app() -> FastAPI:
             logger.error(f"WebSocket error: {e}")
         finally:
             await connection_manager.disconnect(websocket)
-    
+
     frontend_dist = Path(__file__).parent / "frontend" / "dist"
     if frontend_dist.exists():
         app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
-        
+
         @app.get("/{path:path}")
         async def serve_frontend(path: str):
             file_path = frontend_dist / path
@@ -108,20 +107,20 @@ def create_web_app() -> FastAPI:
             return FileResponse(str(frontend_dist / "index.html"))
     else:
         logger.warning(f"前端构建目录不存在: {frontend_dist}")
-    
+
     return app
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8000):
     """
     运行 Web 服务器
-    
+
     Args:
         host: 监听地址
         port: 监听端口
     """
     app = create_web_app()
-    
+
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║           MS Rewards Automator Web Interface                 ║
@@ -131,7 +130,7 @@ def run_server(host: str = "0.0.0.0", port: int = 8000):
 ║  按 Ctrl+C 停止服务                                          ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
-    
+
     uvicorn.run(
         app,
         host=host,
@@ -143,11 +142,11 @@ def run_server(host: str = "0.0.0.0", port: int = 8000):
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="MS Rewards Automator Web Server")
     parser.add_argument("--host", default="0.0.0.0", help="监听地址")
     parser.add_argument("--port", type=int, default=8000, help="监听端口")
-    
+
     args = parser.parse_args()
-    
+
     run_server(host=args.host, port=args.port)

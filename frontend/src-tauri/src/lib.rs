@@ -44,7 +44,13 @@ pub fn run() {
 
             #[cfg(not(debug_assertions))]
             {
-                let port = portpicker::pick_unused_port().expect("Failed to find an available port");
+                let port = match portpicker::pick_unused_port() {
+                    Some(p) => p,
+                    None => {
+                        log::error!("Failed to find an available port, using default 8000");
+                        8000
+                    }
+                };
                 BACKEND_PORT.store(port, Ordering::SeqCst);
                 log::info!("Assigned dynamic port for backend: {}", port);
 
