@@ -63,10 +63,18 @@ def create_web_app() -> FastAPI:
         from api.app import connection_manager
 
         if not connection_manager:
-            await websocket.close(code=1011, reason="Server not ready")
+            try:
+                await websocket.close(code=1011, reason="Server not ready")
+            except Exception:
+                pass
             return
 
-        await connection_manager.connect(websocket)
+        try:
+            await connection_manager.connect(websocket)
+        except Exception as e:
+            logger.error(f"Failed to accept WebSocket connection: {e}")
+            return
+
         try:
             while True:
                 try:
@@ -76,27 +84,33 @@ def create_web_app() -> FastAPI:
 
                         message = json.loads(data)
                         if message.get("type") == "ping":
-                            await connection_manager.send_personal_message(
-                                {
-                                    "type": "pong",
-                                    "timestamp": __import__("datetime").datetime.now().isoformat(),
-                                },
-                                websocket,
-                            )
+                            try:
+                                await connection_manager.send_personal_message(
+                                    {
+                                        "type": "pong",
+                                        "timestamp": __import__("datetime").datetime.now().isoformat(),
+                                    },
+                                    websocket,
+                                )
+                            except Exception:
+                                pass
                     except json.JSONDecodeError:
                         pass
                 except asyncio.TimeoutError:
-                    await connection_manager.send_personal_message(
-                        {
-                            "type": "ping",
-                            "timestamp": __import__("datetime").datetime.now().isoformat(),
-                        },
-                        websocket,
-                    )
+                    try:
+                        await connection_manager.send_personal_message(
+                            {
+                                "type": "ping",
+                                "timestamp": __import__("datetime").datetime.now().isoformat(),
+                            },
+                            websocket,
+                        )
+                    except Exception:
+                        break
         except WebSocketDisconnect:
             pass
         except Exception as e:
-            logger.error(f"WebSocket error: {e}")
+            logger.debug(f"WebSocket error: {e}")
         finally:
             await connection_manager.disconnect(websocket)
 

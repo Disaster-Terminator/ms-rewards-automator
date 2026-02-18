@@ -1,18 +1,24 @@
 import axios from 'axios'
 import { useStore, TaskStatus, Health, Points, Config, HistoryItem } from '../store'
 
+declare const __TAURI_ENV_DEBUG__: string | undefined
+
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
-const isTauriProduction = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+const isTauriDev = typeof __TAURI_ENV_DEBUG__ !== 'undefined' && __TAURI_ENV_DEBUG__ !== ''
+const isTauriProduction = isTauri && !isTauriDev
 
 let API_BASE = '/api'
+const TAURI_DEV_API_BASE = 'http://localhost:8000/api'
 let dynamicPort: number | null = null
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null
 let isConnecting = false
 let connectionPromise: Promise<void> | null = null
 
 const getApiBase = async (): Promise<string> => {
-  // Only use dynamic port in Tauri production mode
-  // In Tauri dev mode, use Vite proxy (/api)
+  if (isTauriDev) {
+    return TAURI_DEV_API_BASE
+  }
+  
   if (isTauriProduction) {
     if (dynamicPort) {
       return `http://localhost:${dynamicPort}/api`
@@ -27,8 +33,10 @@ const getApiBase = async (): Promise<string> => {
         store.setBackendPort(dynamicPort)
         return `http://localhost:${dynamicPort}/api`
       }
+      return `http://localhost:${port}/api`
     } catch (e) {
       console.warn('Failed to get dynamic port from Tauri, falling back to default:', e)
+      return 'http://localhost:8000/api'
     }
   }
   return API_BASE
@@ -129,15 +137,12 @@ export const startHeartbeat = () => {
     } catch (error) {
       heartbeatFailures++
       const store = useStore.getState()
-      store.setBackendReady(false)
       
       console.warn(`Heartbeat failed (${heartbeatFailures}/${MAX_HEARTBEAT_FAILURES})`)
       
       if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
-        console.log('Max heartbeat failures reached, attempting reconnect...')
-        store.setWsConnected(false)
-        disconnectWebSocket()
-        scheduleReconnect()
+        console.log('Max heartbeat failures reached, marking backend as not ready')
+        store.setBackendReady(false)
         heartbeatFailures = 0
       }
     }
@@ -188,22 +193,23 @@ export const connectWebSocket = async (): Promise<void> => {
   connectionPromise = new Promise(async (resolve) => {
     let wsUrl: string
     
-    if (isTauriProduction) {
+    if (isTauriDev) {
+      wsUrl = 'ws://localhost:8000/ws'
+    } else if (isTauriProduction) {
       let port = dynamicPort
       if (!port) {
         try {
           const { invoke } = await import('@tauri-apps/api/core')
           const p = await invoke<number>('get_backend_port')
-          if (p && p !== 8000) {
-            port = p
-            dynamicPort = port
-            useStore.getState().setBackendPort(port)
-          }
+          port = p || 8000
+          dynamicPort = port
+          useStore.getState().setBackendPort(port)
         } catch (e) {
           console.warn('Failed to get backend port:', e)
+          port = 8000
         }
       }
-      wsUrl = `ws://localhost:${port || 8000}/ws`
+      wsUrl = `ws://localhost:${port}/ws`
     } else {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       wsUrl = `${protocol}//${window.location.host}/ws`

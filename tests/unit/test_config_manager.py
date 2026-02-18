@@ -39,9 +39,8 @@ class TestConfigManager:
         """测试缺失配置项使用默认值"""
         manager = ConfigManager("nonexistent_config.yaml")
 
-        # 应该使用默认配置
-        assert manager.get("search.desktop_count") == 30
-        assert manager.get("search.mobile_count") == 20
+        assert manager.get("search.desktop_count") == 20
+        assert manager.get("search.mobile_count") == 0
         assert not manager.get("browser.headless")
 
     def test_nested_config_access(self):
@@ -61,8 +60,7 @@ class TestConfigManager:
 
         try:
             manager = ConfigManager(config_path)
-            # 应该回退到默认配置
-            assert manager.get("search.desktop_count") == 30
+            assert manager.get("search.desktop_count") == 20
         finally:
             os.unlink(config_path)
 
@@ -146,11 +144,9 @@ class TestConfigManager:
 
         try:
             manager = ConfigManager(config_path)
-            # 覆盖的值
             assert manager.get("search.desktop_count") == 40
             assert manager.get("browser.headless")
-            # 默认值
-            assert manager.get("search.mobile_count") == 20
+            assert manager.get("search.mobile_count") == 0
             assert manager.get("browser.slow_mo") == 100
         finally:
             os.unlink(config_path)

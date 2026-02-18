@@ -14,27 +14,27 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className={clsx(
-      'min-h-screen flex transition-colors duration-300',
+      'h-screen flex overflow-hidden transition-colors duration-300',
       darkMode ? 'bg-canvas' : 'bg-canvas-light'
     )}>
       <Sidebar />
       <motion.div 
         animate={{ marginLeft: sidebarCollapsed ? 64 : 240 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
-        className="flex-1 flex flex-col min-w-0"
+        className="flex-1 flex flex-col min-w-0 min-h-0"
       >
         <Header />
         <main className={clsx(
-          'flex-1 p-6 overflow-auto transition-colors duration-300',
+          'flex-1 p-4 overflow-hidden transition-colors duration-300 min-h-0',
           darkMode 
-            ? 'bg-gradient-to-br from-canvas via-surface/30 to-canvas' 
-            : 'bg-gradient-to-br from-canvas-light via-white/50 to-canvas-light'
+            ? 'bg-gradient-to-br from-canvas via-surface/20 to-canvas' 
+            : 'bg-gradient-to-br from-canvas-light via-white/30 to-canvas-light'
         )}>
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-            className="max-w-7xl mx-auto w-full"
+            className="h-full max-w-7xl mx-auto"
           >
             {children}
           </motion.div>

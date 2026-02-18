@@ -37,15 +37,15 @@ class ConfigValidator:
                 "type": int,
                 "min": 1,
                 "max": 50,
-                "default": 30,
-                "description": "桌面搜索次数",
+                "default": 20,
+                "description": "搜索次数",
             },
             "search.mobile_count": {
                 "type": int,
-                "min": 1,
-                "max": 50,  # Increased from 30 to allow more flexibility
-                "default": 20,
-                "description": "移动搜索次数",
+                "min": 0,
+                "max": 50,
+                "default": 0,
+                "description": "移动搜索次数（新版已废弃）",
             },
             "search.wait_interval": {
                 "type": dict,

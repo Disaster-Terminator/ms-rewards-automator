@@ -22,7 +22,6 @@ export default function Header() {
     health,
     darkMode,
     toggleDarkMode,
-    lastDataUpdate,
     wsConnected,
     backendReady,
   } = useStore()
@@ -96,23 +95,12 @@ export default function Header() {
 
   const healthColors = darkMode ? healthColorsDark : healthColorsLight
 
-  const formatLastUpdate = (time: string | null) => {
-    if (!time) return '未更新'
-    const date = new Date(time)
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-    if (diff < 5) return '刚刚'
-    if (diff < 60) return `${diff}秒前`
-    if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  }
-
   const formatRuntime = (seconds: number) => {
-    if (seconds < 60) return `${seconds}秒`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`
-    const hours = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
+    const rounded = Math.round(seconds * 10) / 10
+    if (rounded < 60) return `${rounded}秒`
+    if (rounded < 3600) return `${Math.floor(rounded / 60)}分${Math.round(rounded % 60)}秒`
+    const hours = Math.floor(rounded / 3600)
+    const mins = Math.floor((rounded % 3600) / 60)
     return `${hours}时${mins}分`
   }
 
@@ -120,41 +108,34 @@ export default function Header() {
     <header
       data-tauri-drag-region
       className={clsx(
-        'h-14 backdrop-blur-xl border-b flex items-center justify-between px-5 sticky top-0 z-40 transition-all duration-300',
-        darkMode ? 'bg-surface/60 border-border' : 'bg-white/60 border-border-light',
-        isRunning && 'border-b-2 border-b-success-500/30'
+        'h-12 backdrop-blur-xl flex items-center justify-between px-4 sticky top-0 z-40 transition-all duration-300',
+        darkMode ? 'bg-white/[0.02]' : 'bg-white/40',
+        isRunning && 'border-b border-success-500/20'
       )}
     >
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center shadow-glow-primary">
-            <Zap size={16} className="text-dark-900" />
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center shadow-glow-primary">
+            <Zap size={14} className="text-dark-900" />
           </div>
           <div className="flex flex-col">
             <span
               className={clsx(
-                'text-sm font-semibold',
+                'text-xs font-semibold',
                 darkMode ? 'text-foreground' : 'text-foreground-light'
               )}
             >
               MS Rewards
             </span>
-            <span className={clsx('text-[10px]', darkMode ? 'text-muted' : 'text-muted-foreground')}>
-              v1.0.0
-            </span>
           </div>
         </div>
 
-        <div
-          className={clsx('w-px h-6', darkMode ? 'bg-border' : 'bg-border-light')}
-        />
-
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div
             className={clsx(
-              'w-2.5 h-2.5 rounded-full transition-all duration-300',
+              'w-2 h-2 rounded-full transition-all duration-300',
               wsConnected && backendReady
-                ? 'bg-success-400 shadow-glow-success animate-pulse-soft'
+                ? 'bg-success-400 shadow-glow-success'
                 : darkMode
                   ? 'bg-muted'
                   : 'bg-muted-foreground'
@@ -162,7 +143,7 @@ export default function Header() {
           />
           <span
             className={clsx(
-              'text-sm font-medium transition-colors',
+              'text-xs font-medium transition-colors',
               wsConnected && backendReady
                 ? 'text-success-400'
                 : darkMode
@@ -170,29 +151,21 @@ export default function Header() {
                   : 'text-muted-foreground'
             )}
           >
-            {wsConnected && backendReady ? '已连接' : '离线'}
+            {wsConnected && backendReady ? '在线' : '离线'}
           </span>
         </div>
 
         {isRunning && taskStatus && (
-          <div className="flex items-center gap-4 animate-fade-in">
-            <span
-              className={clsx(
-                'text-sm max-w-[200px] truncate',
-                darkMode ? 'text-muted' : 'text-muted-foreground'
-              )}
-            >
-              {taskStatus.current_operation}
-            </span>
+          <div className="flex items-center gap-3 animate-fade-in">
             <div className="flex items-center gap-2">
               <div
                 className={clsx(
-                  'w-20 h-1.5 rounded-full overflow-hidden',
-                  darkMode ? 'bg-surface-elevated' : 'bg-light-300'
+                  'w-16 h-1 rounded-full overflow-hidden',
+                  darkMode ? 'bg-white/10' : 'bg-black/10'
                 )}
               >
                 <div
-                  className="h-full bg-gradient-to-r from-primary-500 to-cyan-500 rounded-full transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-success-500 to-cyan-500 rounded-full transition-all duration-300"
                   style={{
                     width: `${(taskStatus.progress / Math.max(taskStatus.total_steps, 1)) * 100}%`,
                   }}
@@ -200,7 +173,7 @@ export default function Header() {
               </div>
               <span
                 className={clsx(
-                  'text-xs font-mono',
+                  'text-[10px] font-mono',
                   darkMode ? 'text-muted' : 'text-muted-foreground'
                 )}
               >
@@ -210,11 +183,11 @@ export default function Header() {
             {taskStatus.elapsed_seconds > 0 && (
               <div
                 className={clsx(
-                  'flex items-center gap-1 text-xs',
+                  'flex items-center gap-1 text-[10px]',
                   darkMode ? 'text-muted' : 'text-muted-foreground'
                 )}
               >
-                <Clock size={12} />
+                <Clock size={10} />
                 <span>{formatRuntime(taskStatus.elapsed_seconds)}</span>
               </div>
             )}
@@ -222,33 +195,21 @@ export default function Header() {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div
-          className={clsx(
-            'flex items-center gap-2 text-xs',
-            darkMode ? 'text-muted' : 'text-muted-foreground'
-          )}
-        >
-          <Clock size={12} />
-          <span>{formatLastUpdate(lastDataUpdate)}</span>
-        </div>
-
-        <div className={clsx('w-px h-5', darkMode ? 'bg-border' : 'bg-border-light')} />
-
+      <div className="flex items-center gap-2">
         {overallHealth !== 'healthy' && overallHealth !== 'unknown' && (
           <div
             className={clsx(
-              'flex items-center gap-1.5 px-2 py-1 rounded-lg',
+              'flex items-center gap-1.5 px-2 py-0.5 rounded-lg',
               overallHealth === 'error' ? 'bg-danger-500/10' : 'bg-warning-500/10'
             )}
           >
             <Circle
-              size={8}
+              size={6}
               className={clsx('fill-current', healthColors[overallHealth])}
             />
             <span
               className={clsx(
-                'text-xs',
+                'text-[10px]',
                 darkMode ? 'text-muted' : 'text-muted-foreground'
               )}
             >
@@ -259,9 +220,9 @@ export default function Header() {
 
         <button
           onClick={isRunning ? handleStop : handleStart}
-          disabled={!backendReady || isStarting || isStopping}
+          disabled={isRunning ? isStopping : (!backendReady || isStarting)}
           className={clsx(
-            'flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-sm transition-all duration-300 whitespace-nowrap',
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium text-xs transition-all duration-300',
             isRunning
               ? 'bg-danger-500 text-white hover:bg-danger-600'
               : 'bg-gradient-to-r from-primary-500 to-cyan-500 text-dark-900',
@@ -271,82 +232,80 @@ export default function Header() {
         >
           {isStarting ? (
             <>
-              <RefreshCw size={14} className="animate-spin flex-shrink-0" />
-              <span>启动中...</span>
+              <RefreshCw size={12} className="animate-spin flex-shrink-0" />
+              <span>启动中</span>
             </>
           ) : isStopping ? (
             <>
-              <RefreshCw size={14} className="animate-spin flex-shrink-0" />
-              <span>停止中...</span>
+              <RefreshCw size={12} className="animate-spin flex-shrink-0" />
+              <span>停止中</span>
             </>
           ) : isRunning ? (
             <>
-              <Square size={14} className="flex-shrink-0" />
-              <span>停止任务</span>
+              <Square size={12} className="flex-shrink-0" />
+              <span>停止</span>
             </>
           ) : (
             <>
-              <Play size={14} className="flex-shrink-0" />
-              <span>启动任务</span>
+              <Play size={12} className="flex-shrink-0" />
+              <span>启动</span>
             </>
           )}
         </button>
-
-        <div className={clsx('w-px h-5', darkMode ? 'bg-border' : 'bg-border-light')} />
 
         <button
           onClick={handleRefresh}
           className={clsx(
-            'p-2 rounded-xl transition-all duration-200',
+            'p-1.5 rounded-lg transition-all duration-200',
             darkMode
-              ? 'text-muted hover:text-foreground hover:bg-surface'
-              : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
+              ? 'text-muted hover:text-foreground hover:bg-white/5'
+              : 'text-muted-foreground hover:text-foreground-light hover:bg-black/5'
           )}
           title="刷新数据"
         >
-          <RefreshCw size={16} className={clsx(isRefreshing && 'animate-spin')} />
+          <RefreshCw size={14} className={clsx(isRefreshing && 'animate-spin')} />
         </button>
 
         <button
           className={clsx(
-            'relative p-2 rounded-xl transition-all duration-200',
+            'relative p-1.5 rounded-lg transition-all duration-200',
             darkMode
-              ? 'text-muted hover:text-foreground hover:bg-surface'
-              : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
+              ? 'text-muted hover:text-foreground hover:bg-white/5'
+              : 'text-muted-foreground hover:text-foreground-light hover:bg-black/5'
           )}
         >
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-danger-400 rounded-full" />
+          <Bell size={14} />
+          <span className="absolute top-1 right-1 w-1 h-1 bg-danger-400 rounded-full" />
         </button>
 
         <button
           onClick={toggleDarkMode}
           className={clsx(
-            'p-2 rounded-xl transition-all duration-200',
+            'p-1.5 rounded-lg transition-all duration-200',
             darkMode
-              ? 'text-muted hover:text-foreground hover:bg-surface'
-              : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
+              ? 'text-muted hover:text-foreground hover:bg-white/5'
+              : 'text-muted-foreground hover:text-foreground-light hover:bg-black/5'
           )}
           title={darkMode ? '切换到亮色模式' : '切换到暗色模式'}
         >
-          {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+          {darkMode ? <Sun size={14} /> : <Moon size={14} />}
         </button>
 
         <button
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate('/config')}
           className={clsx(
-            'p-2 rounded-xl transition-all duration-200',
-            location.pathname === '/settings'
+            'p-1.5 rounded-lg transition-all duration-200',
+            location.pathname === '/config'
               ? darkMode
-                ? 'bg-surface text-foreground'
-                : 'bg-light-200 text-foreground-light'
+                ? 'bg-white/10 text-foreground'
+                : 'bg-black/10 text-foreground-light'
               : darkMode
-                ? 'text-muted hover:text-foreground hover:bg-surface'
-                : 'text-muted-foreground hover:text-foreground-light hover:bg-light-200'
+                ? 'text-muted hover:text-foreground hover:bg-white/5'
+                : 'text-muted-foreground hover:text-foreground-light hover:bg-black/5'
           )}
           title="设置"
         >
-          <Settings size={16} />
+          <Settings size={14} />
         </button>
       </div>
     </header>

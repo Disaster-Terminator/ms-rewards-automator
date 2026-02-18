@@ -7,8 +7,14 @@ import { initializeTauriEvents, connectWebSocket, initializeData, startHeartbeat
 
 const MAX_INIT_RETRIES = 10
 const INIT_RETRY_DELAY = 1500
+let isInitialized = false
 
 const init = async (retryCount = 0): Promise<void> => {
+  if (isInitialized) {
+    return
+  }
+  isInitialized = true
+  
   console.log(`Initializing application (attempt ${retryCount + 1}/${MAX_INIT_RETRIES})...`)
   
   try {
@@ -26,6 +32,7 @@ const init = async (retryCount = 0): Promise<void> => {
     
     console.log('Application initialized successfully')
   } catch (error) {
+    isInitialized = false
     console.error(`Initialization failed (attempt ${retryCount + 1}/${MAX_INIT_RETRIES}):`, error)
     
     if (retryCount < MAX_INIT_RETRIES - 1) {

@@ -45,8 +45,8 @@ class ConfigService:
         """获取默认配置"""
         return {
             "search": {
-                "desktop_count": 30,
-                "mobile_count": 20,
+                "desktop_count": 20,
+                "mobile_count": 0,
                 "wait_interval": 5,
             },
             "browser": {

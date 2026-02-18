@@ -5,16 +5,13 @@ import {
   Smartphone,
   TrendingUp,
   TrendingDown,
-  Clock,
   AlertTriangle,
   CheckCircle,
-  Zap,
   RefreshCw,
   Target,
   Award,
   Play,
   Square,
-  Settings,
   Eye,
   EyeOff,
   SkipForward,
@@ -22,6 +19,8 @@ import {
   ChevronUp,
   Terminal,
   ExternalLink,
+  Activity,
+  Flame,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store'
@@ -87,30 +86,32 @@ function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       whileHover={{ scale: 1.02 }}
+      className="h-full"
     >
-      <Card className="group relative overflow-hidden">
+      <Card className="group relative overflow-hidden h-full mica-card-glow">
         <div
           className={cn(
             'absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300',
             colorClasses[color].gradient
           )}
         />
-        <CardContent className="relative p-5">
-          <div className="flex items-center justify-between mb-3">
+        <CardContent className="relative p-4">
+          <div className="flex items-center justify-between mb-2">
             <div
               className={cn(
                 'p-2 rounded-lg',
-                darkMode ? 'bg-dark-600/30' : 'bg-light-200',
+                darkMode ? 'bg-white/5' : 'bg-black/5',
                 colorClasses[color].icon
               )}
             >
-              <Icon size={18} />
+              <Icon size={16} />
             </div>
             {badge && (
               <Badge
                 variant={
                   color === 'success' ? 'success' : color === 'warning' ? 'warning' : 'default'
                 }
+                className="text-[10px] px-1.5 py-0.5"
               >
                 {badge}
               </Badge>
@@ -118,17 +119,17 @@ function StatCard({
           </div>
 
           {loading ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div
                 className={cn(
-                  'h-7 w-20 rounded animate-pulse',
-                  darkMode ? 'bg-dark-700/50' : 'bg-light-300'
+                  'h-6 w-16 rounded animate-pulse',
+                  darkMode ? 'bg-white/5' : 'bg-black/5'
                 )}
               />
               <div
                 className={cn(
-                  'h-4 w-16 rounded animate-pulse',
-                  darkMode ? 'bg-dark-700/50' : 'bg-light-300'
+                  'h-3 w-12 rounded animate-pulse',
+                  darkMode ? 'bg-white/5' : 'bg-black/5'
                 )}
               />
             </div>
@@ -136,7 +137,7 @@ function StatCard({
             <>
               <div
                 className={cn(
-                  'text-2xl font-bold tracking-tight',
+                  'text-xl font-bold tracking-tight',
                   darkMode ? 'text-dark-100' : 'text-light-900'
                 )}
               >
@@ -144,7 +145,7 @@ function StatCard({
                 {subValue && (
                   <span
                     className={cn(
-                      'text-base font-normal ml-1',
+                      'text-sm font-normal ml-1',
                       darkMode ? 'text-dark-400' : 'text-light-500'
                     )}
                   >
@@ -152,21 +153,21 @@ function StatCard({
                   </span>
                 )}
               </div>
-              <div className={cn('text-sm mt-1', darkMode ? 'text-dark-400' : 'text-light-600')}>
+              <div className={cn('text-xs mt-0.5', darkMode ? 'text-dark-400' : 'text-light-600')}>
                 {label}
               </div>
 
               {change !== undefined && (
                 <div
                   className={cn(
-                    'flex items-center gap-1 mt-2 text-sm font-medium',
+                    'flex items-center gap-1 mt-1.5 text-xs font-medium',
                     changeType === 'positive' ? 'text-success-500' : 'text-danger-500'
                   )}
                 >
                   {changeType === 'positive' ? (
-                    <TrendingUp size={14} />
+                    <TrendingUp size={12} />
                   ) : (
-                    <TrendingDown size={14} />
+                    <TrendingDown size={12} />
                   )}
                   <span>
                     {changeType === 'positive' ? '+' : ''}
@@ -202,16 +203,16 @@ function ModeCard({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'p-3 rounded-xl border text-left transition-all duration-200 ease-smooth group',
+        'p-2.5 rounded-xl text-left transition-all duration-200 ease-smooth group',
         selected
-          ? 'border-primary-500/50 bg-primary-500/10 shadow-lg shadow-primary-500/10'
+          ? 'bg-primary-500/15 shadow-lg shadow-primary-500/10'
           : darkMode
-            ? 'border-dark-600/50 bg-surface-400/50 hover:border-dark-500/50 hover:bg-surface-400'
-            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+            ? 'bg-white/[0.02] hover:bg-white/[0.05]'
+            : 'bg-black/5 hover:bg-black/10',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-0.5">
         <div
           className={cn(
             'font-semibold text-sm transition-colors',
@@ -262,10 +263,10 @@ function OptionToggle({
   return (
     <label
       className={cn(
-        'flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all duration-200',
+        'flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-200',
         darkMode
-          ? 'bg-surface-400/50 hover:bg-surface-400 border border-transparent hover:border-dark-600/50'
-          : 'bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200',
+          ? 'bg-white/[0.02] hover:bg-white/[0.04]'
+          : 'bg-black/5 hover:bg-black/10',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >
@@ -279,15 +280,15 @@ function OptionToggle({
         />
         <div
           className={cn(
-            'w-9 h-5 rounded-full transition-all duration-200 flex items-center',
-            checked ? 'bg-primary-500/30' : darkMode ? 'bg-dark-600' : 'bg-gray-300'
+            'w-8 h-4.5 rounded-full transition-all duration-200 flex items-center',
+            checked ? 'bg-primary-500/30' : darkMode ? 'bg-white/10' : 'bg-black/20'
           )}
         >
           <div
             className={cn(
-              'w-3.5 h-3.5 rounded-full transition-all duration-200 shadow-sm',
+              'w-3 h-3 rounded-full transition-all duration-200 shadow-sm',
               checked
-                ? 'translate-x-4.5 bg-primary-400 shadow-primary-400/50'
+                ? 'translate-x-4 bg-primary-400 shadow-primary-400/50'
                 : darkMode
                   ? 'translate-x-0.5 bg-dark-400'
                   : 'translate-x-0.5 bg-gray-500'
@@ -295,9 +296,9 @@ function OptionToggle({
           />
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-1.5 flex-1">
         <Icon
-          size={16}
+          size={14}
           className={cn(
             'transition-colors',
             checked ? colorClasses[color].icon : darkMode ? 'text-dark-400' : 'text-gray-400'
@@ -334,7 +335,7 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.08,
     },
   },
 }
@@ -368,13 +369,13 @@ export default function Dashboard() {
   const prevRunningRef = useRef(taskStatus?.is_running)
 
   const modes = [
-    { value: 'normal', label: '正常模式', description: '30+20 搜索' },
-    { value: 'usermode', label: '用户模式', description: '3+3 搜索' },
-    { value: 'dev', label: '开发模式', description: '2+2 搜索' },
+    { value: 'normal', label: '正常模式', description: '20 搜索' },
+    { value: 'usermode', label: '用户模式', description: '3 搜索' },
+    { value: 'dev', label: '开发模式', description: '2 搜索' },
   ]
 
   const recentLogs = useMemo(() => {
-    return logs.slice(-10)
+    return logs.slice(-8)
   }, [logs])
 
   useEffect(() => {
@@ -459,44 +460,18 @@ export default function Dashboard() {
     if (log.includes('SUCCESS') || log.includes('success') || log.includes('✓'))
       return 'text-success-400'
     if (log.includes('INFO') || log.includes('info')) return 'text-primary-400'
-    return darkMode ? 'text-dark-300' : 'text-light-600'
-  }, [darkMode])
+    return 'text-gray-400'
+  }, [])
+
+  const isRunning = taskStatus?.is_running
 
   return (
     <motion.div
-      className="space-y-6"
+      className="h-full flex flex-col gap-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">控制台</h1>
-          <p className="page-subtitle">MS Rewards Automator 任务控制中心</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              'flex items-center gap-2 text-sm',
-              darkMode ? 'text-dark-400' : 'text-light-600'
-            )}
-          >
-            <Clock size={14} />
-            <span>更新于: {formatLastUpdate(lastDataUpdate)}</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5"
-          >
-            <RefreshCw size={14} className={cn(isRefreshing && 'animate-spin')} />
-            刷新
-          </Button>
-        </div>
-      </motion.div>
-
       <AnimatePresence>
         {dataError && (
           <motion.div
@@ -504,13 +479,13 @@ export default function Dashboard() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <Card className="border-danger-500/30 bg-danger-500/5">
-              <CardContent className="p-5">
+            <Card className="border-danger-500/30 bg-danger-500/10 backdrop-blur-xl">
+              <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="text-danger-500" size={20} />
+                  <AlertTriangle className="text-danger-500" size={18} />
                   <div>
-                    <div className="text-danger-500 font-medium">连接错误</div>
-                    <div className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                    <div className="text-danger-500 font-medium text-sm">连接错误</div>
+                    <div className={cn('text-xs', darkMode ? 'text-dark-300' : 'text-light-600')}>
                       {dataError}
                     </div>
                   </div>
@@ -519,22 +494,20 @@ export default function Dashboard() {
             </Card>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {!backendReady && !dataError && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <Card className="border-warning-500/30 bg-warning-500/5">
-              <CardContent className="p-5">
+            <Card className="border-warning-500/30 bg-warning-500/10 backdrop-blur-xl">
+              <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <RefreshCw className="text-warning-500 animate-spin" size={20} />
+                  <RefreshCw className="text-warning-500 animate-spin" size={18} />
                   <div>
-                    <div className="text-warning-500 font-medium">正在连接后端服务...</div>
-                    <div className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                    <div className="text-warning-500 font-medium text-sm">正在连接后端服务...</div>
+                    <div className={cn('text-xs', darkMode ? 'text-dark-300' : 'text-light-600')}>
                       请稍候，后端服务正在启动中
                     </div>
                   </div>
@@ -545,489 +518,456 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        variants={itemVariants}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        <StatCard
-          icon={Coins}
-          label="当前积分"
-          value={points?.current_points?.toLocaleString() ?? null}
-          change={points?.points_gained_today}
-          changeType="positive"
-          color="primary"
-          badge="今日"
-          loading={dataLoading}
-        />
+      <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4">
+          <motion.div variants={itemVariants} className="grid grid-cols-4 gap-3">
+            <StatCard
+              icon={Coins}
+              label="当前积分"
+              value={points?.current_points?.toLocaleString() ?? null}
+              change={points?.points_gained_today}
+              changeType="positive"
+              color="primary"
+              badge="今日"
+              loading={dataLoading}
+            />
 
-        <StatCard
-          icon={Monitor}
-          label="桌面搜索"
-          value={taskStatus?.desktop_searches_completed ?? 0}
-          subValue={`/ ${taskStatus?.desktop_searches_total || config?.search.desktop_count || 30}`}
-          color="success"
-          badge="桌面"
-          loading={dataLoading}
-        />
+            <StatCard
+              icon={Monitor}
+              label="桌面搜索"
+              value={taskStatus?.desktop_searches_completed ?? 0}
+              subValue={`/${taskStatus?.desktop_searches_total || config?.search.desktop_count || 20}`}
+              color="success"
+              loading={dataLoading}
+            />
 
-        <StatCard
-          icon={Smartphone}
-          label="移动搜索"
-          value={taskStatus?.mobile_searches_completed ?? 0}
-          subValue={`/ ${taskStatus?.mobile_searches_total || config?.search.mobile_count || 20}`}
-          color="warning"
-          badge="移动"
-          loading={dataLoading}
-        />
+            <StatCard
+              icon={Smartphone}
+              label="移动搜索"
+              value={taskStatus?.mobile_searches_completed ?? 0}
+              subValue={`/${taskStatus?.mobile_searches_total || config?.search.mobile_count || 0}`}
+              color="warning"
+              loading={dataLoading}
+            />
 
-        <StatCard
-          icon={Zap}
-          label="运行时间"
-          value={formatUptime(health?.uptime_seconds ?? 0)}
-          color={
-            health?.overall === 'healthy'
-              ? 'success'
-              : health?.overall === 'warning'
-                ? 'warning'
-                : 'danger'
-          }
-          badge={
-            health?.overall === 'healthy'
-              ? '健康'
-              : health?.overall === 'warning'
-                ? '警告'
-                : '异常'
-          }
-          loading={dataLoading}
-        />
-      </motion.div>
+            <StatCard
+              icon={Activity}
+              label="运行时间"
+              value={formatUptime(health?.uptime_seconds ?? 0)}
+              color={
+                health?.overall === 'healthy'
+                  ? 'success'
+                  : health?.overall === 'warning'
+                    ? 'warning'
+                    : 'danger'
+              }
+              loading={dataLoading}
+            />
+          </motion.div>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2.5">
-              <Settings size={18} className="text-primary-500" />
-              任务控制面板
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div>
-              <label className="label">执行模式</label>
-              <div className="grid grid-cols-3 gap-3">
-                {modes.map((mode) => (
-                  <ModeCard
-                    key={mode.value}
-                    {...mode}
-                    selected={options.mode === mode.value}
-                    disabled={taskStatus?.is_running || false}
-                    onClick={() => setOptions({ ...options, mode: mode.value })}
-                    darkMode={darkMode}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className={cn(
-                  'flex items-center gap-2 text-sm font-medium transition-colors',
-                  darkMode ? 'text-dark-300 hover:text-dark-100' : 'text-light-600 hover:text-light-900'
-                )}
-              >
-                {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                高级选项
-              </button>
-
-              <AnimatePresence>
-                {showAdvanced && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-3 space-y-2"
-                  >
-                    <OptionToggle
-                      icon={options.headless ? EyeOff : Eye}
-                      label="无头模式"
-                      description="不显示浏览器窗口"
-                      checked={options.headless}
-                      disabled={taskStatus?.is_running || false}
-                      onChange={(checked) => setOptions({ ...options, headless: checked })}
-                      color="primary"
-                      darkMode={darkMode}
-                    />
-
-                    <OptionToggle
-                      icon={Monitor}
-                      label="仅桌面搜索"
-                      checked={options.desktop_only}
-                      disabled={taskStatus?.is_running || false}
-                      onChange={(checked) =>
-                        setOptions({
-                          ...options,
-                          desktop_only: checked,
-                          mobile_only: checked ? false : options.mobile_only,
-                        })
-                      }
-                      color="success"
-                      darkMode={darkMode}
-                    />
-
-                    <OptionToggle
-                      icon={Smartphone}
-                      label="仅移动搜索"
-                      checked={options.mobile_only}
-                      disabled={taskStatus?.is_running || false}
-                      onChange={(checked) =>
-                        setOptions({
-                          ...options,
-                          mobile_only: checked,
-                          desktop_only: checked ? false : options.desktop_only,
-                        })
-                      }
-                      color="warning"
-                      darkMode={darkMode}
-                    />
-
-                    <OptionToggle
-                      icon={SkipForward}
-                      label="跳过每日任务"
-                      checked={options.skip_daily_tasks}
-                      disabled={taskStatus?.is_running || false}
-                      onChange={(checked) => setOptions({ ...options, skip_daily_tasks: checked })}
-                      color="neutral"
-                      darkMode={darkMode}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleStart}
-                disabled={taskStatus?.is_running || isStarting || !backendReady}
-                className={cn(
-                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300',
-                  'bg-gradient-to-r from-primary-500 to-cyan-500 text-dark-900 hover:shadow-glow-primary',
-                  (taskStatus?.is_running || isStarting || !backendReady) &&
-                    'opacity-50 cursor-not-allowed'
-                )}
-              >
-                {isStarting ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    <span>启动中...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play size={16} />
-                    <span>启动任务</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleStop}
-                disabled={!taskStatus?.is_running || isStopping}
-                className={cn(
-                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300',
-                  'bg-danger-500 text-white hover:bg-danger-600 shadow-glow-danger',
-                  (!taskStatus?.is_running || isStopping) && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                {isStopping ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    <span>停止中...</span>
-                  </>
-                ) : (
-                  <>
-                    <Square size={16} />
-                    <span>停止任务</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {actionFeedback && (
-              <div
-                className={cn(
-                  'p-3 rounded-lg flex items-center gap-2',
-                  actionFeedback.type === 'success'
-                    ? darkMode
-                      ? 'bg-success-500/10 text-success-400 border border-success-500/20'
-                      : 'bg-green-50 text-green-700 border border-green-200'
-                    : darkMode
-                      ? 'bg-danger-500/10 text-danger-400 border border-danger-500/20'
-                      : 'bg-red-50 text-red-700 border border-red-200'
-                )}
-              >
-                {actionFeedback.type === 'success' ? (
-                  <CheckCircle size={16} />
-                ) : (
-                  <AlertTriangle size={16} />
-                )}
-                <span className="text-sm">{actionFeedback.message}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2.5">
-              <Target size={18} className="text-primary-500" />
-              今日进度
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className={cn('p-4 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Monitor size={16} className="text-success-500" />
-                  <span
-                    className={cn('text-sm font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}
-                  >
-                    桌面搜索
-                  </span>
-                </div>
-                <span
-                  className={cn('text-sm font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}
-                >
-                  {taskStatus?.desktop_searches_completed ?? 0} /{' '}
-                  {taskStatus?.desktop_searches_total || config?.search.desktop_count || 30}
-                </span>
-              </div>
-              <Progress
-                value={
-                  ((taskStatus?.desktop_searches_completed ?? 0) /
-                    (taskStatus?.desktop_searches_total || config?.search.desktop_count || 30)) *
-                  100
-                }
-                indicatorClassName="bg-gradient-to-r from-success-500 to-success-400"
-              />
-            </div>
-
-            <div className={cn('p-4 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Smartphone size={16} className="text-warning-500" />
-                  <span
-                    className={cn('text-sm font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}
-                  >
-                    移动搜索
-                  </span>
-                </div>
-                <span
-                  className={cn('text-sm font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}
-                >
-                  {taskStatus?.mobile_searches_completed ?? 0} /{' '}
-                  {taskStatus?.mobile_searches_total || config?.search.mobile_count || 20}
-                </span>
-              </div>
-              <Progress
-                value={
-                  ((taskStatus?.mobile_searches_completed ?? 0) /
-                    (taskStatus?.mobile_searches_total || config?.search.mobile_count || 20)) *
-                  100
-                }
-                indicatorClassName="bg-gradient-to-r from-warning-500 to-warning-400"
-              />
-            </div>
-
-            <div className={cn('p-4 rounded-lg', darkMode ? 'bg-surface-400/50' : 'bg-light-100')}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Award size={16} className="text-primary-500" />
-                  <span
-                    className={cn('text-sm font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}
-                  >
-                    每日任务
-                  </span>
-                </div>
-                <span
-                  className={cn('text-sm font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}
-                >
-                  {points?.points_gained_today ?? 0} 积分
-                </span>
-              </div>
-              <div className={cn('text-xs mt-1', darkMode ? 'text-dark-400' : 'text-light-500')}>
-                今日已获得积分
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2.5">
-              <Terminal size={18} className="text-primary-500" />
-              实时日志
-              <Badge variant="outline" className="ml-2">
-                最近 {recentLogs.length} 条
-              </Badge>
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-1.5"
-              onClick={() => (window.location.href = '/logs')}
-            >
-              <ExternalLink size={14} />
-              查看全部
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div
-              ref={logContainerRef}
-              className={cn(
-                'h-40 overflow-y-auto rounded-lg p-3 font-mono text-xs space-y-1',
-                darkMode ? 'bg-dark-700/50' : 'bg-light-200'
-              )}
-            >
-              {recentLogs.length > 0 ? (
-                recentLogs.map((log, index) => (
-                  <div key={index} className={cn('truncate', getLogColor(log))}>
-                    {log}
-                  </div>
-                ))
-              ) : (
-                <div
-                  className={cn(
-                    'flex items-center justify-center h-full',
-                    darkMode ? 'text-dark-400' : 'text-light-500'
-                  )}
-                >
-                  暂无日志
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <AnimatePresence>
-        {taskStatus?.is_running && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <Card className="border-primary-500/30 bg-primary-500/5">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2
-                    className={cn(
-                      'text-lg font-semibold flex items-center gap-2.5',
-                      darkMode ? 'text-dark-100' : 'text-light-900'
-                    )}
-                  >
+          <motion.div variants={itemVariants} className="flex-1 min-h-0">
+            <Card className="h-full mica-card flex flex-col">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  {isRunning ? (
                     <motion.div
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 1, repeat: Infinity }}
-                      className="w-2.5 h-2.5 bg-success-500 rounded-full shadow-lg shadow-success-500/50"
+                      className="w-2 h-2 bg-success-500 rounded-full shadow-lg shadow-success-500/50"
                     />
-                    任务执行中
-                  </h2>
-                  <span className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
-                    已运行 {formatUptime(taskStatus.elapsed_seconds)}
-                  </span>
-                </div>
+                  ) : (
+                    <Flame size={16} className="text-primary-500" />
+                  )}
+                  任务控制台
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col gap-4 px-4 pb-4">
+                {isRunning && taskStatus ? (
+                  <div className="flex-1 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-success-500/20 flex items-center justify-center">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                          >
+                            <RefreshCw size={20} className="text-success-400" />
+                          </motion.div>
+                        </div>
+                        <div>
+                          <div className={cn('text-sm font-medium', darkMode ? 'text-dark-100' : 'text-light-900')}>
+                            {taskStatus.current_operation}
+                          </div>
+                          <div className={cn('text-xs', darkMode ? 'text-dark-400' : 'text-light-600')}>
+                            已运行 {formatUptime(taskStatus.elapsed_seconds)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-success-400">
+                          +{taskStatus.points_gained}
+                        </div>
+                        <div className={cn('text-xs', darkMode ? 'text-dark-400' : 'text-light-600')}>
+                          获得积分
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={cn('text-sm', darkMode ? 'text-dark-300' : 'text-light-600')}>
-                      {taskStatus.current_operation}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-sm font-mono',
-                        darkMode ? 'text-dark-400' : 'text-light-500'
-                      )}
-                    >
-                      {taskStatus.progress}/{taskStatus.total_steps}
-                    </span>
-                  </div>
-                  <Progress value={(taskStatus.progress / taskStatus.total_steps) * 100} />
-                </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={cn('text-xs', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                          执行进度
+                        </span>
+                        <span className={cn('text-xs font-mono', darkMode ? 'text-dark-400' : 'text-light-500')}>
+                          {taskStatus.progress}/{taskStatus.total_steps}
+                        </span>
+                      </div>
+                      <Progress value={(taskStatus.progress / taskStatus.total_steps) * 100} className="h-2" />
+                    </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div
-                    className={cn(
-                      'flex flex-col items-start gap-1 p-3 rounded-lg',
-                      darkMode ? 'bg-surface-400/50' : 'bg-light-100'
-                    )}
-                  >
-                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
-                      初始积分
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className={cn('p-3 rounded-xl text-center', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                        <div className={cn('text-xs mb-1', darkMode ? 'text-dark-400' : 'text-light-600')}>初始积分</div>
+                        <div className={cn('text-base font-semibold', darkMode ? 'text-dark-100' : 'text-light-900')}>
+                          {taskStatus.initial_points?.toLocaleString() ?? '---'}
+                        </div>
+                      </div>
+                      <div className={cn('p-3 rounded-xl text-center', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                        <div className={cn('text-xs mb-1', darkMode ? 'text-dark-400' : 'text-light-600')}>当前积分</div>
+                        <div className={cn('text-base font-semibold', darkMode ? 'text-dark-100' : 'text-light-900')}>
+                          {taskStatus.current_points?.toLocaleString() ?? '---'}
+                        </div>
+                      </div>
+                      <div className={cn('p-3 rounded-xl text-center', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                        <div className={cn('text-xs mb-1', darkMode ? 'text-dark-400' : 'text-light-600')}>错误</div>
+                        <div className="text-base font-semibold text-danger-400">
+                          {taskStatus.error_count}
+                        </div>
+                      </div>
+                      <div className={cn('p-3 rounded-xl text-center', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                        <div className={cn('text-xs mb-1', darkMode ? 'text-dark-400' : 'text-light-600')}>警告</div>
+                        <div className="text-base font-semibold text-warning-400">
+                          {taskStatus.warning_count}
+                        </div>
+                      </div>
                     </div>
-                    <div
+
+                    <button
+                      onClick={handleStop}
+                      disabled={isStopping}
                       className={cn(
-                        'text-lg font-medium',
-                        darkMode ? 'text-dark-100' : 'text-light-900'
+                        'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300',
+                        'bg-danger-500 text-white hover:bg-danger-600',
+                        isStopping && 'opacity-70 cursor-wait'
                       )}
                     >
-                      {taskStatus.initial_points?.toLocaleString() ?? '---'}
-                    </div>
+                      {isStopping ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          <span>停止中...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Square size={16} />
+                          <span>停止任务</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <div
-                    className={cn(
-                      'flex flex-col items-start gap-1 p-3 rounded-lg',
-                      darkMode ? 'bg-surface-400/50' : 'bg-light-100'
-                    )}
-                  >
-                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
-                      当前积分
+                ) : (
+                  <div className="flex-1 flex flex-col gap-4">
+                    <div>
+                      <label className={cn('text-xs font-medium mb-2 block', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                        执行模式
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {modes.map((mode) => (
+                          <ModeCard
+                            key={mode.value}
+                            {...mode}
+                            selected={options.mode === mode.value}
+                            disabled={isRunning ?? false}
+                            onClick={() => setOptions({ ...options, mode: mode.value })}
+                            darkMode={darkMode}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <div
+
+                    <div>
+                      <button
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className={cn(
+                          'flex items-center gap-2 text-xs font-medium transition-colors',
+                          darkMode ? 'text-dark-400 hover:text-dark-200' : 'text-light-500 hover:text-light-700'
+                        )}
+                      >
+                        {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        高级选项
+                      </button>
+
+                      <AnimatePresence>
+                        {showAdvanced && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-2 grid grid-cols-2 gap-2"
+                          >
+                            <OptionToggle
+                              icon={options.headless ? EyeOff : Eye}
+                              label="无头模式"
+                              checked={options.headless}
+                              disabled={isRunning ?? false}
+                              onChange={(checked) => setOptions({ ...options, headless: checked })}
+                              color="primary"
+                              darkMode={darkMode}
+                            />
+
+                            <OptionToggle
+                              icon={Monitor}
+                              label="仅桌面搜索"
+                              checked={options.desktop_only}
+                              disabled={isRunning ?? false}
+                              onChange={(checked) =>
+                                setOptions({
+                                  ...options,
+                                  desktop_only: checked,
+                                  mobile_only: checked ? false : options.mobile_only,
+                                })
+                              }
+                              color="success"
+                              darkMode={darkMode}
+                            />
+
+                            <OptionToggle
+                              icon={Smartphone}
+                              label="仅移动搜索"
+                              checked={options.mobile_only}
+                              disabled={isRunning ?? false}
+                              onChange={(checked) =>
+                                setOptions({
+                                  ...options,
+                                  mobile_only: checked,
+                                  desktop_only: checked ? false : options.desktop_only,
+                                })
+                              }
+                              color="warning"
+                              darkMode={darkMode}
+                            />
+
+                            <OptionToggle
+                              icon={SkipForward}
+                              label="跳过每日任务"
+                              checked={options.skip_daily_tasks}
+                              disabled={isRunning ?? false}
+                              onChange={(checked) => setOptions({ ...options, skip_daily_tasks: checked })}
+                              color="neutral"
+                              darkMode={darkMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {actionFeedback && (
+                      <div
+                        className={cn(
+                          'p-2.5 rounded-xl flex items-center gap-2 text-sm',
+                          actionFeedback.type === 'success'
+                            ? 'bg-success-500/10 text-success-400'
+                            : 'bg-danger-500/10 text-danger-400'
+                        )}
+                      >
+                        {actionFeedback.type === 'success' ? (
+                          <CheckCircle size={14} />
+                        ) : (
+                          <AlertTriangle size={14} />
+                        )}
+                        <span className="text-xs">{actionFeedback.message}</span>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleStart}
+                      disabled={isStarting || !backendReady}
                       className={cn(
-                        'text-lg font-medium',
-                        darkMode ? 'text-dark-100' : 'text-light-900'
+                        'w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl font-semibold text-sm transition-all duration-300',
+                        'bg-gradient-to-r from-primary-500 to-cyan-500 text-dark-900 hover:shadow-glow-primary',
+                        (isStarting || !backendReady) && 'opacity-50 cursor-not-allowed'
                       )}
                     >
-                      {taskStatus.current_points?.toLocaleString() ?? '---'}
-                    </div>
+                      {isStarting ? (
+                        <>
+                          <RefreshCw size={18} className="animate-spin" />
+                          <span>启动中...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play size={18} />
+                          <span>启动任务</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <div
-                    className={cn(
-                      'flex flex-col items-start gap-1 p-3 rounded-lg',
-                      darkMode ? 'bg-surface-400/50' : 'bg-light-100'
-                    )}
-                  >
-                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
-                      获得积分
-                    </div>
-                    <div className="text-lg font-medium text-success-500">
-                      +{taskStatus.points_gained}
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      'flex flex-col items-start gap-1 p-3 rounded-lg',
-                      darkMode ? 'bg-surface-400/50' : 'bg-light-100'
-                    )}
-                  >
-                    <div className={cn('text-sm', darkMode ? 'text-dark-400' : 'text-light-600')}>
-                      错误/警告
-                    </div>
-                    <div className="text-lg font-medium">
-                      <span className="text-danger-500">{taskStatus.error_count}</span>
-                      <span className={cn('mx-1', darkMode ? 'text-dark-500' : 'text-light-400')}>
-                        /
-                      </span>
-                      <span className="text-warning-500">{taskStatus.warning_count}</span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+
+        <motion.div variants={itemVariants} className="col-span-12 lg:col-span-4 flex flex-col gap-4">
+          <Card className="mica-card">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Target size={16} className="text-primary-500" />
+                今日进度
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-4 pb-4">
+              <div className={cn('p-3 rounded-xl', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Monitor size={14} className="text-success-500" />
+                    <span className={cn('text-xs font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}>
+                      桌面搜索
+                    </span>
+                  </div>
+                  <span className={cn('text-xs font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                    {taskStatus?.desktop_searches_completed ?? 0} /{' '}
+                    {taskStatus?.desktop_searches_total || config?.search.desktop_count || 20}
+                  </span>
+                </div>
+                <Progress
+                  value={
+                    ((taskStatus?.desktop_searches_completed ?? 0) /
+                      (taskStatus?.desktop_searches_total || config?.search.desktop_count || 20)) *
+                    100
+                  }
+                  indicatorClassName="bg-gradient-to-r from-success-500 to-success-400"
+                  className="h-1.5"
+                />
+              </div>
+
+              <div className={cn('p-3 rounded-xl', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Smartphone size={14} className="text-warning-500" />
+                    <span className={cn('text-xs font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}>
+                      移动搜索
+                    </span>
+                  </div>
+                  <span className={cn('text-xs font-mono', darkMode ? 'text-dark-300' : 'text-light-600')}>
+                    {taskStatus?.mobile_searches_completed ?? 0} /{' '}
+                    {taskStatus?.mobile_searches_total || config?.search.mobile_count || 0}
+                  </span>
+                </div>
+                <Progress
+                  value={
+                    ((taskStatus?.mobile_searches_completed ?? 0) /
+                      (taskStatus?.mobile_searches_total || config?.search.mobile_count || 1)) *
+                    100
+                  }
+                  indicatorClassName="bg-gradient-to-r from-warning-500 to-warning-400"
+                  className="h-1.5"
+                />
+              </div>
+
+              <div className={cn('p-3 rounded-xl', darkMode ? 'bg-white/[0.02]' : 'bg-black/5')}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Award size={14} className="text-primary-500" />
+                    <span className={cn('text-xs font-medium', darkMode ? 'text-dark-200' : 'text-light-700')}>
+                      今日获得
+                    </span>
+                  </div>
+                  <span className="text-base font-bold text-primary-400">
+                    +{points?.points_gained_today ?? 0}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="flex-1 min-h-0 mica-card flex flex-col">
+            <CardHeader className="pb-2 pt-4 px-4 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Terminal size={16} className="text-primary-500" />
+                  实时日志
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => (window.location.href = '/logs')}
+                >
+                  <ExternalLink size={12} className="mr-1" />
+                  全部
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0 px-4 pb-4">
+              <div className="terminal h-full">
+                <div className="terminal-header">
+                  <div className="terminal-dot-red" />
+                  <div className="terminal-dot-yellow" />
+                  <div className="terminal-dot-green" />
+                  <span className="ml-2 text-xs text-gray-400">logs</span>
+                </div>
+                <div
+                  ref={logContainerRef}
+                  className="terminal-body h-[calc(100%-36px)] overflow-y-auto"
+                >
+                  {recentLogs.length > 0 ? (
+                    recentLogs.map((log, index) => (
+                      <div key={index} className={cn('terminal-line truncate', getLogColor(log))}>
+                        <span className="terminal-prompt">$</span>
+                        {log}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      等待日志输出...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      <motion.div
+        variants={itemVariants}
+        className="flex items-center justify-between px-1"
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              'w-2 h-2 rounded-full',
+              backendReady ? 'bg-success-400 shadow-glow-success' : 'bg-warning-400'
+            )}
+          />
+          <span className={cn('text-xs', darkMode ? 'text-dark-400' : 'text-light-500')}>
+            {backendReady ? '系统就绪' : '连接中...'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={cn('text-xs', darkMode ? 'text-dark-400' : 'text-light-500')}>
+            更新于 {formatLastUpdate(lastDataUpdate)}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="h-7 px-2"
+          >
+            <RefreshCw size={12} className={cn(isRefreshing && 'animate-spin')} />
+          </Button>
+        </div>
+      </motion.div>
     </motion.div>
   )
 }
