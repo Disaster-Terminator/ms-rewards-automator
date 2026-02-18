@@ -127,16 +127,12 @@ class RealTimeStatusDisplay:
         if desktop_total > 0:
             desktop_percent = (desktop_completed / desktop_total) * 100
             desktop_bar = self._create_progress_bar(desktop_percent, width=20)
-            print(
-                f"🖥️  桌面搜索: {desktop_bar} {desktop_completed}/{desktop_total}"
-            )
+            print(f"🖥️  桌面搜索: {desktop_bar} {desktop_completed}/{desktop_total}")
 
         if mobile_total > 0:
             mobile_percent = (mobile_completed / mobile_total) * 100
             mobile_bar = self._create_progress_bar(mobile_percent, width=20)
-            print(
-                f"📱 移动搜索: {mobile_bar} {mobile_completed}/{mobile_total}"
-            )
+            print(f"📱 移动搜索: {mobile_bar} {mobile_completed}/{mobile_total}")
 
         if current_points is not None and current_points > 0:
             print(f"💰 积分状态: {current_points} (+{points_gained})")
@@ -151,7 +147,9 @@ class RealTimeStatusDisplay:
                 if search_times:
                     avg_time_per_search = sum(search_times) / len(search_times)
                 else:
-                    avg_time_per_search = elapsed / completed_searches if completed_searches > 0 else 5
+                    avg_time_per_search = (
+                        elapsed / completed_searches if completed_searches > 0 else 5
+                    )
 
                 remaining_time = remaining_searches * avg_time_per_search
                 remaining_str = self._format_duration(remaining_time)

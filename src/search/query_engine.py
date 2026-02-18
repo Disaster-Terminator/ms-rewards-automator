@@ -196,9 +196,7 @@ class QueryEngine:
                     if normalized:
                         self._query_sources[normalized] = source_name
                 all_queries.extend(result)
-                self.logger.debug(
-                    f"Source {source_name} returned {len(result)} queries"
-                )
+                self.logger.debug(f"Source {source_name} returned {len(result)} queries")
 
         return all_queries
 
@@ -221,21 +219,31 @@ class QueryEngine:
             max_to_expand = self.config.get("query_engine.bing_api.max_expand", 5)
             queries_to_expand = random.sample(queries, min(max_to_expand, len(queries)))
 
+            # Create a set of existing queries for O(1) lookup
+            existing_queries = {q.lower().strip() for q in queries}
             expanded = []
+
             for query in queries_to_expand:
                 suggestions = await api_client.get_suggestions(query)
-                for suggestion in suggestions[:self.config.get("query_engine.bing_api.suggestions_per_query", 3)]:
+                for suggestion in suggestions[
+                    : self.config.get("query_engine.bing_api.suggestions_per_query", 3)
+                ]:
                     normalized = suggestion.lower().strip()
-                    if normalized and normalized not in self._query_sources:
+                    # Only add if not already in original queries or expanded list
+                    if normalized and normalized not in existing_queries:
                         self._query_sources[normalized] = "bing_suggestions"
-                    expanded.append(suggestion)
+                        existing_queries.add(normalized)
+                        expanded.append(suggestion)
 
-            expanded = queries + expanded
+            # Prepend original queries to expanded suggestions
+            # Note: expanded queries are guaranteed unique vs original due to existing_queries check
+            # Final deduplication is handled by _deduplicate_queries() in generate_queries()
+            result = queries + expanded
 
             self.logger.debug(
-                f"Expanded {len(queries_to_expand)} queries to {len(expanded)} queries"
+                f"Expanded {len(queries_to_expand)} queries to {len(result)} queries ({len(expanded)} new)"
             )
-            return expanded
+            return result
 
         except Exception as e:
             self.logger.error(f"Query expansion failed: {e}")
@@ -316,7 +324,7 @@ class QueryEngine:
     async def close(self):
         """Close all sources and release resources"""
         for source in self.sources:
-            if hasattr(source, 'close'):
+            if hasattr(source, "close"):
                 try:
                     await source.close()
                 except Exception as e:

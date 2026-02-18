@@ -112,11 +112,6 @@ class StateMonitor:
         """
         self.search_count += 1
 
-        if search_type == "desktop":
-            self.session_data["desktop_searches"] += 1
-        else:
-            self.session_data["mobile_searches"] += 1
-
         if not self.enabled:
             logger.debug(f"监控已禁用，跳过积分检查 (搜索计数: {self.search_count})")
             return None

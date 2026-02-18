@@ -21,8 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class StatusManagerProtocol(Protocol):
-    def update_desktop_searches(self, current: int, total: int, search_time: float = None) -> None: ...
-    def update_mobile_searches(self, current: int, total: int, search_time: float = None) -> None: ...
+    def update_desktop_searches(
+        self, current: int, total: int, search_time: float = None
+    ) -> None: ...
+    def update_mobile_searches(
+        self, current: int, total: int, search_time: float = None
+    ) -> None: ...
     def update_operation(self, operation: str) -> None: ...
 
 
@@ -609,6 +613,11 @@ class SearchEngine:
 
             logger.info(f"[{i + 1}/{count}] 搜索: {term} (来源: {source})")
 
+            # 更新进度：当前正在执行第 i+1 次搜索
+            if self.status_manager:
+                logger.debug(f"更新进度: 桌面搜索 {i}/{count}")
+                self.status_manager.update_desktop_searches(i, count)
+
             search_start = time.time()
             start_time = search_start if health_monitor else 0
             search_success = await self.perform_single_search(page, term, health_monitor)
@@ -619,13 +628,18 @@ class SearchEngine:
                 if health_monitor:
                     response_time = time.time() - start_time
                     health_monitor.record_search_result(True, response_time)
+                # 更新搜索计数
+                if self.monitor:
+                    self.monitor.session_data["desktop_searches"] += 1
             else:
                 logger.warning(f"搜索 {i + 1} 失败，继续...")
                 if health_monitor:
                     health_monitor.record_search_result(False)
 
+            # 更新进度：第 i+1 次搜索完成
             if self.status_manager:
-                self.status_manager.update_desktop_searches(success_count, count, search_time)
+                logger.debug(f"更新进度: 桌面搜索完成 {i + 1}/{count}")
+                self.status_manager.update_desktop_searches(i + 1, count, search_time)
 
             if i < count - 1:
                 wait_time = self.anti_ban.get_random_wait_time()
@@ -647,6 +661,11 @@ class SearchEngine:
 
             logger.info(f"[{i + 1}/{count}] 搜索: {term} (来源: {source})")
 
+            # 更新进度：当前正在执行第 i+1 次搜索
+            if self.status_manager:
+                logger.debug(f"更新进度: 移动搜索 {i}/{count}")
+                self.status_manager.update_mobile_searches(i, count)
+
             search_start = time.time()
             start_time = search_start if health_monitor else 0
             search_success = await self.perform_single_search(page, term, health_monitor)
@@ -657,13 +676,18 @@ class SearchEngine:
                 if health_monitor:
                     response_time = time.time() - start_time
                     health_monitor.record_search_result(True, response_time)
+                # 更新搜索计数
+                if self.monitor:
+                    self.monitor.session_data["mobile_searches"] += 1
             else:
                 logger.warning(f"搜索 {i + 1} 失败，继续...")
                 if health_monitor:
                     health_monitor.record_search_result(False)
 
+            # 更新进度：第 i+1 次搜索完成
             if self.status_manager:
-                self.status_manager.update_mobile_searches(success_count, count, search_time)
+                logger.debug(f"更新进度: 移动搜索完成 {i + 1}/{count}")
+                self.status_manager.update_mobile_searches(i + 1, count, search_time)
 
             if i < count - 1:
                 wait_time = self.anti_ban.get_random_wait_time()
@@ -672,3 +696,12 @@ class SearchEngine:
 
         logger.info(f"✓ 移动搜索完成: {success_count}/{count} 成功")
         return success_count
+
+    async def close(self):
+        """关闭搜索引擎，释放资源"""
+        if self.query_engine:
+            try:
+                await self.query_engine.close()
+                logger.debug("QueryEngine 已关闭")
+            except Exception as e:
+                logger.debug(f"关闭 QueryEngine 失败: {e}")

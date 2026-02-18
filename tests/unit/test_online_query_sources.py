@@ -2,7 +2,7 @@
 Tests for DuckDuckGo and Wikipedia query sources
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

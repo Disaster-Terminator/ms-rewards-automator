@@ -392,6 +392,13 @@ class MSRewardsApp:
 
     async def _cleanup(self) -> None:
         """清理资源"""
+        # 关闭搜索引擎（释放 QueryEngine 资源）
+        if self.search_engine:
+            try:
+                await self.search_engine.close()
+            except Exception as e:
+                self.logger.debug(f"关闭搜索引擎失败: {e}")
+
         # 关闭浏览器
         if self.browser_sim:
             self.logger.info("\n关闭浏览器...")

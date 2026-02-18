@@ -24,9 +24,7 @@ class BingAPIClient:
             config: ConfigManager instance
         """
         self.config = config
-        self.rate_limit_delay = 60 / config.get(
-            "query_engine.bing_api.rate_limit", 10
-        )
+        self.rate_limit_delay = 60 / config.get("query_engine.bing_api.rate_limit", 10)
         self.last_request_time = 0
         self.max_retries = config.get("query_engine.bing_api.max_retries", 3)
         self.timeout = config.get("query_engine.bing_api.timeout", 15)

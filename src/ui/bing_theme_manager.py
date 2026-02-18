@@ -6,6 +6,7 @@ Bing主题管理器模块
 import asyncio
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -95,7 +96,7 @@ class BingThemeManager:
             # 准备主题状态数据
             theme_state = {
                 "theme": theme,
-                "timestamp": asyncio.get_running_loop().time(),
+                "timestamp": time.time(),
                 "preferred_theme": self.preferred_theme,
                 "force_theme": self.force_theme,
                 "context_info": context_info or {},
@@ -112,7 +113,7 @@ class BingThemeManager:
 
             # 更新缓存
             self._theme_state_cache = theme_state
-            self._last_cache_update = asyncio.get_running_loop().time()
+            self._last_cache_update = time.time()
 
             logger.debug(f"✓ 主题状态已保存到: {self.theme_state_file}")
             return True
@@ -135,7 +136,7 @@ class BingThemeManager:
 
         try:
             # 检查缓存是否有效
-            current_time = asyncio.get_running_loop().time()
+            current_time = time.time()
             if (
                 self._theme_state_cache
                 and self._last_cache_update
@@ -439,14 +440,14 @@ class BingThemeManager:
                     "value": json.dumps(
                         {
                             "theme": theme,
-                            "timestamp": asyncio.get_running_loop().time(),
+                            "timestamp": time.time(),
                             "source": "bing_theme_manager",
                             "version": "1.0",
                         }
                     ),
                 },
                 {"name": "theme-preference", "value": theme},
-                {"name": "last-theme-update", "value": str(int(asyncio.get_running_loop().time()))},
+                {"name": "last-theme-update", "value": str(int(time.time()))},
             ]
 
             # 移除旧的主题条目
@@ -484,7 +485,7 @@ class BingThemeManager:
             "browser_persistence": {"status": "unknown", "details": {}},
             "theme_consistency": {"status": "unknown", "details": {}},
             "recommendations": [],
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
         }
 
         try:
@@ -560,7 +561,7 @@ class BingThemeManager:
 
             # 检查文件年龄
             file_stat = theme_file_path.stat()
-            file_age = asyncio.get_running_loop().time() - file_stat.st_mtime
+            file_age = time.time() - file_stat.st_mtime
 
             result["status"] = "good"
             result["details"] = {
@@ -2089,7 +2090,7 @@ class BingThemeManager:
             config_info = self.get_theme_config()
 
             report = {
-                "timestamp": asyncio.get_running_loop().time(),
+                "timestamp": time.time(),
                 "final_theme": final_theme,
                 "detection_results": detection_results,
                 "page_info": page_info,
@@ -2103,7 +2104,7 @@ class BingThemeManager:
         except Exception as e:
             logger.error(f"生成主题状态报告失败: {e}")
             return {
-                "timestamp": asyncio.get_running_loop().time(),
+                "timestamp": time.time(),
                 "final_theme": None,
                 "detection_results": {},
                 "page_info": {},
@@ -2215,7 +2216,7 @@ class BingThemeManager:
 
             stats = {
                 "config": self.get_theme_config(),
-                "last_check_time": asyncio.get_running_loop().time(),
+                "last_check_time": time.time(),
                 "available_methods": [
                     "URL参数",
                     "Cookie",
@@ -2291,7 +2292,7 @@ class BingThemeManager:
             "persistence_check": False,
             "verification_score": 0.0,
             "recommendations": [],
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "error": None,
         }
 
@@ -2785,7 +2786,7 @@ class BingThemeManager:
             诊断信息字典
         """
         diagnostic = {
-            "timestamp": asyncio.get_running_loop().time(),
+            "timestamp": time.time(),
             "target_theme": theme,
             "failure_count": len(failure_details),
             "failure_details": failure_details,

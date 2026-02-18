@@ -64,17 +64,27 @@ class SystemInitializer:
         # 创建积分检测器
         points_det = PointsDetector()
 
-        # 初始化 QueryEngine（如果启用）
-        query_engine = self._init_query_engine()
-
-        # 创建搜索引擎
-        search_engine = SearchEngine(self.config, term_gen, anti_ban, query_engine=query_engine)
-
         # 创建账户管理器
         account_mgr = AccountManager(self.config)
 
         # 创建状态监控器
         state_monitor = StateMonitor(self.config, points_det)
+
+        # 初始化 QueryEngine（如果启用）
+        query_engine = self._init_query_engine()
+
+        # 导入 StatusManager 用于进度显示
+        from ui.real_time_status import StatusManager
+
+        # 创建搜索引擎（传入 state_monitor 用于搜索计数）
+        search_engine = SearchEngine(
+            self.config,
+            term_gen,
+            anti_ban,
+            monitor=state_monitor,
+            query_engine=query_engine,
+            status_manager=StatusManager,
+        )
 
         # 创建错误处理器
         error_handler = ErrorHandler(self.config)

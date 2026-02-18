@@ -83,7 +83,7 @@ class HumanBehaviorSimulator:
             # Move mouse to element with natural movement
             target_x = box["x"] + box["width"] / 2
             target_y = box["y"] + box["height"] / 2
-            await self._move_mouse_naturally(page, target_x, target_y)
+            await self.move_mouse_naturally(page, target_x, target_y)
 
             # Small delay before click (human reaction time)
             await asyncio.sleep(random.uniform(0.1, 0.3))
@@ -108,7 +108,7 @@ class HumanBehaviorSimulator:
 
                 # Variable delay between characters
                 if i < len(text) - 1:  # Don't delay after last character
-                    delay = self._get_typing_delay()
+                    delay = self.get_typing_delay()
                     await asyncio.sleep(delay / 1000.0)
 
                     # Random pause (simulating thinking or checking)
@@ -184,7 +184,7 @@ class HumanBehaviorSimulator:
             target_y = center_y + offset_y
 
             # Move mouse naturally to target
-            await self._move_mouse_naturally(page, target_x, target_y)
+            await self.move_mouse_naturally(page, target_x, target_y)
 
             # Human reaction time before click
             await asyncio.sleep(random.uniform(0.1, 0.3))
@@ -311,7 +311,7 @@ class HumanBehaviorSimulator:
             x = random.uniform(viewport["width"] * 0.3, viewport["width"] * 0.7)
             y = random.uniform(viewport["height"] * 0.3, viewport["height"] * 0.7)
 
-            await self._move_mouse_naturally(page, x, y, steps=5)
+            await self.move_mouse_naturally(page, x, y, steps=5)
         except Exception as e:
             self.logger.debug(f"Random mouse movement error (non-critical): {e}")
 

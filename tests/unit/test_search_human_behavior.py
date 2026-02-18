@@ -2,7 +2,6 @@
 Tests for human behavior integration in SearchEngine
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -206,7 +205,9 @@ class TestHumanBehaviorLevels:
         return _create
 
     @pytest.mark.asyncio
-    async def test_light_level_uses_basic_typing(self, engine_with_level, mock_page, mock_search_box):
+    async def test_light_level_uses_basic_typing(
+        self, engine_with_level, mock_page, mock_search_box
+    ):
         """Test that light level uses basic typing without mouse movement"""
         engine = engine_with_level("light")
         result = await engine._human_input_light(mock_page, mock_search_box, "test")
@@ -214,7 +215,9 @@ class TestHumanBehaviorLevels:
         mock_search_box.click.assert_called()
 
     @pytest.mark.asyncio
-    async def test_medium_level_includes_delays(self, engine_with_level, mock_page, mock_search_box):
+    async def test_medium_level_includes_delays(
+        self, engine_with_level, mock_page, mock_search_box
+    ):
         """Test that medium level includes human-like delays"""
         engine = engine_with_level("medium")
         result = await engine._human_input_medium(mock_page, mock_search_box, "test")
