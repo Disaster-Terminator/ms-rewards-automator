@@ -2,7 +2,6 @@
 Tests for human behavior integration in SearchEngine
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
