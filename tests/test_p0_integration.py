@@ -200,7 +200,7 @@ async def main():
         print("   - query_engine.enabled: true")
         print("   - task_system.enabled: true")
         print("2. 运行主程序: python main.py")
-        print("3. 或快速测试: python main.py --mode fast --desktop-only")
+        print("3. 或快速测试: python main.py --dev --desktop-only")
     else:
         print("✗ 部分测试失败，请检查错误信息")
     print("=" * 70)

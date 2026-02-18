@@ -15,9 +15,8 @@ class SearchConfig:
 
     desktop_count: int = 30
     mobile_count: int = 20
-    wait_interval: int = 5  # 简化：单个值
-    wait_interval_min: int = 2  # 扩展配置
-    wait_interval_max: int = 8
+    wait_interval_min: int = 5
+    wait_interval_max: int = 15
     search_terms_file: str = "tools/search_terms.txt"
 
 
@@ -195,12 +194,16 @@ class NotificationConfig:
 class SchedulerConfig:
     """调度器配置"""
 
-    enabled: bool = False
-    mode: str = "random"  # random, fixed
+    enabled: bool = True
+    mode: str = "scheduled"  # scheduled, random, fixed
+    scheduled_hour: int = 17
+    max_offset_minutes: int = 45
     random_start_hour: int = 8
     random_end_hour: int = 22
     fixed_hour: int = 10
     fixed_minute: int = 0
+    timezone: str = "Asia/Shanghai"
+    run_once_on_start: bool = False
 
 
 @dataclass
@@ -261,91 +264,111 @@ class AppConfig:
                 return obj.get(key, default)
             return default
 
+        search_dict = config_dict.get("search", {})
+        browser_dict = config_dict.get("browser", {})
+        account_dict = config_dict.get("account", {})
+        login_dict = config_dict.get("login", {})
+        query_engine_dict = config_dict.get("query_engine", {})
+        task_system_dict = config_dict.get("task_system", {})
+        bing_theme_dict = config_dict.get("bing_theme", {})
+        monitoring_dict = config_dict.get("monitoring", {})
+        notification_dict = config_dict.get("notification", {})
+        scheduler_dict = config_dict.get("scheduler", {})
+        error_handling_dict = config_dict.get("error_handling", {})
+        logging_dict = config_dict.get("logging", {})
+
         return cls(
             search=SearchConfig(
-                desktop_count=get_nested(config_dict, "desktop_count", 30),
-                mobile_count=get_nested(config_dict, "mobile_count", 20),
-                wait_interval=get_nested(config_dict, "wait_interval", 5),
-                wait_interval_min=get_nested(config_dict.get("wait_interval"), "min", 2),
-                wait_interval_max=get_nested(config_dict.get("wait_interval"), "max", 8),
+                desktop_count=get_nested(search_dict, "desktop_count", 30),
+                mobile_count=get_nested(search_dict, "mobile_count", 20),
+                wait_interval_min=get_nested(search_dict.get("wait_interval"), "min", 5),
+                wait_interval_max=get_nested(search_dict.get("wait_interval"), "max", 15),
                 search_terms_file=get_nested(
-                    config_dict, "search_terms_file", "tools/search_terms.txt"
+                    search_dict, "search_terms_file", "tools/search_terms.txt"
                 ),
             ),
             browser=BrowserConfig(
-                headless=get_nested(config_dict, "headless", False),
-                prevent_focus=get_nested(config_dict, "prevent_focus", "basic"),
-                slow_mo=get_nested(config_dict, "slow_mo", 100),
-                timeout=get_nested(config_dict, "timeout", 30000),
-                type=get_nested(config_dict, "type", "chromium"),
+                headless=get_nested(browser_dict, "headless", False),
+                prevent_focus=get_nested(browser_dict, "prevent_focus", "basic"),
+                slow_mo=get_nested(browser_dict, "slow_mo", 100),
+                timeout=get_nested(browser_dict, "timeout", 30000),
+                type=get_nested(browser_dict, "type", "chromium"),
             ),
             account=AccountConfig(
                 storage_state_path=get_nested(
-                    config_dict, "storage_state_path", "storage_state.json"
+                    account_dict, "storage_state_path", "storage_state.json"
                 ),
-                login_url=get_nested(config_dict, "login_url", "https://rewards.microsoft.com/"),
-                email=get_nested(config_dict, "email", ""),
-                password=get_nested(config_dict, "password", ""),
-                totp_secret=get_nested(config_dict, "totp_secret", ""),
+                login_url=get_nested(account_dict, "login_url", "https://rewards.microsoft.com/"),
+                email=get_nested(account_dict, "email", ""),
+                password=get_nested(account_dict, "password", ""),
+                totp_secret=get_nested(account_dict, "totp_secret", ""),
             ),
             login=LoginConfig(
-                state_machine_enabled=get_nested(config_dict, "state_machine_enabled", True),
-                max_transitions=get_nested(config_dict, "max_transitions", 20),
-                timeout_seconds=get_nested(config_dict, "timeout_seconds", 300),
-                stay_signed_in=get_nested(config_dict, "stay_signed_in", True),
+                state_machine_enabled=get_nested(login_dict, "state_machine_enabled", True),
+                max_transitions=get_nested(login_dict, "max_transitions", 20),
+                timeout_seconds=get_nested(login_dict, "timeout_seconds", 300),
+                stay_signed_in=get_nested(login_dict, "stay_signed_in", True),
                 manual_intervention_timeout=get_nested(
-                    config_dict, "manual_intervention_timeout", 120
+                    login_dict, "manual_intervention_timeout", 120
                 ),
                 auto_login=AutoLoginConfig(
-                    enabled=get_nested(config_dict.get("auto_login", {}), "enabled", False),
-                    email=get_nested(config_dict.get("auto_login", {}), "email", ""),
-                    password=get_nested(config_dict.get("auto_login", {}), "password", ""),
-                    totp_secret=get_nested(config_dict.get("auto_login", {}), "totp_secret", ""),
+                    enabled=get_nested(login_dict.get("auto_login", {}), "enabled", False),
+                    email=get_nested(login_dict.get("auto_login", {}), "email", ""),
+                    password=get_nested(login_dict.get("auto_login", {}), "password", ""),
+                    totp_secret=get_nested(login_dict.get("auto_login", {}), "totp_secret", ""),
                 ),
             ),
             query_engine=QueryEngineConfig(
-                enabled=get_nested(config_dict, "enabled", False),
-                cache_ttl=get_nested(config_dict, "cache_ttl", 3600),
+                enabled=get_nested(query_engine_dict, "enabled", False),
+                cache_ttl=get_nested(query_engine_dict, "cache_ttl", 3600),
             ),
             task_system=TaskSystemConfig(
-                enabled=get_nested(config_dict, "enabled", True),
-                min_delay=get_nested(config_dict, "min_delay", 2),
-                max_delay=get_nested(config_dict, "max_delay", 5),
-                skip_completed=get_nested(config_dict, "skip_completed", True),
-                debug_mode=get_nested(config_dict, "debug_mode", False),
+                enabled=get_nested(task_system_dict, "enabled", True),
+                min_delay=get_nested(task_system_dict, "min_delay", 2),
+                max_delay=get_nested(task_system_dict, "max_delay", 5),
+                skip_completed=get_nested(task_system_dict, "skip_completed", True),
+                debug_mode=get_nested(task_system_dict, "debug_mode", False),
             ),
             bing_theme=BingThemeConfig(
-                enabled=get_nested(config_dict, "enabled", False),
-                theme=get_nested(config_dict, "theme", "dark"),
-                force_theme=get_nested(config_dict, "force_theme", True),
-                persistence_enabled=get_nested(config_dict, "persistence_enabled", True),
+                enabled=get_nested(bing_theme_dict, "enabled", False),
+                theme=get_nested(bing_theme_dict, "theme", "dark"),
+                force_theme=get_nested(bing_theme_dict, "force_theme", True),
+                persistence_enabled=get_nested(bing_theme_dict, "persistence_enabled", True),
             ),
             monitoring=MonitoringWithHealth(
-                enabled=get_nested(config_dict, "enabled", True),
-                check_interval=get_nested(config_dict, "check_interval", 5),
-                check_points_before_task=get_nested(config_dict, "check_points_before_task", True),
-                alert_on_no_increase=get_nested(config_dict, "alert_on_no_increase", True),
-                max_no_increase_count=get_nested(config_dict, "max_no_increase_count", 3),
-                real_time_display=get_nested(config_dict, "real_time_display", True),
+                enabled=get_nested(monitoring_dict, "enabled", True),
+                check_interval=get_nested(monitoring_dict, "check_interval", 5),
+                check_points_before_task=get_nested(
+                    monitoring_dict, "check_points_before_task", True
+                ),
+                alert_on_no_increase=get_nested(monitoring_dict, "alert_on_no_increase", True),
+                max_no_increase_count=get_nested(monitoring_dict, "max_no_increase_count", 3),
+                real_time_display=get_nested(monitoring_dict, "real_time_display", True),
             ),
             notification=NotificationConfig(
-                enabled=get_nested(config_dict, "enabled", False),
+                enabled=get_nested(notification_dict, "enabled", False),
             ),
             scheduler=SchedulerConfig(
-                enabled=get_nested(config_dict, "enabled", False),
-                mode=get_nested(config_dict, "mode", "random"),
-                random_start_hour=get_nested(config_dict, "random_start_hour", 8),
-                random_end_hour=get_nested(config_dict, "random_end_hour", 22),
+                enabled=get_nested(scheduler_dict, "enabled", True),
+                mode=get_nested(scheduler_dict, "mode", "scheduled"),
+                scheduled_hour=get_nested(scheduler_dict, "scheduled_hour", 17),
+                max_offset_minutes=get_nested(scheduler_dict, "max_offset_minutes", 45),
+                random_start_hour=get_nested(scheduler_dict, "random_start_hour", 8),
+                random_end_hour=get_nested(scheduler_dict, "random_end_hour", 22),
+                fixed_hour=get_nested(scheduler_dict, "fixed_hour", 10),
+                fixed_minute=get_nested(scheduler_dict, "fixed_minute", 0),
+                timezone=get_nested(scheduler_dict, "timezone", "Asia/Shanghai"),
+                run_once_on_start=get_nested(scheduler_dict, "run_once_on_start", False),
             ),
             error_handling=ErrorHandlingConfig(
-                max_retries=get_nested(config_dict, "max_retries", 3),
-                retry_delay=get_nested(config_dict, "retry_delay", 5),
-                exponential_backoff=get_nested(config_dict, "exponential_backoff", True),
+                max_retries=get_nested(error_handling_dict, "max_retries", 3),
+                retry_delay=get_nested(error_handling_dict, "retry_delay", 5),
+                exponential_backoff=get_nested(error_handling_dict, "exponential_backoff", True),
             ),
             logging=LoggingConfig(
-                level=get_nested(config_dict, "level", "INFO"),
-                file=get_nested(config_dict, "file", "logs/automator.log"),
-                console=get_nested(config_dict, "console", True),
+                level=get_nested(logging_dict, "level", "INFO"),
+                file=get_nested(logging_dict, "file", "logs/automator.log"),
+                console=get_nested(logging_dict, "console", True),
             ),
         )
 

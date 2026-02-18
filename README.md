@@ -58,25 +58,6 @@
 
 各组件松耦合设计，支持独立测试和维护。
 
-- 处理浏览器会话状态
-- 集成反检测模块
-
-#### 4. StateMonitor (状态监控器)
-
-- **职责**: 监控和记录系统状态
-- **功能**:
-  - 积分变化检测
-  - 任务完成状态跟踪
-  - 生成每日报告
-
-#### 5. AccountManager (账户管理器)
-
-- **职责**: 管理账户登录和会话
-- **功能**:
-  - 自动和手动登录支持
-  - 会话持久化
-  - 登录状态验证
-
 ### 执行流程
 
 #### 完整执行流程
@@ -186,7 +167,7 @@ python main.py
 | 模式 | 桌面搜索 | 移动搜索 | 拟人行为 | 防检测 | 用途 |
 |------|----------|----------|----------|--------|------|
 | 默认 | 30 | 20 | ✅ | ✅ | **生产环境（用户使用）** |
-| `--usermode` | 3 | 3 | ✅ | ✅ | 鲁棒性测试 |
+| `--user` | 3 | 3 | ✅ | ✅ | 鲁棒性测试 |
 | `--dev` | 2 | 2 | ❌ | ❌ | 快速迭代调试 |
 
 **登录方式**：
@@ -197,48 +178,18 @@ python main.py
 
 ### 3. 常用命令
 
-#### 基本使用
-
 ```bash
-# 生产环境（完整搜索）
+# 生产环境（完整搜索，自动调度）
 python main.py
 
-# 测试模式（3+3搜索，验证稳定性）
-python main.py --usermode
-
-# 开发模式（快速迭代）
-python main.py --dev
-
-# 显示浏览器（调试模式，默认显示）
-python main.py
-
-# 无头模式（后台运行）
+# 后台运行（服务器部署）
 python main.py --headless
 
-# 慢速模式（更安全）
-python main.py --mode slow
+# 用户模式（3+3搜索，验证稳定性）
+python main.py --user
 
-# 启动调度器（每天自动执行）
-python main.py --schedule
-
-# 仅执行桌面搜索
-python main.py --desktop-only
-
-# 仅执行移动搜索
-python main.py --mobile-only
-```
-
-#### 调试和测试
-
-```bash
-# 模拟执行（不执行真实搜索）
-python main.py --dry-run
-
-# 详细日志输出（开发模式自带DEBUG日志）
+# 开发模式（快速调试）
 python main.py --dev
-
-# 跳过日常任务
-python main.py --skip-daily-tasks
 ```
 
 ### 4. 查看执行结果
@@ -291,7 +242,7 @@ streamlit run tools/dashboard.py
 ### 技术文档
 
 - **[技术参考](docs/reports/技术参考.md)** - 防检测策略、健康监控和技术实现细节
-- **[分支管理指南](docs/BRANCH_GUIDE.md)** - 开发工作流和验收标准
+- **[分支管理指南](docs/reference/BRANCH_GUIDE.md)** - 开发工作流和验收标准
 
 ### 配置文件说明
 
@@ -301,15 +252,15 @@ search:
   desktop_count: 30      # 桌面搜索次数
   mobile_count: 20       # 移动搜索次数
   wait_interval:
-    min: 8              # 最小等待时间（秒）
-    max: 20             # 最大等待时间（秒）
+    min: 5              # 最小等待时间（秒）
+    max: 15             # 最大等待时间（秒）
 
 # 调度配置
 scheduler:
-  enabled: true         # 启用调度器
-  mode: "random"        # 随机时间模式
-  random_start_hour: 8  # 开始时间
-  random_end_hour: 22   # 结束时间
+  enabled: true           # 启用调度器
+  mode: "scheduled"       # 定时模式
+  scheduled_hour: 17      # 基准执行时间
+  max_offset_minutes: 45  # 随机偏移范围
 
 # 通知配置
 notification:
@@ -332,8 +283,7 @@ notification:
 ### ✅ 推荐的安全使用方式
 
 - **使用本地运行**: 在家庭网络环境中运行，避免使用云服务器
-- **启用慢速模式**: `python main.py --mode slow`
-- **启用随机调度**: `python main.py --schedule`
+- **禁用调度器**: 在 config.yaml 中设置 `scheduler.enabled: false`
 - **限制执行频率**: 不要短时间内多次运行
 - **监控日志**: 定期检查执行日志，及时发现异常
 
