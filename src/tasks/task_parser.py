@@ -10,6 +10,48 @@ from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from tasks.task_base import TaskMetadata
 
+SKIP_HREFS = [
+    "/earn",
+    "/dashboard",
+    "/about",
+    "/refer",
+    "/",
+    "/orderhistory",
+    "/faq",
+    "rewards.bing.com/referandearn",
+    "rewards.bing.com/redeem",
+    "support.microsoft.com",
+    "x.com",
+    "xbox.com",
+    "microsoft.com/about",
+    "news.microsoft.com",
+    "go.microsoft.com",
+    "choice.microsoft.com",
+    "microsoft-edge://",
+]
+
+SKIP_TEXT_PATTERNS = ["抽奖", "sweepstakes"]
+
+COMPLETED_TEXT_PATTERNS = ["已完成", "completed"]
+
+TASK_TYPE_KEYWORDS = {
+    "quiz": ["quiz", "测验"],
+    "poll": ["poll", "投票"],
+}
+
+POINTS_SELECTOR = ".text-caption1Stronger"
+
+COMPLETED_CIRCLE_CLASS = "bg-statusSuccessBg3"
+INCOMPLETE_CIRCLE_CLASS = "border-neutralStroke1"
+
+LOGIN_SELECTORS = [
+    'input[name="loginfmt"]',
+    'input[type="email"]',
+    "#i0116",
+]
+
+EARN_LINK_SELECTOR = 'a[href="/earn"], a[href^="/earn?"], a[href*="rewards.bing.com/earn"]'
+
 
 class TaskParser:
     """Parser for Microsoft Rewards dashboard tasks"""
@@ -49,9 +91,7 @@ class TaskParser:
                     await page.wait_for_timeout(2000)
 
                 self.logger.info("Clicking earn link to navigate to earn page...")
-                earn_link = page.locator(
-                    'a[href="/earn"], a[href^="/earn?"], a[href*="rewards.bing.com/earn"]'
-                )
+                earn_link = page.locator(EARN_LINK_SELECTOR)
                 if await earn_link.count() > 0:
                     await earn_link.first.click()
                     await page.wait_for_load_state("networkidle", timeout=30000)
@@ -246,13 +286,7 @@ class TaskParser:
     async def _is_login_page(self, page: Page) -> bool:
         """Check if currently on login page"""
         try:
-            login_selectors = [
-                'input[name="loginfmt"]',
-                'input[type="email"]',
-                "#i0116",
-            ]
-
-            for selector in login_selectors:
+            for selector in LOGIN_SELECTORS:
                 element = await page.query_selector(selector)
                 if element:
                     return True
@@ -277,22 +311,12 @@ class TaskParser:
         tasks = []
 
         try:
-            raw_tasks = await page.evaluate("""
-                () => {
+            raw_tasks = await page.evaluate(
+                """
+                ([skipHrefs, skipTextPatterns, completedTextPatterns, pointsSelector, completedCircleClass, incompleteCircleClass]) => {
                     const tasks = [];
                     const seenHrefs = new Set();
                     const debug = [];
-
-                    const skipHrefs = [
-                        '/earn', '/dashboard', '/about', '/refer', '/',
-                        '/orderhistory', '/faq',
-                        'rewards.bing.com/referandearn',
-                        'rewards.bing.com/redeem',
-                        'support.microsoft.com', 'x.com', 'xbox.com',
-                        'microsoft.com/about', 'news.microsoft.com',
-                        'go.microsoft.com', 'choice.microsoft.com',
-                        'microsoft-edge://'
-                    ];
 
                     function shouldSkip(href, text) {
                         const hrefLower = href.toLowerCase();
@@ -312,7 +336,9 @@ class TaskParser:
                             }
                         }
 
-                        if (combined.includes('抽奖') || combined.includes('sweepstakes')) return true;
+                        for (const pattern of skipTextPatterns) {
+                            if (combined.includes(pattern.toLowerCase())) return true;
+                        }
 
                         if (hrefLower.includes('referandearn') || hrefLower.includes('/redeem')) return true;
 
@@ -320,7 +346,7 @@ class TaskParser:
                     }
 
                     function extractPoints(el) {
-                        const pointsEl = el.querySelector('.text-caption1Stronger');
+                        const pointsEl = el.querySelector(pointsSelector);
                         if (pointsEl) {
                             const num = pointsEl.innerText.trim().match(/\\d+/);
                             if (num) return parseInt(num[0]);
@@ -336,7 +362,9 @@ class TaskParser:
                     function isCompleted(el) {
                         const text = (el.innerText || '').toLowerCase();
 
-                        if (text.includes('已完成') || text.includes('completed')) return true;
+                        for (const pattern of completedTextPatterns) {
+                            if (text.includes(pattern.toLowerCase())) return true;
+                        }
 
                         const progressMatch = text.match(/(\\d+)\\/(\\d+)/);
                         if (progressMatch && progressMatch[1] === progressMatch[2]) return true;
@@ -344,8 +372,8 @@ class TaskParser:
                         const circleEl = el.querySelector('[class*="rounded-full"]');
                         if (circleEl) {
                             const circleClass = circleEl.className || '';
-                            if (circleClass.includes('bg-statusSuccessBg3')) return true;
-                            if (circleClass.includes('border-neutralStroke1')) return false;
+                            if (circleClass.includes(completedCircleClass)) return true;
+                            if (circleClass.includes(incompleteCircleClass)) return false;
 
                             const style = window.getComputedStyle(circleEl);
                             const bgColor = style.backgroundColor || '';
@@ -417,7 +445,16 @@ class TaskParser:
 
                     return { tasks: tasks, debug: debug };
                 }
-            """)
+            """,
+                [
+                    SKIP_HREFS,
+                    SKIP_TEXT_PATTERNS,
+                    COMPLETED_TEXT_PATTERNS,
+                    POINTS_SELECTOR,
+                    COMPLETED_CIRCLE_CLASS,
+                    INCOMPLETE_CIRCLE_CLASS,
+                ],
+            )
 
             if not raw_tasks:
                 self.logger.warning("No task elements found on page")

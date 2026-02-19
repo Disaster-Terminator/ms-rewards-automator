@@ -4,26 +4,15 @@
 
 import asyncio
 import json
+import sys
 from pathlib import Path
 
 from playwright.async_api import async_playwright
 
 project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-
-def get_storage_state_path() -> str | None:
-    """Get storage_state path from config or default"""
-    try:
-        import yaml
-
-        config_path = project_root / "config.yaml"
-        if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
-                config = yaml.safe_load(f)
-            return config.get("account", {}).get("storage_state_path", "storage_state.json")
-    except Exception:
-        pass
-    return "storage_state.json"
+from tools.session_helpers import create_session_browser, wait_for_login  # noqa: E402
 
 
 async def diagnose():
@@ -31,59 +20,21 @@ async def diagnose():
     print("Earn页面结构诊断工具")
     print("=" * 60)
 
-    storage_state = get_storage_state_path()
-    storage_state_path = project_root / storage_state if storage_state else None
-    has_session = storage_state_path and storage_state_path.exists()
-
     async with async_playwright() as p:
         print("\n[0] 启动浏览器...")
-        use_headless = has_session
-        if not use_headless:
-            print("  未找到会话状态，使用有头模式以便手动登录")
-
-        browser = await p.chromium.launch(headless=use_headless)
+        browser, context, page, has_session = await create_session_browser(p)
 
         if has_session:
-            context = await browser.new_context(storage_state=str(storage_state_path))
             print("  ✓ 使用已保存的会话状态")
         else:
-            context = await browser.new_context()
             print("  ⚠ 未找到会话状态，使用新会话（请手动登录）")
-
-        page = await context.new_page()
 
         print("\n[1] 导航到dashboard触发登录...")
         await page.goto("https://rewards.bing.com/dashboard", wait_until="domcontentloaded")
 
-        if not has_session:
-            print("\n" + "=" * 50)
-            print("请在浏览器中完成登录")
-            print("登录成功后会自动继续...")
-            print("=" * 50)
-
-            for _ in range(60):
-                await asyncio.sleep(1)
-                pages = context.pages
-                if pages:
-                    current_page = pages[-1]
-                    url = current_page.url
-                    if "rewards.bing.com" in url and "login" not in url.lower():
-                        print(f"\n检测到登录成功: {url}")
-                        page = current_page
-                        break
-            else:
-                print("超时，请手动确认后按Enter继续...")
-                input()
-                pages = context.pages
-                if pages:
-                    page = pages[-1]
-        else:
-            await asyncio.sleep(3)
-            if "login" in page.url.lower():
-                print("  ⚠ 会话已过期，需要重新登录")
-                has_session = False
-            else:
-                print("  ✓ 会话有效，跳过登录等待")
+        logged_in = await wait_for_login(page, context, has_session)
+        if not logged_in:
+            has_session = False
 
         print(f"\n当前URL: {page.url}")
 

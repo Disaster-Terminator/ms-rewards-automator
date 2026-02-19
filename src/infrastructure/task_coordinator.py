@@ -353,10 +353,27 @@ class TaskCoordinator:
                     if tasks:
                         points_detector = PointsDetector()
 
-                        points_before = getattr(state_monitor, "initial_points", None)
+                        points_before = getattr(state_monitor, "last_points", None) or getattr(
+                            state_monitor, "initial_points", None
+                        )
+
                         if points_before is None:
-                            points_before = 0
-                        self.logger.info(f"  任务前积分: {points_before}")
+                            self.logger.info("  获取任务前积分...")
+                            temp_page_before = await page.context.new_page()
+                            try:
+                                points_before = await points_detector.get_current_points(
+                                    temp_page_before, skip_navigation=False
+                                )
+                            finally:
+                                await temp_page_before.close()
+
+                            if points_before is None:
+                                self.logger.warning("  ⚠️ 无法获取任务前积分，跳过积分验证")
+                                points_before = None
+                            else:
+                                self.logger.info(f"  任务前积分: {points_before}")
+                        else:
+                            self.logger.info(f"  任务前积分 (缓存): {points_before}")
 
                         self.logger.info("  开始执行任务...")
                         report = await task_manager.execute_tasks(page, tasks)
@@ -372,6 +389,10 @@ class TaskCoordinator:
                         if points_after is None:
                             self.logger.warning("  ⚠️ 积分检测失败，跳过积分验证")
                             actual_points_gained = 0
+                        elif points_before is None:
+                            self.logger.warning("  ⚠️ 无任务前积分基线，跳过积分验证")
+                            self.logger.info(f"  任务后积分: {points_after}")
+                            actual_points_gained = 0
                         else:
                             self.logger.info(f"  任务后积分: {points_after}")
                             actual_points_gained = max(0, points_after - points_before)
@@ -379,6 +400,8 @@ class TaskCoordinator:
                                 self.logger.warning(
                                     f"  ⚠️ 积分验证: 报告 {report.points_earned}, 实际 {actual_points_gained}"
                                 )
+                            if hasattr(state_monitor, "last_points"):
+                                state_monitor.last_points = points_after
 
                         state_monitor.session_data["tasks_completed"] = report.completed
                         state_monitor.session_data["tasks_failed"] = report.failed
