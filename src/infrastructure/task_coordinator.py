@@ -413,10 +413,12 @@ class TaskCoordinator:
 
             term_gen = SearchTermGenerator(self.config)
             anti_ban = AntiBanModule(self.config)
+            state_monitor = self._get_state_monitor()
             self._search_engine = SearchEngine(
                 self.config,
                 term_gen,
                 anti_ban,
+                monitor=state_monitor,
                 status_manager=StatusManager,
             )
         return self._search_engine
