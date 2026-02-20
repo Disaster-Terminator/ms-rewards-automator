@@ -70,23 +70,31 @@ class StateMonitor:
 
         logger.info("任务前检查积分（使用独立页面，避免影响主搜索页面）...")
 
-        async with temp_page(page.context) as monitor_page:
-            points = await self.points_detector.get_current_points(monitor_page)
+        try:
+            async with temp_page(page.context) as monitor_page:
+                points = await self.points_detector.get_current_points(monitor_page)
 
-            if points is not None:
-                self.initial_points = points
-                self.last_points = points
-                self.session_data["start_time"] = datetime.now().isoformat()
-                self.points_history.append(
-                    {"time": datetime.now().isoformat(), "points": points, "event": "task_start"}
-                )
-                if len(self.points_history) > 100:
-                    self.points_history = self.points_history[-100:]
-                logger.info(f"✓ 初始积分: {points:,}")
-                return points
-            else:
-                logger.warning("无法获取初始积分")
-                return None
+                if points is not None:
+                    self.initial_points = points
+                    self.last_points = points
+                    self.session_data["start_time"] = datetime.now().isoformat()
+                    self.points_history.append(
+                        {
+                            "time": datetime.now().isoformat(),
+                            "points": points,
+                            "event": "task_start",
+                        }
+                    )
+                    if len(self.points_history) > 100:
+                        self.points_history = self.points_history[-100:]
+                    logger.info(f"✓ 初始积分: {points:,}")
+                    return points
+                else:
+                    logger.warning("无法获取初始积分")
+                    return None
+        except Exception as e:
+            logger.error(f"检查初始积分失败: {e}")
+            return None
 
     async def check_points_after_searches(self, page, search_type: str = "desktop") -> int | None:
         """
@@ -112,47 +120,51 @@ class StateMonitor:
 
         logger.info(f"检查积分 (已完成 {self.search_count} 次搜索，使用独立页面)...")
 
-        async with temp_page(page.context) as monitor_page:
-            points = await self.points_detector.get_current_points(
-                monitor_page, skip_navigation=True
-            )
-
-            if points is not None:
-                self.points_history.append(
-                    {
-                        "time": datetime.now().isoformat(),
-                        "points": points,
-                        "event": f"{search_type}_search",
-                        "search_count": self.search_count,
-                    }
+        try:
+            async with temp_page(page.context) as monitor_page:
+                points = await self.points_detector.get_current_points(
+                    monitor_page, skip_navigation=True
                 )
-                if len(self.points_history) > 100:
-                    self.points_history = self.points_history[-100:]
 
-                if self.last_points is not None:
-                    gain = points - self.last_points
+                if points is not None:
+                    self.points_history.append(
+                        {
+                            "time": datetime.now().isoformat(),
+                            "points": points,
+                            "event": f"{search_type}_search",
+                            "search_count": self.search_count,
+                        }
+                    )
+                    if len(self.points_history) > 100:
+                        self.points_history = self.points_history[-100:]
 
-                    if gain > 0:
-                        logger.info(f"✓ 积分增加: {self.last_points:,} → {points:,} (+{gain})")
-                        self.no_increase_count = 0
-                    else:
-                        self.no_increase_count += 1
-                        logger.warning(f"⚠ 积分未增加 (连续 {self.no_increase_count} 次)")
+                    if self.last_points is not None:
+                        gain = points - self.last_points
 
-                        self.session_data["alerts"].append(
-                            {
-                                "time": datetime.now().isoformat(),
-                                "type": "no_increase",
-                                "message": f"连续 {self.no_increase_count} 次检查积分未增加",
-                                "search_count": self.search_count,
-                            }
-                        )
+                        if gain > 0:
+                            logger.info(f"✓ 积分增加: {self.last_points:,} → {points:,} (+{gain})")
+                            self.no_increase_count = 0
+                        else:
+                            self.no_increase_count += 1
+                            logger.warning(f"⚠ 积分未增加 (连续 {self.no_increase_count} 次)")
 
-                self.last_points = points
-                return points
-            else:
-                logger.warning("无法获取当前积分")
-                return None
+                            self.session_data["alerts"].append(
+                                {
+                                    "time": datetime.now().isoformat(),
+                                    "type": "no_increase",
+                                    "message": f"连续 {self.no_increase_count} 次检查积分未增加",
+                                    "search_count": self.search_count,
+                                }
+                            )
+
+                    self.last_points = points
+                    return points
+                else:
+                    logger.warning("无法获取当前积分")
+                    return None
+        except Exception as e:
+            logger.error(f"检查积分失败: {e}")
+            return None
 
     def detect_no_increase(self) -> bool:
         """

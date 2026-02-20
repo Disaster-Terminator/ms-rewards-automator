@@ -76,7 +76,7 @@ DEFAULT_CONFIG = {
         },
     },
     "task_system": {
-        "enabled": True,
+        "enabled": False,
         "min_delay": 2,
         "max_delay": 5,
         "skip_completed": True,

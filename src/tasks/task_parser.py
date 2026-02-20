@@ -402,119 +402,101 @@ class TaskParser:
         except Exception:
             return False
 
-    def _build_js_should_skip(self) -> str:
-        """Build JavaScript shouldSkip function"""
+    def _build_full_js_parser(self) -> str:
+        """Build complete JavaScript parser as a single IIFE"""
         return """
-            function shouldSkip(href, text, skipHrefs, skipTextPatterns) {
-                const hrefLower = href.toLowerCase();
-                const combined = (href + ' ' + text).toLowerCase();
+            (args) => {
+                const [skipHrefs, skipTextPatterns, completedTextPatterns, pointsSelector, completedCircleClass, incompleteCircleClass] = args;
 
-                if (hrefLower.startsWith('microsoft-edge://')) return true;
-                if (hrefLower.includes('xbox.com')) return true;
-                if (hrefLower === '#' || hrefLower.endsWith('#')) return true;
+                function shouldSkip(href, text) {
+                    const hrefLower = href.toLowerCase();
+                    const combined = (href + ' ' + text).toLowerCase();
 
-                for (const skip of skipHrefs) {
-                    if (skip.startsWith('/') || skip === '/') {
-                        if (hrefLower === skip || hrefLower.endsWith(skip)) return true;
-                        if (hrefLower.startsWith(skip + '?')) return true;
-                    } else {
-                        if (hrefLower.includes(skip)) return true;
+                    if (hrefLower.startsWith('microsoft-edge://')) return true;
+                    if (hrefLower.includes('xbox.com')) return true;
+                    if (hrefLower === '#' || hrefLower.endsWith('#')) return true;
+
+                    for (const skip of skipHrefs) {
+                        if (skip.startsWith('/') || skip === '/') {
+                            if (hrefLower === skip || hrefLower.endsWith(skip)) return true;
+                            if (hrefLower.startsWith(skip + '?')) return true;
+                        } else {
+                            if (hrefLower.includes(skip)) return true;
+                        }
                     }
-                }
 
-                for (const pattern of skipTextPatterns) {
-                    if (combined.includes(pattern.toLowerCase())) return true;
-                }
-
-                if (hrefLower.includes('referandearn') || hrefLower.includes('/redeem')) return true;
-
-                return false;
-            }
-        """
-
-    def _build_js_extract_points(self) -> str:
-        """Build JavaScript extractPoints function"""
-        return """
-            function extractPoints(el, pointsSelector) {
-                const pointsEl = el.querySelector(pointsSelector);
-                if (pointsEl) {
-                    const num = pointsEl.innerText.trim().match(/\\d+/);
-                    if (num) return parseInt(num[0]);
-                }
-
-                const text = el.innerText || '';
-                const match = text.match(/\\+(\\d+)/) ||
-                             text.match(/(\\d+)\\s*(?:points?|pts?|积分|分)/i);
-                if (match) return parseInt(match[1]);
-                return 0;
-            }
-        """
-
-    def _build_js_is_completed(self) -> str:
-        """Build JavaScript isCompleted function"""
-        return """
-            function isCompleted(el, completedTextPatterns, completedCircleClass, incompleteCircleClass) {
-                const text = (el.innerText || '').toLowerCase();
-
-                for (const pattern of completedTextPatterns) {
-                    if (text.includes(pattern.toLowerCase())) return true;
-                }
-
-                const progressMatch = text.match(/(\\d+)\\/(\\d+)/);
-                if (progressMatch && progressMatch[1] === progressMatch[2]) return true;
-
-                const circleEl = el.querySelector('[class*="rounded-full"]');
-                if (circleEl) {
-                    const circleClass = circleEl.className || '';
-                    if (circleClass.includes(completedCircleClass)) return true;
-                    if (circleClass.includes(incompleteCircleClass)) return false;
-
-                    const style = window.getComputedStyle(circleEl);
-                    const bgColor = style.backgroundColor || '';
-                    if (bgColor.includes('rgb') && !bgColor.includes('rgba(0, 0, 0, 0)')) {
-                        return true;
+                    for (const pattern of skipTextPatterns) {
+                        if (combined.includes(pattern.toLowerCase())) return true;
                     }
+
+                    if (hrefLower.includes('referandearn') || hrefLower.includes('/redeem')) return true;
+
+                    return false;
                 }
 
-                const checkmark = el.querySelector('[class*="checkmark"], [aria-label*="complete"], [aria-label*="done"]');
-                if (checkmark) return true;
+                function extractPoints(el) {
+                    const pointsEl = el.querySelector(pointsSelector);
+                    if (pointsEl) {
+                        const num = pointsEl.innerText.trim().match(/\\d+/);
+                        if (num) return parseInt(num[0]);
+                    }
 
-                return false;
-            }
-        """
-
-    def _build_js_extract_title(self) -> str:
-        """Build JavaScript extractTitle function"""
-        return """
-            function extractTitle(el) {
-                const text = el.innerText || '';
-                const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 2);
-
-                for (const line of lines) {
-                    if (line.match(/^\\d+$/) || line.match(/^\\d+\\/\\d+/)) continue;
-                    if (line.includes('到期') || line.includes('过期')) continue;
-                    if (line.match(/^\\+?\\d+\\s*(积分|points?)?$/i)) continue;
-                    return line.substring(0, 100);
+                    const text = el.innerText || '';
+                    const match = text.match(/\\+(\\d+)/) ||
+                                 text.match(/(\\d+)\\s*(?:points?|pts?|积分|分)/i);
+                    if (match) return parseInt(match[1]);
+                    return 0;
                 }
-                return '';
-            }
-        """
 
-    def _build_js_get_task_type(self) -> str:
-        """Build JavaScript getTaskType function"""
-        return """
-            function getTaskType(href, text) {
-                const combined = (href + ' ' + text).toLowerCase();
-                if (combined.includes('quiz') || combined.includes('测验')) return 'quiz';
-                if (combined.includes('poll') || combined.includes('投票')) return 'poll';
-                return 'urlreward';
-            }
-        """
+                function isCompleted(el) {
+                    const text = (el.innerText || '').toLowerCase();
 
-    def _build_js_main_parser(self) -> str:
-        """Build main JavaScript parser function"""
-        return """
-            ([skipHrefs, skipTextPatterns, completedTextPatterns, pointsSelector, completedCircleClass, incompleteCircleClass]) => {
+                    for (const pattern of completedTextPatterns) {
+                        if (text.includes(pattern.toLowerCase())) return true;
+                    }
+
+                    const progressMatch = text.match(/(\\d+)\\/(\\d+)/);
+                    if (progressMatch && progressMatch[1] === progressMatch[2]) return true;
+
+                    const circleEl = el.querySelector('[class*="rounded-full"]');
+                    if (circleEl) {
+                        const circleClass = circleEl.className || '';
+                        if (circleClass.includes(completedCircleClass)) return true;
+                        if (circleClass.includes(incompleteCircleClass)) return false;
+
+                        const style = window.getComputedStyle(circleEl);
+                        const bgColor = style.backgroundColor || '';
+                        if (bgColor.includes('rgb') && !bgColor.includes('rgba(0, 0, 0, 0)')) {
+                            return true;
+                        }
+                    }
+
+                    const checkmark = el.querySelector('[class*="checkmark"], [aria-label*="complete"], [aria-label*="done"]');
+                    if (checkmark) return true;
+
+                    return false;
+                }
+
+                function extractTitle(el) {
+                    const text = el.innerText || '';
+                    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 2);
+
+                    for (const line of lines) {
+                        if (line.match(/^\\d+$/) || line.match(/^\\d+\\/\\d+/)) continue;
+                        if (line.includes('到期') || line.includes('过期')) continue;
+                        if (line.match(/^\\+?\\d+\\s*(积分|points?)?$/i)) continue;
+                        return line.substring(0, 100);
+                    }
+                    return '';
+                }
+
+                function getTaskType(href, text) {
+                    const combined = (href + ' ' + text).toLowerCase();
+                    if (combined.includes('quiz') || combined.includes('测验')) return 'quiz';
+                    if (combined.includes('poll') || combined.includes('投票')) return 'poll';
+                    return 'urlreward';
+                }
+
                 const tasks = [];
                 const seenHrefs = new Set();
                 const debug = [];
@@ -530,7 +512,7 @@ class TaskParser:
                     const text = link.innerText || '';
                     debug.push('Checking: ' + href.substring(0, 50) + ' | text: ' + text.substring(0, 30));
 
-                    if (shouldSkip(href, text, skipHrefs, skipTextPatterns)) {
+                    if (shouldSkip(href, text)) {
                         debug.push('  Skipped by shouldSkip');
                         continue;
                     }
@@ -541,8 +523,8 @@ class TaskParser:
                     debug.push('  Title: ' + title);
                     if (!title) continue;
 
-                    const points = extractPoints(link, pointsSelector);
-                    const completed = isCompleted(link, completedTextPatterns, completedCircleClass, incompleteCircleClass);
+                    const points = extractPoints(link);
+                    const completed = isCompleted(link);
                     const taskType = getTaskType(href, text);
 
                     tasks.push({
@@ -557,17 +539,6 @@ class TaskParser:
                 return { tasks: tasks, debug: debug };
             }
         """
-
-    def _build_full_js_parser(self) -> str:
-        """Build complete JavaScript parser with all helper functions"""
-        return (
-            self._build_js_should_skip()
-            + self._build_js_extract_points()
-            + self._build_js_is_completed()
-            + self._build_js_extract_title()
-            + self._build_js_get_task_type()
-            + self._build_js_main_parser()
-        )
 
     async def _parse_tasks_from_page(self, page: Page) -> list[TaskMetadata]:
         """
