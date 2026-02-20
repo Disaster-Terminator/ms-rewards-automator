@@ -1,660 +1,130 @@
-# 分支管理开发指南
+# 分支管理指南
 
 ## 一、分支结构
 
 ```
 main                          # 核心分支：登录 + 搜索（必须稳定）
-├── feature/daily-tasks       # 每日任务系统（问答、投票、URL奖励）
-├── feature/frontend-ui       # Tauri 2.0 前端界面
-├── feature/theme-management  # Bing主题管理
-├── feature/notifications     # 通知系统
-├── feature/ci-test-workflow  # CI测试工作流
+├── feature/xxx               # 功能分支
 ├── fix/xxx                   # Bug修复分支
-├── integration/xxx           # 临时集成分支（需要时创建）
-└── backup-before-cleanup-*   # 备份分支
-
-已合并分支：
-├── feature/health-monitor    # 健康监控与进度跟踪（已合并到main）
-└── feature/scheduler-enhanced # 调度器增强（已合并到main）
+├── hotfix/xxx                # 紧急修复分支
+└── integration/xxx           # 临时集成分支
 ```
 
 ## 二、分支职责
 
-### 2.1 main 分支（核心）
+### 2.1 main 分支
 
 **目标**：保持稳定，只包含核心功能
 
 | 功能模块 | 目录 | 状态 |
 |----------|------|------|
-| 登录系统 | `src/login/` | ✅ 核心保留 |
-| 搜索系统 | `src/search/` | ✅ 核心保留 |
-| 浏览器控制 | `src/browser/` | ✅ 核心保留 |
-| 账户管理 | `src/account/` | ✅ 核心保留 |
-| 基础设施 | `src/infrastructure/` | ✅ 部分保留 |
+| 登录系统 | `src/login/` | ✅ 核心 |
+| 搜索系统 | `src/search/` | ✅ 核心 |
+| 浏览器控制 | `src/browser/` | ✅ 核心 |
+| 账户管理 | `src/account/` | ✅ 核心 |
 
 **配置禁用的功能**：
 
 ```yaml
-task_system.enabled: false      # 每日任务
-notification.enabled: false     # 通知
-scheduler.enabled: false        # 调度器
-bing_theme.enabled: false       # 主题管理
-monitoring.health_check.enabled: false  # 健康监控
+task_system.enabled: false
+notification.enabled: false
+scheduler.enabled: false
+bing_theme.enabled: false
 ```
 
-### 2.2 功能分支
+### 2.2 功能分支命名
 
-| 分支 | 功能 | 包含文件 | 状态 |
-|------|------|----------|------|
-| `feature/daily-tasks` | 每日任务 | `src/tasks/` | 开发中 |
-| `feature/frontend-ui` | Tauri 2.0 前端 | `src-tauri/`, `src-ui/` | 开发中 |
-| `feature/notifications` | 通知系统 | `src/infrastructure/notificator.py` | 开发中 |
-| `feature/health-monitor` | 健康监控+进度跟踪 | `src/infrastructure/health_monitor.py`, `src/ui/real_time_status.py` | ✅ 已合并 |
-| `feature/scheduler-enhanced` | 调度器增强 | `src/infrastructure/scheduler.py` | ✅ 已合并 |
-| `feature/theme-management` | Bing主题管理 | `src/ui/bing_theme_manager.py` | ✅ 已合并 |
-
-### 2.3 临时集成分支
-
-当需要合并多个功能分支时创建：
-
-```bash
-# 创建临时集成分支
-git checkout main
-git checkout -b integration/temp
-
-# 合并多个功能分支
-git merge feature/a
-git merge feature/b
-
-# 通过验收测试后创建 PR 合并到 main
-gh pr create --base main --head integration/temp
-```
+| 前缀 | 用途 | 示例 |
+|------|------|------|
+| `feature/` | 新功能 | `feature/daily-tasks` |
+| `fix/` | Bug修复 | `fix/login-timeout` |
+| `hotfix/` | 紧急修复 | `hotfix/crash` |
+| `integration/` | 多分支集成 | `integration/temp` |
 
 ## 三、开发工作流
 
-### ⚠️ 重要规则：所有合并必须通过 PR
+### ⚠️ 核心规则：所有合并必须通过 PR
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     🚫 严禁本地合并 🚫                                    │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ❌ 禁止：git checkout main && git merge feature/xxx                    │
-│  ❌ 禁止：本地直接合并后推送                                              │
-│                                                                         │
-│  ✅ 正确：创建 Pull Request 通过 GitHub 合并                             │
-│                                                                         │
-│  原因：                                                                  │
-│  1. 保证代码审查记录                                                     │
-│  2. 触发 CI 自动化测试                                                   │
-│  3. 保持提交历史清晰                                                     │
-│  4. 便于回滚和追踪                                                       │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+❌ 禁止：git checkout main && git merge feature/xxx
+✅ 正确：创建 Pull Request 通过 GitHub 合并
 ```
 
 ### 3.1 新功能开发
 
 ```bash
 # 1. 从 main 创建功能分支
-git checkout main
-git pull origin main
+git checkout main && git pull
 git checkout -b feature/new-feature
 
-# 2. 开发功能
-# ... 编写代码 ...
+# 2. 开发并提交
+git add . && git commit -m "feat: 功能描述"
 
-# 3. 提交更改
-git add .
-git commit -m "feat: 添加新功能描述"
-
-# 4. 推送到远程
+# 3. 推送并运行验收测试
 git push origin feature/new-feature
 
-# 5. 运行完整验收测试（6阶段）
-# 见下方验收标准章节
-
-# 6. 测试通过后创建 PR
-gh pr create --base main --head feature/new-feature --title "feat: 新功能描述" --body "PR描述"
-
-# 7. PR 合并后删除分支（在 GitHub 上操作或）
-git branch -d feature/new-feature
-git push origin --delete feature/new-feature
+# 4. 测试通过后创建 PR
+gh pr create --base main --head feature/new-feature
 ```
 
 ### 3.2 Bug 修复
 
 ```bash
-# 1. 从 main 创建修复分支
-git checkout main
-git pull origin main
+git checkout main && git pull
 git checkout -b fix/bug-description
-
-# 2. 修复 bug
-# ... 修改代码 ...
-
-# 3. 提交并运行验收测试
-git add .
-git commit -m "fix: 修复问题描述"
-
-# 4. 推送到远程
-git push origin fix/bug-description
-
-# 5. 测试通过后创建 PR
-gh pr create --base main --head fix/bug-description --title "fix: 修复问题描述" --body "PR描述"
-
-# 6. PR 合并后删除分支
-git branch -d fix/bug-description
-git push origin --delete fix/bug-description
-```
-
-### 3.3 紧急修复
-
-```bash
-# 创建紧急修复分支（仍然需要 PR）
-git checkout main
-git pull origin main
-git checkout -b hotfix/urgent-fix
-
 # ... 修复 ...
-git add .
-git commit -m "hotfix: 紧急修复描述"
-git push origin hotfix/urgent-fix
-
-# 创建 PR 并请求快速审查
-gh pr create --base main --head hotfix/urgent-fix --title "hotfix: 紧急修复描述"
+git add . && git commit -m "fix: 问题描述"
+git push origin fix/bug-description
+gh pr create --base main --head fix/bug-description
 ```
 
 ## 四、验收标准
 
-### 4.1 验收流程概览
+> **详细验收流程**：[MCP_WORKFLOW.md](./MCP_WORKFLOW.md)
+
+### 8 阶段验收概览
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    CI 自动化验收 (阶段1-5)                                │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  阶段1: 静态检查 ──→ 阶段2: 单元测试 ──→ 阶段3: 集成测试                  │
-│                              ↓                                          │
-│         阶段4: Dev快速验证 (失败立即停止)                                 │
-│                              ↓ 通过                                     │
-│         阶段5: 集成诊断测试 (Usermode + 中文报告)                        │
-│                              ↓ 通过 + 报告审核                           │
-└─────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│              阶段6: 有头模式开发者验收 (必须人工)                          │
-└─────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│              创建 Pull Request → 代码审查 → 合并                          │
-└─────────────────────────────────────────────────────────────────────────┘
+阶段 1-3: CI 自动化（静态检查 → 单元测试 → 集成测试）
+阶段 4-6: MCP 验收（Dev无头 → User无头 → 有头）
+阶段 7-8: PR 管理（创建PR → 合并确认）
 ```
 
-### 4.2 验收阶段详解
+### 测试类型
 
-| 阶段 | 验收内容 | 验收命令 | 通过条件 | 失败处理 |
-|------|----------|----------|----------|----------|
-| **1. 静态检查** | 代码风格 | `ruff check .` | 无错误 | 停止 |
-| **2. 单元测试** | 模块功能 | `pytest tests/unit/ -m "not real"` | 全部通过 | 停止 |
-| **3. 集成测试** | 模块协作 | `pytest tests/integration/` | 全部通过 | 停止 |
-| **4. Dev快速验证** | 基本流程 | `rscore --dev --headless` | 退出码0 | **立即停止** |
-| **5. User诊断验证** | 完整验证+诊断 | `rscore --user --headless` | 无严重问题 | 停止，查看报告 |
-| **6. 有头验收** | 开发者确认 | `rscore --dev` 或 `--user` | 人工确认 | 不合并 |
+| 类型 | 目录 | 运行方式 |
+|------|------|----------|
+| 单元测试 | `tests/unit/` | `pytest tests/unit/ -m "not real"` |
+| 集成测试 | `tests/integration/` | `pytest tests/integration/` |
+| 功能验证 | CLI | `rscore --dev/--user` |
 
-### 4.3 阶段4：Dev快速验证（快速失败）
+## 五、命令行参数
+
+| 参数 | 搜索次数 | 调度器 | 用途 |
+|------|----------|--------|------|
+| 默认 | 20 | ✅ 启用 | 生产环境 |
+| `--user` | 3 | ❌ 禁用 | 稳定性测试 |
+| `--dev` | 2 | ❌ 禁用 | 快速调试 |
+| `--headless` | - | - | 无头模式 |
+
+## 六、常用 Git 命令
 
 ```bash
-rscore --dev --headless
+git branch -a                    # 查看分支
+git checkout -b <branch>         # 创建并切换
+git push origin <branch>         # 推送分支
+gh pr create --base main         # 创建 PR
+git log --oneline --graph --all  # 查看历史
 ```
 
-**检查项：**
+## 七、注意事项
 
-- [ ] 浏览器无头启动成功
-- [ ] 登录流程完成（无异常退出）
-- [ ] 桌面搜索完成 2 次
-- [ ] 总耗时 < 5 分钟
-- [ ] 日志无 ERROR 级别
-- [ ] 进程退出码 = 0
+1. **main 必须稳定**：合并前通过 8 阶段验收
+2. **功能分支独立**：避免交叉依赖
+3. **配置禁用优于代码删除**：保留代码，配置控制
+4. **严禁本地合并**：必须通过 PR
+5. **MCP 工具优先**：验收时使用 MCP 直接验证
 
-**失败处理：** 立即停止，查看日志定位问题
+---
 
-### 4.4 阶段5：集成诊断测试
-
-```bash
-rscore --dev --headless
-rscore --user --headless
-```
-
-**整合功能：**
-
-- 诊断模式自动启用（--dev/--user 默认启用）
-- 问题自动检测（PageInspector）
-- 根因诊断（DiagnosticEngine）
-- 中文摘要报告（DiagnosisReporter）
-
-**检测的问题类型：**
-
-| 问题类型 | 严重级别 | 说明 |
-|----------|----------|------|
-| `LOGIN_REQUIRED` | 🔴 Critical | 需要登录 |
-| `CAPTCHA_DETECTED` | 🔴 Critical | 检测到验证码 |
-| `ACCOUNT_LOCKED` | 🔴 Critical | 账户被锁定 |
-| `SESSION_EXPIRED` | 🟠 Error | 会话过期 |
-| `RATE_LIMITED` | 🟠 Error | 被限流 |
-| `ELEMENT_NOT_FOUND` | 🟡 Warning | 元素未找到 |
-| `NETWORK_ERROR` | 🟡 Warning | 网络错误 |
-
-**生成的报告：**
-
-- `logs/diagnosis/{session_id}/summary.txt` - 中文诊断摘要
-- `logs/diagnosis/{session_id}/screenshots/` - 截图目录
-
-**通过条件：**
-
-- [ ] 无 `CRITICAL` 级别问题
-- [ ] 无 `ERROR` 级别问题
-- [ ] 诊断报告中无 `ACCOUNT` 或 `AUTHENTICATION` 类别严重问题
-
-### 4.5 阶段6：有头模式开发者验收（必须）
-
-```bash
-rscore --dev          # 快速验收
-# 或
-rscore --user         # 完整行为验收
-```
-
-**验收检查项：**
-
-- [ ] 浏览器窗口正常显示
-- [ ] 登录页面加载正确
-- [ ] 登录行为符合预期
-- [ ] 搜索页面跳转正确
-- [ ] 拟人行为可见（鼠标移动、滚动、随机延迟）
-- [ ] 无异常弹窗或错误页面
-- [ ] 程序退出后浏览器正确关闭
-
-### 4.6 完整验收流程图
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         功能分支验收流程                                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐                            │
-│  │ 阶段1    │──→│ 阶段2    │──→│ 阶段3    │                            │
-│  │ 静态检查  │   │ 单元测试  │   │ 集成测试  │                            │
-│  └──────────┘   └──────────┘   └──────────┘                            │
-│        ↓              ↓              ↓                                 │
-│     [失败停止]     [失败停止]     [失败停止]                              │
-│                                      ↓                                  │
-│                         ┌──────────────────────┐                       │
-│                         │ 阶段4: Dev快速验证    │                       │
-│                         │ --dev --headless     │                       │
-│                         │ 超时: 5分钟          │                       │
-│                         └──────────────────────┘                       │
-│                                  ↓                                      │
-│                         ┌────────────────┐                             │
-│                         │   失败？       │                             │
-│                         └────────────────┘                             │
-│                           ↓           ↓                                │
-│                        [是]          [否]                              │
-│                          ↓             ↓                               │
-│                   ┌─────────────┐  ┌──────────────────────┐            │
-│                   │ 立即停止    │  │ 阶段5: 集成诊断       │            │
-│                   │ 查看日志    │  │ --dev/--user         │            │
-│                   │ 定位问题    │  │ + 问题检测           │            │
-│                   └─────────────┘  │ + 根因诊断           │            │
-│                                    │ + 中文报告           │            │
-│                                    └──────────────────────┘            │
-│                                              ↓                          │
-│                                    ┌────────────────┐                  │
-│                                    │ 有严重问题？   │                  │
-│                                    └────────────────┘                  │
-│                                      ↓           ↓                     │
-│                                   [是]          [否]                   │
-│                                     ↓             ↓                    │
-│                              ┌─────────────┐  ┌──────────────┐         │
-│                              │ 停止        │  │ 阶段6: 有头   │         │
-│                              │ 查看报告    │  │ 开发者验收    │         │
-│                              └─────────────┘  │ (必须人工)   │         │
-│                                               └──────────────┘         │
-│                                                      ↓                  │
-│                                               ┌────────────┐           │
-│                                               │ 通过？     │           │
-│                                               └────────────┘           │
-│                                                 ↓         ↓             │
-│                                              [否]        [是]           │
-│                                                ↓           ↓            │
-│                                          ┌─────────┐  ┌─────────┐      │
-│                                          │ 不合并  │  │ 创建PR  │      │
-│                                          │ 继续修  │  │ 等待审查│      │
-│                                          └─────────┘  └─────────┘      │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-## 五、测试验证命令
-
-### 5.1 命令行参数参考
-
-#### 执行模式
-
-| 参数 | 搜索次数 | 拟人行为 | 防检测 | 调度器 | 日志级别 | 用途 |
-|------|----------|----------|--------|--------|----------|------|
-| 默认 | 20 | ✅ | ✅ | ✅ 启用 | INFO | 生产环境 |
-| `--user` | 3 | ✅ | ✅ | ❌ 禁用 | DEBUG | 稳定性测试（开发调试用） |
-| `--dev` | 2 | ❌ | ❌ | ❌ 禁用 | DEBUG | 快速调试（开发用） |
-
-#### 测试参数
-
-| 参数 | 说明 |
-|------|------|
-| `--dry-run` | 模拟运行，不执行实际操作 |
-| `--test-notification` | 测试通知功能 |
-| `--diagnose` | 启用诊断模式（--dev/--user 默认启用） |
-
-#### 其他参数
-
-| 参数 | 说明 |
-|------|------|
-| `--headless` | 无头模式 |
-| `--browser {chromium,edge,chrome}` | 浏览器类型 |
-| `--desktop-only` | 仅桌面搜索 |
-| `--mobile-only` | 仅移动搜索 |
-| `--skip-daily-tasks` | 跳过每日任务 |
-| `--config FILE` | 配置文件路径 |
-
-### 5.2 main 分支验证命令
-
-```bash
-# 开发模式（快速调试，调度器禁用）
-rscore --dev
-
-# 用户测试模式（稳定性验证，调度器禁用）
-rscore --user
-
-# 生产环境（完整功能，调度器启用）
-rscore
-
-# 仅测试登录
-rscore --dev --desktop-only --dry-run
-
-# 向后兼容（仍支持 python main.py）
-python main.py --dev
-```
-
-### 5.3 功能分支验证
-
-```bash
-# 切换到功能分支
-git checkout feature/daily-tasks
-
-# 启用对应功能配置
-# 修改 config.yaml 中 task_system.enabled: true
-
-# 运行测试
-rscore --dev
-pytest tests/unit/test_task_manager.py
-```
-
-## 六、配置管理
-
-### 6.1 main 分支配置（config.yaml）
-
-```yaml
-# 核心功能
-search:
-  desktop_count: 20
-  mobile_count: 0
-  wait_interval:
-    min: 5
-    max: 15
-
-browser:
-  headless: false
-  type: "chromium"
-
-login:
-  auto_login:
-    enabled: false
-
-# 禁用非核心功能
-task_system:
-  enabled: false
-
-notification:
-  enabled: false
-
-scheduler:
-  enabled: false
-
-bing_theme:
-  enabled: false
-
-monitoring:
-  health_check:
-    enabled: false
-```
-
-### 6.2 功能分支配置示例
-
-```yaml
-# feature/daily-tasks 分支
-task_system:
-  enabled: true
-  debug_mode: true
-
-# feature/notifications 分支
-notification:
-  enabled: true
-  telegram:
-    bot_token: "your_token"
-    chat_id: "your_chat_id"
-
-# feature/scheduler-enhanced 分支
-scheduler:
-  enabled: true
-  mode: "scheduled"
-  scheduled_hour: 17
-  max_offset_minutes: 45
-  run_once_on_start: true
-```
-
-### 6.3 调度器行为说明
-
-**调度器默认启用**：
-
-```
-python main.py 执行流程：
-┌─────────────────────────────────────────┐
-│ 默认：执行一次任务 → 等待调度时间 → 循环   │
-│                                         │
-│ --dev/--user：执行一次任务 → 退出        │
-│       （调度器自动禁用）                  │
-│                                         │
-│ 禁用调度器：config.yaml 中设置           │
-│   scheduler.enabled: false              │
-└─────────────────────────────────────────┘
-```
-
-**配置控制**：
-
-| 配置 | 说明 |
-|------|------|
-| `scheduler.enabled: true` | 启用调度器（默认） |
-| `scheduler.enabled: false` | 禁用调度器，执行一次后退出 |
-| `--dev` / `--user` | 自动禁用调度器 |
-
-## 七、依赖关系图
-
-```
-main 分支核心依赖：
-┌─────────────────────────────────────────────────────────────┐
-│                      MSRewardsApp                           │
-│                     (应用主控制器)                           │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-          ┌───────────────┼───────────────┐
-          │               │               │
-          ▼               ▼               ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│   登录系统   │   │   搜索系统   │   │   浏览器    │
-│  (login/)   │   │  (search/)  │   │ (browser/)  │
-└─────────────┘   └─────────────┘   └─────────────┘
-          │               │               │
-          └───────────────┼───────────────┘
-                          │
-                          ▼
-              ┌─────────────────────┐
-              │     账户管理         │
-              │   (account/)        │
-              └─────────────────────┘
-
-功能分支依赖（可选）：
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│   任务系统       │   │   通知系统       │   │   前端界面       │
-│  (tasks/)       │   │ (notificator)   │   │ (src-tauri/)    │
-└─────────────────┘   └─────────────────┘   └─────────────────┘
-```
-
-## 八、版本发布流程
-
-1. **开发阶段**：在功能分支开发
-2. **验收阶段**：运行完整6阶段验收测试
-3. **PR阶段**：创建 Pull Request，等待代码审查
-4. **发布阶段**：PR 合并到 main，打 tag
-5. **维护阶段**：在 fix 分支进行 bug 修复
-
-## 九、CI 配置示例
-
-```yaml
-# .github/workflows/acceptance.yml
-name: Branch Acceptance Tests
-
-on:
-  push:
-    branches: [main, 'feature/*']
-  pull_request:
-    branches: [main]
-
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install ruff mypy
-      - run: ruff check .
-      - run: mypy src/
-
-  unit-test:
-    runs-on: ubuntu-latest
-    steps:
-      - run: pytest tests/unit/ -v -m "not real"
-
-  integration-test:
-    runs-on: ubuntu-latest
-    steps:
-      - run: pytest tests/integration/ -v
-
-  dev-quick-verify:
-    runs-on: ubuntu-latest
-    needs: [lint, unit-test, integration-test]
-    timeout-minutes: 5
-    steps:
-      - name: Dev Quick Verify
-        run: |
-          rscore --dev --headless
-          exit_code=$?
-          if [ $exit_code -ne 0 ]; then
-            echo "❌ Dev验证失败，跳过后续测试"
-            exit 1
-          fi
-          echo "✅ Dev验证通过"
-
-  user-diagnosis:
-    runs-on: ubuntu-latest
-    needs: [dev-quick-verify]
-    timeout-minutes: 20
-    steps:
-      - run: rscore --user --headless
-      - name: Upload Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: diagnosis-reports
-          path: |
-            logs/diagnosis/
-      - name: Check Critical Issues
-        run: |
-          python -c "
-          import json
-          from pathlib import Path
-          diagnosis_dir = Path('logs/diagnosis')
-          if diagnosis_dir.exists():
-              latest = max(diagnosis_dir.iterdir())
-              summary = latest / 'summary.txt'
-              if summary.exists():
-                  content = summary.read_text()
-                  if '🔴' in content or '严重问题' in content:
-                      print('❌ 发现严重问题，验收失败')
-                      exit(1)
-          print('✅ 无严重问题')
-          "
-```
-
-## 十、常用 Git 命令
-
-```bash
-# 查看分支
-git branch -a
-
-# 切换分支
-git checkout <branch>
-
-# 创建并切换
-git checkout -b <new-branch>
-
-# 推送分支到远程
-git push origin <branch>
-
-# 创建 Pull Request (使用 GitHub CLI)
-gh pr create --base main --head <branch> --title "标题" --body "描述"
-
-# 查看 PR 列表
-gh pr list
-
-# 查看差异
-git diff main..feature/xxx
-
-# 暂存工作
-git stash
-git stash pop
-
-# 查看历史
-git log --oneline --graph --all
-
-# 拉取所有远程分支信息
-git fetch --all
-```
-
-## 十一、注意事项
-
-1. **main 分支必须保持稳定**：任何合并前必须通过6阶段验收测试
-2. **功能分支独立开发**：避免功能间的交叉依赖
-3. **快速失败原则**：阶段4失败立即停止，不浪费时间
-4. **配置禁用优于代码删除**：保留代码，通过配置控制
-5. **有头验收必须人工**：最后一步必须开发者亲自确认
-6. **文档同步**：功能变更时更新本文档
-7. **🚫 严禁本地合并**：所有合并必须通过 Pull Request，禁止 `git merge` 到 main
-8. **PR 审查**：PR 创建后需要代码审查才能合并
-
-## 十二、当前分支状态
-
-| 分支 | 状态 |
-|------|------|
-| `main` | 稳定 |
-| `feature/daily-tasks` | 开发中 |
-| `feature/frontend-ui` | 开发中 |
-| `feature/notifications` | 开发中 |
-
-*最后更新：2026-02-20*
+*最后更新：2026-02-21*
