@@ -216,10 +216,10 @@ class TaskCoordinator:
         state_monitor = self._get_state_monitor()
         health_monitor = self._get_health_monitor()
         browser_sim = self._get_browser_sim()
+        mobile_count = self.config.get("search.mobile_count", 0)
 
         self.logger.info("\n[6/8] 执行移动搜索...")
         StatusManager.update_operation("执行移动搜索")
-        mobile_count = self.config.get("search.mobile_count")
         StatusManager.update_mobile_searches(0, mobile_count)
 
         if self.args.dry_run:

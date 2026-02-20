@@ -279,10 +279,17 @@ class MSRewardsApp:
                 await self._recreate_page()
             await self.coordinator.execute_desktop_search(self.page)
 
-        # 6. 移动搜索
-        if not self.args.desktop_only:
+        # 6. 移动搜索（仅在配置了移动搜索次数时执行）
+        mobile_count = self.config.get("search.mobile_count", 0)
+        if not self.args.desktop_only and mobile_count > 0:
             self.page = await self.coordinator.execute_mobile_search(self.page)
             self.current_device = "desktop"  # 移动搜索完成后切换回桌面
+        elif self.args.desktop_only and mobile_count > 0:
+            self.logger.info("[6/8] 因 --desktop-only 参数跳过移动搜索")
+            StatusManager.update_progress(6, 8)
+        elif mobile_count <= 0:
+            self.logger.info("[6/8] 移动搜索已禁用 (mobile_count=0)")
+            StatusManager.update_progress(6, 8)
 
     async def _is_page_crashed(self) -> bool:
         """检查页面是否已崩溃"""

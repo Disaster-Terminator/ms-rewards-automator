@@ -33,8 +33,8 @@ DEFAULT_CONFIG = {
         "mode": "normal",
     },
     "search": {
-        "desktop_count": 30,
-        "mobile_count": 20,
+        "desktop_count": 20,
+        "mobile_count": 0,
         "wait_interval": {"min": 5, "max": 15},
         "search_terms_file": "tools/search_terms.txt",
     },
@@ -177,7 +177,7 @@ DEFAULT_CONFIG = {
 DEV_MODE_OVERRIDES = {
     "search": {
         "desktop_count": 2,
-        "mobile_count": 2,
+        "mobile_count": 0,
         "wait_interval": {
             "min": 0.5,
             "max": 1.5,
@@ -211,7 +211,7 @@ DEV_MODE_OVERRIDES = {
 USER_MODE_OVERRIDES = {
     "search": {
         "desktop_count": 3,
-        "mobile_count": 3,
+        "mobile_count": 0,
         "wait_interval": {
             "min": 3,
             "max": 8,
@@ -517,8 +517,8 @@ class ConfigManager:
             return False
 
         mobile_count = self.get("search.mobile_count")
-        if not isinstance(mobile_count, int) or mobile_count < 1:
-            logger.error(f"search.mobile_count 必须是正整数: {mobile_count}")
+        if not isinstance(mobile_count, int) or mobile_count < 0:
+            logger.error(f"search.mobile_count 必须是非负整数: {mobile_count}")
             return False
 
         # 验证 wait_interval（支持单个值和字典两种格式）
