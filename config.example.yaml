@@ -1,5 +1,5 @@
 # ============================================================
-# MS Rewards Automator - 示例配置文件
+# RewardsCore - 示例配置文件
 # ============================================================
 # 复制此文件为 config.yaml 并填写你的配置
 
@@ -9,8 +9,8 @@ execution:
 
 # 搜索任务
 search:
-  desktop_count: 30 # 桌面端搜索次数
-  mobile_count: 20 # 移动端搜索次数
+  desktop_count: 20 # 桌面端搜索次数
+  mobile_count: 0 # 移动端搜索次数（已禁用，微软 Rewards 改版后移动搜索无积分）
   wait_interval:
     min: 5 # 最小等待时间（秒）
     max: 15 # 最大等待时间（秒）

@@ -1,5 +1,5 @@
 """
-MS Rewards Automator - 主程序入口
+RewardsCore - 主程序入口
 支持命令行参数和调度模式
 """
 
@@ -29,14 +29,14 @@ notificator = None
 def parse_arguments():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(
-        description="MS Rewards Automator - 自动化完成 Microsoft Rewards 任务",
+        description="RewardsCore - 自动化完成 Microsoft Rewards 任务",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python main.py                          # 生产环境（30+20搜索，自动调度）
+  python main.py                          # 生产环境（20次搜索，自动调度）
   python main.py --headless               # 后台运行
-  python main.py --user                   # 用户模式（3+3搜索，验证稳定性）
-  python main.py --dev                    # 开发模式（2+2搜索，快速调试）
+  python main.py --user                   # 用户模式（3次搜索，验证稳定性）
+  python main.py --dev                    # 开发模式（2次搜索，快速调试）
   python main.py --browser chrome         # 使用 Chrome 浏览器
   python main.py --test-notification      # 测试通知功能
         """,
@@ -45,13 +45,13 @@ def parse_arguments():
     parser.add_argument(
         "--dev",
         action="store_true",
-        help="开发模式（2+2搜索，无拟人行为，最小等待时间，DEBUG日志）",
+        help="开发模式（2次搜索，无拟人行为，最小等待时间，DEBUG日志）",
     )
 
     parser.add_argument(
         "--user",
         action="store_true",
-        help="用户模式（3+3搜索，保留拟人行为和防检测，INFO日志）",
+        help="用户模式（3次搜索，保留拟人行为和防检测，INFO日志）",
     )
 
     # 浏览器选项
@@ -137,7 +137,7 @@ async def run_autonomous_test(args):
     from tests.autonomous.autonomous_test_runner import AutonomousTestRunner, TestConfig
 
     print("\n" + "=" * 70)
-    print("MS Rewards Automator - 自主测试框架")
+    print("RewardsCore - 自主测试框架")
     print("=" * 70)
     print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"测试类型: {args.test_type}")
@@ -306,7 +306,7 @@ async def main():
         app = MSRewardsApp(config, args)
 
         logger.info("=" * 70)
-        logger.info("MS Rewards Automator - 开始执行")
+        logger.info("RewardsCore - 开始执行")
         logger.info("=" * 70)
         logger.info(f"执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info(f"浏览器: {args.browser}")

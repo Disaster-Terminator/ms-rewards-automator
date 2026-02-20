@@ -99,8 +99,8 @@ class SearchEngine:
             if not self._query_cache:
                 try:
                     count = max(
-                        self.config.get("search.desktop_count", 30),
-                        self.config.get("search.mobile_count", 20),
+                        self.config.get("search.desktop_count", 20),
+                        self.config.get("search.mobile_count", 0),
                     )
                     self._query_cache = await self.query_engine.generate_queries(count)
                     logger.debug(f"预生成了 {len(self._query_cache)} 个查询")

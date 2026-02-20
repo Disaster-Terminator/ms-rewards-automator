@@ -1,10 +1,10 @@
-# 🎯 MS Rewards Automator
+# 🎯 RewardsCore
 
 自动化完成 Microsoft Rewards 任务，轻松赚取积分。
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/Playwright-1.40+-green.svg)](https://playwright.dev/)
-[![Maintained](https://img.shields.io/badge/Maintained-Yes-brightgreen.svg)](https://github.com/yourusername/ms-rewards-automator)
+[![Maintained](https://img.shields.io/badge/Maintained-Yes-brightgreen.svg)](https://github.com/yourusername/rewards-core)
 [![Open Source](https://img.shields.io/badge/Open%20Source-Yes-orange.svg)](LICENSE)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -16,8 +16,7 @@
 
 ### 🔍 智能搜索系统
 
-- **桌面端搜索**: 自动完成30次桌面搜索任务
-- **移动端搜索**: 自动完成20次移动搜索任务
+- **桌面端搜索**: 自动完成20次桌面搜索任务
 - **智能适配**: 自动检测登录状态，首次显示浏览器，后续后台运行
 - **反检测机制**: 集成 playwright-stealth，模拟真实用户行为
 
@@ -74,14 +73,8 @@
    └─ 保存登录会话状态
 
 3. 搜索任务执行
-   ├─ 桌面端搜索 (30次)
+   ├─ 桌面端搜索 (20次)
    │  └─ 使用搜索词库+随机延迟
-   │
-   ├─ 浏览器切换
-   │  └─ 保存桌面会话→创建移动浏览器
-   │
-   └─ 移动端搜索 (20次)
-      └─ 使用搜索词库+随机延迟
 
 4. 日常任务执行
    ├─ 发现可用任务
@@ -122,12 +115,12 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Disaster-Terminator/ms-rewards-automator.git
-cd ms-rewards-automator
+git clone https://github.com/Disaster-Terminator/rewards-core.git
+cd rewards-core
 
 # 使用 Conda 环境（推荐）
 conda env create -f environment.yml
-conda activate ms-rewards-bot
+conda activate rewards-core
 
 # 验证安装
 python tools/check_environment.py
@@ -137,8 +130,8 @@ python tools/check_environment.py
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Disaster-Terminator/ms-rewards-automator.git
-cd ms-rewards-automator
+git clone https://github.com/Disaster-Terminator/rewards-core.git
+cd rewards-core
 
 # 创建虚拟环境
 python -m venv venv
@@ -158,17 +151,17 @@ playwright install chromium
 cp config.example.yaml config.yaml
 # 编辑 config.yaml，填写账号信息
 
-# 直接运行（生产环境，30+20搜索）
+# 直接运行（生产环境，20次搜索）
 python main.py
 ```
 
 **运行模式说明**：
 
-| 模式 | 桌面搜索 | 移动搜索 | 拟人行为 | 防检测 | 用途 |
-|------|----------|----------|----------|--------|------|
-| 默认 | 30 | 20 | ✅ | ✅ | **生产环境（用户使用）** |
-| `--user` | 3 | 3 | ✅ | ✅ | 鲁棒性测试 |
-| `--dev` | 2 | 2 | ❌ | ❌ | 快速迭代调试 |
+| 模式 | 桌面搜索 | 拟人行为 | 防检测 | 用途 |
+|------|----------|----------|--------|------|
+| 默认 | 20 | ✅ | ✅ | **生产环境（用户使用）** |
+| `--user` | 3 | ✅ | ✅ | 鲁棒性测试 |
+| `--dev` | 2 | ❌ | ❌ | 快速迭代调试 |
 
 **登录方式**：
 
@@ -185,7 +178,7 @@ python main.py
 # 后台运行（服务器部署）
 python main.py --headless
 
-# 用户模式（3+3搜索，验证稳定性）
+# 用户模式（3次搜索，验证稳定性）
 python main.py --user
 
 # 开发模式（快速调试）
@@ -224,14 +217,8 @@ streamlit run tools/dashboard.py
 ### 场景3：快速测试模式
 
 - **目标**: 快速验证配置是否正确
-- **配置**: `--dev` 开发模式（2+2搜索，最小等待）
+- **配置**: `--dev` 开发模式（2次搜索，最小等待）
 - **流程**: 快速完成登录和搜索验证
-
-### 场景4：仅执行移动搜索
-
-- **目标**: 只完成移动端搜索任务
-- **配置**: `--mobile-only`
-- **流程**: 桌面登录 → 创建移动上下文 → 完成移动搜索
 
 ## 详细文档
 
@@ -249,8 +236,8 @@ streamlit run tools/dashboard.py
 ```yaml
 # 基础配置
 search:
-  desktop_count: 30      # 桌面搜索次数
-  mobile_count: 20       # 移动搜索次数
+  desktop_count: 20      # 桌面搜索次数
+  mobile_count: 0        # 移动搜索次数（已禁用）
   wait_interval:
     min: 5              # 最小等待时间（秒）
     max: 15             # 最大等待时间（秒）
@@ -315,7 +302,7 @@ notification:
 ## 📁 项目结构
 
 ```
-ms-rewards-automator/
+rewards-core/
 ├── src/                    # 源代码目录
 │   ├── account/           # 账户管理
 │   ├── browser/           # 浏览器控制

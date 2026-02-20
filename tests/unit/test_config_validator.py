@@ -28,8 +28,8 @@ class TestConfigValidator:
         """创建有效的配置数据"""
         return {
             "search": {
-                "desktop_count": 30,
-                "mobile_count": 20,
+                "desktop_count": 20,
+                "mobile_count": 0,
                 "wait_interval": {"min": 2, "max": 5},
             },
             "browser": {
