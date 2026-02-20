@@ -156,7 +156,7 @@ python scripts/automated_test.py
 ### 任务识别测试
 
 ```bash
-python scripts/test_task_recognition.py
+python tools/test_task_recognition.py
 ```
 
 - 测试task_parser解析功能

@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from playwright.async_api import BrowserContext, Page
 
-from account.points_detector import PointsDetector
 from browser.page_utils import temp_page as create_temp_page
 from ui.real_time_status import StatusManager
 
@@ -352,7 +351,7 @@ class TaskCoordinator:
                     self.logger.info(f"    待完成: {pending_count}, 已完成: {completed_count}")
 
                     if tasks:
-                        points_detector = PointsDetector()
+                        points_detector = state_monitor.points_detector
 
                         points_before = getattr(state_monitor, "last_points", None) or getattr(
                             state_monitor, "initial_points", None

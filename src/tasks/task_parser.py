@@ -136,7 +136,7 @@ class TaskParser:
             return default
 
         safe_chars = set(
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.[]:>#=~+*(), "
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.[]:>#=~+*(), /?&"
         )
         if all(c in safe_chars or c in ['"', "'"] for c in value):
             return value.strip()

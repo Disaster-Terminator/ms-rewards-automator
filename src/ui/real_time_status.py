@@ -311,23 +311,23 @@ class RealTimeStatusDisplay:
             error_count = self.error_count
             warning_count = self.warning_count
 
-        print("\n" + "=" * 60)
+        self._safe_print("\n" + "=" * 60)
         self._safe_print("✓ 任务执行完成！")
-        print("=" * 60)
+        self._safe_print("=" * 60)
 
         if self.start_time:
             total_time = time.time() - self.start_time
             total_time_str = self._format_duration(total_time)
             self._safe_print(f"总执行时间: {total_time_str}")
 
-        print(f"🖥️  桌面搜索: {desktop_completed}/{desktop_total}")
-        print(f"📱 移动搜索: {mobile_completed}/{mobile_total}")
-        print(f"💰 积分获得: +{points_gained}")
+        self._safe_print(f"🖥️  桌面搜索: {desktop_completed}/{desktop_total}")
+        self._safe_print(f"📱 移动搜索: {mobile_completed}/{mobile_total}")
+        self._safe_print(f"💰 积分获得: +{points_gained}")
 
         if error_count > 0 or warning_count > 0:
-            print(f"⚠️  错误/警告: {error_count}/{warning_count}")
+            self._safe_print(f"⚠️  错误/警告: {error_count}/{warning_count}")
 
-        print("=" * 60)
+        self._safe_print("=" * 60)
 
     def _safe_print(self, message: str):
         """安全打印，处理编码问题"""
