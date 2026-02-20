@@ -5,7 +5,9 @@
 """
 
 import argparse
+import asyncio
 import sys
+from datetime import datetime
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -133,43 +135,79 @@ async def diagnose_task_discovery():
 
         storage_state = config.get("account", {}).get("storage_state_path", "storage_state.json")
 
+        use_headless = Path(storage_state).exists()
+        if not use_headless:
+            print("⚠ 未找到会话状态，使用有头模式以便手动登录")
+
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=use_headless)
 
             if Path(storage_state).exists():
                 context = await browser.new_context(storage_state=storage_state)
                 print("✓ 使用已保存的会话状态")
             else:
                 context = await browser.new_context()
-                print("⚠ 未找到会话状态，使用新会话")
+                print("⚠ 未找到会话状态，使用新会话（请手动登录）")
 
             page = await context.new_page()
 
             print("\n导航到 Rewards 页面...")
-            await page.goto("https://rewards.microsoft.com/", wait_until="networkidle")
-            await page.wait_for_load_state("domcontentloaded")
+            try:
+                await page.goto(
+                    "https://rewards.microsoft.com/",
+                    wait_until="domcontentloaded",
+                    timeout=60000,
+                )
+                await page.wait_for_timeout(5000)
+            except Exception as e:
+                print(f"  ⚠ 导航到 Rewards 页面超时或错误: {e}")
 
-            selectors = ["mee-card", ".mee-card", '[class*="rewards-card"]', '[data-bi-id*="card"]']
+            screenshot_path = "debug_rewards_page.png"
+            await page.screenshot(path=screenshot_path, full_page=True)
+            print(f"\n✔ 已保存: {screenshot_path}")
 
-            print("\n测试选择器:")
-            for selector in selectors:
-                try:
-                    elements = await page.query_selector_all(selector)
-                    print(f"  {selector}: 找到 {len(elements)} 个元素")
-                except Exception as e:
-                    print(f"  {selector}: 错误 - {e}")
+            html_content = await page.content()
+            html_path = "debug_rewards_page.html"
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            print(f"✔ 已保存: {html_path}")
 
-            await page.screenshot(path="debug_rewards_page.png")
-            html = await page.content()
-            with open("debug_rewards_page.html", "w", encoding="utf-8") as f:
-                f.write(html)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            diagnostics_dir = project_root / "logs" / "diagnostics"
+            diagnostics_dir.mkdir(parents=True, exist_ok=True)
 
-            print("\n✓ 已保存:")
-            print("  - debug_rewards_page.png")
-            print("  - debug_rewards_page.html")
+            print("\n导航到 dashboard 页面...")
+            try:
+                await page.goto(
+                    "https://rewards.microsoft.com/dashboard",
+                    wait_until="domcontentloaded",
+                    timeout=60000,
+                )
+                await page.wait_for_timeout(5000)
 
-            print("\n按Enter继续...")
-            input()
+                dashboard_html = await page.content()
+                dashboard_html_path = diagnostics_dir / f"dashboard_{timestamp}.html"
+                with open(dashboard_html_path, "w", encoding="utf-8") as f:
+                    f.write(dashboard_html)
+                await page.screenshot(path=diagnostics_dir / f"dashboard_{timestamp}.png")
+                print(f"  ✓ 已保存: {dashboard_html_path}")
+                print(f"  ✓ 已保存: {diagnostics_dir / f'dashboard_{timestamp}.png'}")
+            except Exception as e:
+                print(f"  ✗ 导航到 dashboard 页面失败: {e}")
+
+            print("\n导航到 earn 页面...")
+            try:
+                await page.goto("https://rewards.microsoft.com/earn", wait_until="networkidle")
+                await page.wait_for_load_state("domcontentloaded")
+                earn_html = await page.content()
+                earn_html_path = diagnostics_dir / f"earn_{timestamp}.html"
+                with open(earn_html_path, "w", encoding="utf-8") as f:
+                    f.write(earn_html)
+                await page.screenshot(path=diagnostics_dir / f"earn_{timestamp}.png")
+                print(f"  ✓ 已保存: {earn_html_path}")
+                print(f"  ✓ 已保存: {diagnostics_dir / f'earn_{timestamp}.png'}")
+            except Exception as e:
+                print(f"  ✗ 导航到 earn 页面失败: {e}")
 
             await browser.close()
 
@@ -245,14 +283,10 @@ def main():
         results.append(("P0配置", check_p0_config()))
 
     if args.all or args.tasks:
-        import asyncio
-
         result = asyncio.run(diagnose_task_discovery())
         results.append(("任务发现", result))
 
     if args.all or args.query:
-        import asyncio
-
         result = asyncio.run(verify_query_engine())
         results.append(("查询引擎", result))
 

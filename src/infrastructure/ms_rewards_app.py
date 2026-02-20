@@ -266,6 +266,11 @@ class MSRewardsApp:
 
     async def _execute_searches(self) -> None:
         """执行搜索任务"""
+        if getattr(self.args, "skip_search", False):
+            self.logger.info("\n[5-6/8] 跳过搜索任务（--skip-search）")
+            StatusManager.update_progress(6, 8)
+            return
+
         # 5. 桌面搜索
         if not self.args.mobile_only:
             # 检查页面是否有效，如果崩溃则重建

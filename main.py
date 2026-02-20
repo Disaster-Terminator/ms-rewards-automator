@@ -72,6 +72,8 @@ def parse_arguments():
     # 任务选项
     parser.add_argument("--skip-daily-tasks", action="store_true", help="跳过每日任务")
 
+    parser.add_argument("--skip-search", action="store_true", help="跳过搜索任务，专注测试每日任务")
+
     # 测试选项
     parser.add_argument("--dry-run", action="store_true", help="模拟运行，不执行实际操作")
 

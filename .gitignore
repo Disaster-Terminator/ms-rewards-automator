@@ -72,6 +72,11 @@ htmlcov/
 *.tmp
 temp/
 
+# 代码审查临时文件
+1.txt
+2.md
+Copilot.txt
+
 # 截图和调试文件
 screenshots/*.png
 screenshots/*.html
