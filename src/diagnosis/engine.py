@@ -528,7 +528,23 @@ class DiagnosticEngine:
             else:
                 issues = asyncio.run(inspector.inspect_page(page))
         except Exception as e:
-            logger.debug(f"快速检查失败: {e}")
+            logger.error(f"快速检查失败: {e}")
+            from .inspector import IssueSeverity, IssueType
+
+            return QuickDiagnosis(
+                check_type=check_type,
+                issues=[
+                    DetectedIssue(
+                        issue_type=IssueType.UNKNOWN,
+                        severity=IssueSeverity.ERROR,
+                        title="诊断检查执行失败",
+                        description=f"诊断检查执行失败: {str(e)}",
+                        suggestions=["请检查日志获取详细信息"],
+                    )
+                ],
+                has_critical=True,
+                summary=f"{check_type} 检查失败，请查看日志",
+            )
 
         critical = any(i.severity.value in ["critical", "error"] for i in issues)
 

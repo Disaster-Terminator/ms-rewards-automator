@@ -116,6 +116,21 @@ class TaskCoordinator:
 
         StatusManager.update_progress(3, 8)
 
+    def _check_headless_requirements(self) -> None:
+        """检查 headless 模式下的登录要求
+
+        Headless 模式无法进行手动登录，需要提前准备会话文件或配置自动登录。
+        """
+        if getattr(self.args, "headless", False):
+            self.logger.error(
+                "Headless 模式下无法进行手动登录。"
+                "解决方案：1) 先在有头模式下登录保存会话；"
+                "2) 配置自动登录凭据（login.auto_login）"
+            )
+            raise RuntimeError(
+                "Headless 模式需要会话文件或自动登录配置。请先运行 `rscore`（有头模式）完成登录。"
+            )
+
     async def _do_login(self, page: Any, account_mgr: Any, context: Any) -> None:
         """执行登录流程"""
         import os
@@ -155,30 +170,13 @@ class TaskCoordinator:
                     await account_mgr.save_session(context)
                     self.logger.info("  ✓ 会话已保存")
                 else:
+                    self._check_headless_requirements()
                     await self._manual_login(page, account_mgr, context)
             else:
-                if getattr(self.args, "headless", False):
-                    self.logger.error(
-                        "Headless 模式下无法进行手动登录。"
-                        "解决方案：1) 先在有头模式下登录保存会话；"
-                        "2) 配置自动登录凭据（login.auto_login）"
-                    )
-                    raise RuntimeError(
-                        "Headless 模式需要会话文件或自动登录配置。"
-                        "请先运行 `rscore`（有头模式）完成登录。"
-                    )
+                self._check_headless_requirements()
                 await self._manual_login(page, account_mgr, context)
         else:
-            if getattr(self.args, "headless", False):
-                self.logger.error(
-                    "Headless 模式下无法进行手动登录。"
-                    "解决方案：1) 先在有头模式下登录保存会话；"
-                    "2) 配置自动登录凭据（login.auto_login）"
-                )
-                raise RuntimeError(
-                    "Headless 模式需要会话文件或自动登录配置。"
-                    "请先运行 `rscore`（有头模式）完成登录。"
-                )
+            self._check_headless_requirements()
             await self._manual_login(page, account_mgr, context)
 
     async def _manual_login(self, page: Any, account_mgr: Any, context: Any) -> None:

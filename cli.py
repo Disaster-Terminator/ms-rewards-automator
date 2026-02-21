@@ -160,9 +160,10 @@ async def async_main():
         if args.dry_run:
             logger.info(validator.get_validation_report())
 
-    except Exception as e:
-        print(f"配置文件加载失败: {e}")
-        sys.exit(1)
+    except Exception:
+        logger.exception("配置加载失败")
+        print("配置文件加载失败，请检查配置文件格式是否正确。详细信息请查看日志。")
+        return 1
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -206,7 +207,9 @@ async def async_main():
 
 def main():
     """CLI 入口函数"""
-    asyncio.run(async_main())
+    exit_code = asyncio.run(async_main())
+    if isinstance(exit_code, int):
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
