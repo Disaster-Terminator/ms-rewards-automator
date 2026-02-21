@@ -33,16 +33,6 @@ pytest tests/integration/ -v
 
 ## 阶段 4：Dev 无头验证
 
-```python
-# Playwright MCP
-await playwright_navigate(
-    url="about:blank",
-    browserType="chromium",
-    headless=True,
-    timeout=300000
-)
-```
-
 **执行命令**：
 
 ```bash
@@ -58,16 +48,6 @@ conda activate {env_name} && python main.py --dev --headless
 **通过条件**：退出码 0，无严重错误
 
 ## 阶段 5：User 无头验证
-
-```python
-# Playwright MCP
-await playwright_navigate(
-    url="about:blank",
-    browserType="chromium",
-    headless=True,
-    timeout=600000
-)
-```
 
 **执行命令**：
 
@@ -87,69 +67,9 @@ python main.py --user --headless
 2. 提交本地 Commit
 3. **等待用户输入"本地审查通过"**
 
-## 阶段 6：创建 PR
+## 阶段 6-7：PR 管理
 
-```python
-# GitHub MCP
-pr = await create_pull_request(
-    owner="用户名",
-    repo="RewardsCore-Diagnosis",
-    title="feat: 功能描述",
-    head="feature/xxx",
-    base="main",
-    body=pr_description
-)
-```
-
-### PR 描述模板
-
-```markdown
-## 概述
-[一句话描述]
-
-## 主要变更
-- [变更列表]
-
-## 测试结果
-- ✅ 单元测试：X passed
-- ✅ 静态检查：通过
-```
-
-### 等待 AI 审查
-
-轮询检查三个机器人审查状态：
-
-- sourcery-ai[bot]
-- copilot-pull-request-reviewer[bot]
-- qodo-code-review[bot]
-
-```python
-# 30秒轮询，超时10分钟
-while time.time() - start < 600:
-    reviews = await get_pull_request_reviews(owner, repo, pr_number)
-    if all_bots_reviewed:
-        break
-    await asyncio.sleep(30)
-```
-
-## 阻塞点 2：在线审查
-
-1. 解析 AI 审查评论
-2. 处理关键问题（`bug_risk`, `Bug`, `security`）
-3. **等待用户输入"在线审查通过"**
-
-## 阶段 7：合并确认
-
-**必须人工确认后执行**：
-
-```python
-await merge_pull_request(
-    owner="用户名",
-    repo="RewardsCore-Diagnosis",
-    pull_number=pr_number,
-    merge_method="squash"
-)
-```
+创建 PR 后，调用 `pr-review` Skill 执行审查流程。
 
 ## 错误处理
 
