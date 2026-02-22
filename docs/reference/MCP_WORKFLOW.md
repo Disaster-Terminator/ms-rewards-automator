@@ -72,22 +72,42 @@ search_nodes(query="登录流程")
 | 1. 静态检查 | ruff + mypy | CI | 无错误 |
 | 2. 单元测试 | pytest unit | CI | 全部通过 |
 | 3. 集成测试 | pytest integration | CI | 全部通过 |
-| 4. Dev 无头 | python main.py --dev --headless | Agent | 退出码 0 |
-| 5. User 无头 | python main.py --user --headless | Agent | 无严重问题 |
+| 4. Dev 无头 | `rscore --dev --headless` 或 `python main.py --dev --headless` | Agent | 退出码 0 |
+| 5. User 无头 | `rscore --user --headless` 或 `python main.py --user --headless` | Agent | 无严重问题 |
 | 6. 创建 PR | GitHub MCP | Agent | PR 创建成功 |
-| 7. 合并 PR | GitHub MCP | 人工确认 | 人工确认 |
+| 7. 合并 PR | 人工确认 | 人工 | 解决所有对话后确认 |
 
-### 3.2 阻塞点
+### 3.2 命令优先级
 
-- **阶段 6 后**：等待"在线审查通过"（AI 审查机器人）
-- **合并 PR**：核心/大规模变更需人工确认
+```bash
+# 优先使用 CLI 入口（需要 pip install -e .）
+rscore --dev --headless
 
-### 3.3 有头验收（开发者可选）
+# 如果 rscore 不可用，降级到 main.py
+python main.py --dev --headless
+```
+
+### 3.3 环境诊断
+
+如果命令执行失败，先检查环境：
+
+```bash
+pip show rewards-core  # 检查是否安装
+pip install -e ".[test]"  # 安装项目及测试依赖
+```
+
+### 3.4 阻塞点
+
+- **阶段 6 后**：等待 AI 审查通过
+- **阶段 7**：合并需人工确认（项目要求解决所有对话，Copilot/Qodo 评论无法标记解决）
+
+### 3.5 有头验收（开发者可选）
 
 非标准流程，开发者手动执行观察 UI：
 
 ```bash
-python main.py --dev  # 可视化模式
+rscore --dev  # 可视化模式（优先）
+python main.py --dev  # 降级方案
 ```
 
 ---
@@ -156,16 +176,11 @@ python main.py --dev  # 可视化模式
 
 ## 6. 安全边界
 
-| 自主区（Agent 可执行） | 确认区（需人工确认） |
-|------------------------|----------------------|
-| 读取/写入文件 | `git commit --amend`（已 push） |
-| 运行测试 | `git rebase`（已 push） |
-| 浏览器操作 | `git push --force` |
-| `git add/commit/push` | `merge PR` |
-| `git pull --rebase` | 删除远程分支 |
-| `git checkout -b` | 修改保护规则 |
+| 自主区 | 确认区 |
+|--------|--------|
+| 读取/写入文件 | `git push --force` |
+| 运行测试 | `merge PR`（所有 PR） |
+| 浏览器操作 | 删除远程分支 |
+| `git add/commit/push` | 修改保护规则 |
 | `git commit --amend`（未 push） | 暴露 secrets |
 | 创建 PR | |
-
----
-*详细操作指南见 `.trae/skills/mcp-acceptance/SKILL.md`*

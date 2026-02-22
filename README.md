@@ -47,23 +47,6 @@
 
 ## 🛠️ 系统架构
 
-### 多智能体协作框架
-
-本项目采用 MCP（Model Context Protocol）驱动的多智能体协作架构：
-
-| 智能体 | 职责 | 核心能力 |
-|--------|------|----------|
-| **master-agent** | 主控调度 | 任务路由、Memory 知识管理、PR 交付 |
-| **dev-agent** | 代码开发 | 业务代码编写、局部验证 |
-| **test-agent** | 测试验收 | E2E 验收、Playwright 自动化 |
-| **docs-agent** | 文档维护 | README/CHANGELOG/API 文档同步 |
-
-**工作流程**：
-
-```
-用户请求 → master-agent 规划 → dev-agent 编码 → test-agent 验收 → docs-agent 文档 → PR 交付
-```
-
 ### 核心组件
 
 采用模块化设计，核心组件包括：
@@ -240,7 +223,6 @@ streamlit run tools/dashboard.py
 
 - **[技术参考](docs/reports/技术参考.md)** - 防检测策略、健康监控和技术实现细节
 - **[分支管理指南](docs/reference/BRANCH_GUIDE.md)** - 开发工作流和验收标准
-- **[MCP 工作流](docs/reference/MCP_WORKFLOW.md)** - 多智能体协作与 7 阶段验收流程
 
 ### 配置文件说明
 

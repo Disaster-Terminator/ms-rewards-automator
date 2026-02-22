@@ -13,11 +13,18 @@ description: PR 审查与自动化交付流程。创建 PR 后触发，处理 AI
 
 ## AI 审查机器人
 
-| 机器人 | 触发方式 | Agent 可控 |
-|--------|---------|-----------|
-| Copilot | 自动（PR 创建时） | ❌ 无法手动触发 |
-| Sourcery | `@sourcery-ai review` | ✅ 可通过评论触发 |
-| Qodo | `/review` | ✅ 可通过评论触发 |
+| 机器人 | 触发方式 | 可标记解决 | 解决状态检测 |
+|--------|---------|-----------|-------------|
+| Sourcery | `@sourcery-ai review` | ✅ 自动 | 检查 `body` 含 `✅ Addressed` |
+| Copilot | 自动（PR 创建时） | ❌ | 无法判断，需人工处理 |
+| Qodo | `/review` | ❌ | 无法判断，需人工处理 |
+
+**解决状态判断**：
+
+- **Sourcery**：会自动更新评论添加 `✅ Addressed in {commit}`
+- **Copilot/Qodo**：不会更新评论，Agent 无法通过 API 判断是否已解决
+
+**人工处理**：Copilot/Qodo 评论需在 GitHub 网页上点击"Resolve conversation"。
 
 ## Sourcery 命令
 
@@ -34,35 +41,58 @@ description: PR 审查与自动化交付流程。创建 PR 后触发，处理 AI
 | `/review` | PR 审查 |
 | `/describe` | 生成 PR 描述 |
 | `/improve` | 代码改进建议 |
+| `/compliance` | 合规性检查 |
+| `/test` | 生成单元测试 |
+| `/implement` | 根据审查建议生成实现代码 |
 | `/ask ...` | 自由提问 |
+
+**注意**：Qodo 没有解决评论的命令。
 
 ## 审查流程
 
 ### 阶段 1：等待审查
 
 1. 创建 PR 后，Copilot 自动开始审查
-2. 等待 5 分钟
+2. 等待 2 分钟
 3. 调用 `get_pull_request_reviews` 检查状态
 4. 如果 Sourcery/Qodo 未响应，发送触发命令
 
-### 阶段 2：处理审查结果
+### 阶段 2：获取审查意见
+
+调用 `fetch-reviews` skill 获取所有 AI 审查机器人的评论。
+
+### 阶段 3：处理审查结果
 
 | 审查状态 | 判断依据 | 动作 |
 |---------|---------|------|
 | **阻断** | `CHANGES_REQUESTED` 或含 `bug`/`security`/`critical` | 调用 dev-agent 修复 |
 | **建议** | `COMMENTED` 且为代码风格 | 自主决断 |
 
-### 阶段 3：合并决策
+**处理流程**：
 
-**合并条件**：
+1. Sourcery 阻断问题 → 修复后执行 `@sourcery-ai resolve`
+2. Copilot/Qodo 阻断问题 → 修复后 push 新 commit，等待重新审查
+3. 已处理但无法标记的评论 → 记录到 Memory MCP，避免重复处理
 
-- CI 检查通过
-- 无未解决的 `CHANGES_REQUESTED`
-- 至少 1 个 AI 机器人 `APPROVED`
+**错误处理链路**：
 
-**执行规则**：
+```
+审查失败 → dev-agent 修复 → 重新触发审查 → 重新获取评论
+```
 
-| PR 类型 | 合并方式 |
-|---------|---------|
-| 常规 Bugfix/Feature | 自动合并 |
-| 核心/大规模变更 | 等待人工确认 |
+### 阶段 4：合并决策
+
+**重要限制**：项目要求合并前必须解决所有对话。Copilot/Qodo 评论无法标记解决，因此 **Agent 无法自主合并**。
+
+**Agent 职责**：
+
+1. 修复所有阻断问题
+2. 确认 CI 通过
+3. 记录已处理的评论到 Memory MCP
+4. 通知人工确认合并
+
+**人工确认清单**：
+
+- [ ] 所有 `bug`/`security` 问题已修复
+- [ ] CI 检查通过
+- [ ] 已处理的评论已人工标记解决

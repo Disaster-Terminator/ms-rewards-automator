@@ -201,12 +201,14 @@ GET https://api.github.com/repos/{owner}/{repo}/pulls/{number}/comments
 
 | 阶段 | 任务 | 状态 |
 |------|------|------|
-| 1 | 重命名 `.trae/prompts/` 为 `.trae/agents/` | 待实施 |
-| 2 | 新建 `.trae/prompts/` 目录，创建各 agent 提示词 | 待实施 |
-| 3 | 精简 `project_rules.md`，添加身份判定和路由表 | 待实施 |
-| 4 | 创建 `fetch-reviews` skill | 待实施 |
-| 5 | 创建 `dispatch-agent` skill | 待实施 |
-| 6 | 在 Memory MCP 中持久化仓库信息 | 待实施 |
+| 1 | 重命名 `.trae/prompts/` 为 `.trae/agents/` | ✅ 已完成 |
+| 2 | 新建 `.trae/prompts/` 目录，创建 master.md | ✅ 已完成 |
+| 3 | 精简 `project_rules.md`，添加身份判定 | ✅ 已完成 |
+| 4 | 创建 `fetch-reviews` skill | ✅ 已完成 |
+| 5 | 创建 `dispatch-agent` skill | ❌ 取消（简化流程） |
+| 6 | 在 Memory MCP 中持久化仓库信息 | ✅ 已完成 |
+| 7 | 完善 MCP 工具配置列表 | ✅ 已完成 |
+| 8 | 精简规则文件，移除重复内容 | ✅ 已完成 |
 
 ---
 
