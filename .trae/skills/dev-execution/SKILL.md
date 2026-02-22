@@ -5,13 +5,31 @@ description: 开发执行详细流程。dev-agent 执行代码修改时调用。
 
 # 开发执行详细流程
 
-## 工作流程
+## 触发条件
 
-### 1. 修改代码
+- 收到 `[REQ_DEV]` 标签
+- Master Agent 分发代码修改任务
+
+## 执行流程
+
+### 1. 读取任务上下文
+
+```
+读取 `.trae/current_task.md` 获取任务详情
+```
+
+### 2. 检索历史知识
+
+```
+使用 Memory MCP search_nodes 检索相关规则
+检索标签：[REWARDS_DOM], [ANTI_BOT]
+```
+
+### 3. 修改代码
 
 修改业务代码（`src/` 等非测试目录）。
 
-### 2. 局部验证（< 30秒）
+### 4. 局部验证（< 30秒）
 
 ```bash
 ruff check .
@@ -20,23 +38,49 @@ mypy src/ --strict
 pytest tests/<相关单文件>.py -v
 ```
 
-### 3. 验证失败处理
+### 5. 验证失败处理
 
 - 调用【阅读】工具查看前一次终端完整日志
 - 修复并重试（最大重试次数：3）
 
-### 4. 触发阻断
+### 6. 输出状态标签
+
+| 场景 | 输出标签 |
+|------|----------|
+| 代码修改完成，需要测试验证 | `[REQ_TEST]` |
+| 连续 3 次局部验证失败 | `[BLOCK_NEED_MASTER]` + 阻塞原因 |
+| 缺少 DOM 结构等上下文 | `[BLOCK_NEED_MASTER]` + 需要的信息 |
+
+## 禁止猜测原则
+
+当无法定位元素或缺少前端结构数据时：
+
+- **必须**：生成 `blocked_reason.md`，说明需要的 DOM 结构
+- **禁止**：随意猜测选择器
+- **必须**：挂起任务，等待 Master Agent 提供补充数据
+
+## 上下文阻塞协议
+
+当遇到以下情况时，必须触发 `[BLOCK_NEED_MASTER]`：
+
+- 连续 3 次局部验证失败
+- 缺少必要的上下文信息（如 DOM 结构）
+- 遇到无法理解的报错
+
+## 触发阻断
 
 若第 3 次重试仍失败，停止操作：
 
-1. 生成 `blocked_reason.md`
+1. 生成 `.trae/blocked_reason.md`
 2. 记录 3 种尝试过的修复方案
 3. 附上完整 Traceback
-4. 挂起等待 Master Agent 调度
+4. 输出 `[BLOCK_NEED_MASTER]` 标签
 
 ## 输出格式（强制）
 
-```
+写入 `.trae/current_task.md`（更新）：
+
+```markdown
 ---
 task_id: <任务ID>
 status: success | blocked
@@ -48,12 +92,12 @@ status: success | blocked
 
 ### 验证结果
 
-- [ ] `ruff check` 通过
-- [ ] `ruff format --check` 通过
-- [ ] `mypy` 通过
-- [ ] 局部单元测试通过
+- [x] `ruff check` 通过
+- [x] `ruff format --check` 通过
+- [x] `mypy` 通过
+- [x] 局部单元测试通过
 
-### 移交说明 (Handoff to test-agent)
+### 移交说明
 
 - **验证入口**: `python main.py --task <具体命令>`
 - **受影响模块**: `<具体文件或类名>`
