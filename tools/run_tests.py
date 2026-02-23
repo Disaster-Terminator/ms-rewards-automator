@@ -49,10 +49,10 @@ def main():
     results = {}
 
     # 1. 单元测试
-    results["单元测试"] = run_command("pytest tests/ -v --tb=short", "运行单元测试")
+    results["单元测试"] = run_command("pytest tests/ -n auto -v --tb=short", "运行单元测试")
 
     # 2. 属性测试
-    results["属性测试"] = run_command("pytest tests/ -v --tb=short -m property", "运行属性测试")
+    results["属性测试"] = run_command("pytest tests/ -n auto -v --tb=short -m property", "运行属性测试")
 
     # 3. 环境检查
     results["环境检查"] = run_command("python tools/check_environment.py", "检查环境依赖")

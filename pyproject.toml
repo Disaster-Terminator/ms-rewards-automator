@@ -18,26 +18,23 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = [
+dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "pytest-playwright>=0.5.0",
     "pytest-benchmark>=5.0.0",
     "pytest-cov>=6.0.0",
     "pytest-timeout>=2.3.0",
+    "pytest-xdist>=3.5.0",
     "hypothesis>=6.125.0",
     "faker>=35.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
 ]
 viz = [
     "streamlit>=1.41.0",
     "plotly>=5.24.0",
     "pandas>=2.2.0",
-]
-dev = [
-    "ruff>=0.8.0",
-    "mypy>=1.14.0",
-    # 注意：test 和 viz 依赖请通过 pip install -e .[test,viz] 单独安装
-    # 避免循环依赖引用
 ]
 
 [project.scripts]
@@ -79,12 +76,43 @@ warn_unused_configs = true
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit", "tests/integration"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = "src"
 asyncio_mode = "auto"
+timeout = 300
+timeout_method = "thread"
+norecursedirs = [".git", ".hypothesis", "__pycache__", "*.egg-info", "tests/autonomous"]
 markers = [
-    "real: marks tests that require real browser (deselected by default)",
-    "slow: marks tests as slow",
+    "unit: Unit tests (fast, isolated component tests)",
+    "integration: Integration tests (medium speed, multiple components)",
+    "e2e: End-to-end tests (slow, full workflow tests)",
+    "property: Property-based tests using hypothesis",
+    "performance: Performance and benchmark tests",
+    "reliability: Reliability and error recovery tests",
+    "security: Security and anti-detection tests",
+    "slow: Slow tests (skip in quick test runs)",
+    "real: Real browser tests (requires credentials, skipped by default)",
 ]
-addopts = "-v --tb=short -m 'not real'"
+addopts = "-v --tb=short --strict-markers -m 'not real'"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/tests/*", "*/__pycache__/*", "*/site-packages/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+show_missing = true
+skip_covered = true
+
+[tool.coverage.html]
+directory = "htmlcov"

@@ -73,25 +73,25 @@ mock_account_strategy = st.builds(
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_account_standard():
     """Provide a standard mock account."""
     return TEST_ACCOUNTS["standard"]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_account_2fa():
     """Provide a 2FA-enabled mock account."""
     return TEST_ACCOUNTS["2fa"]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_account_passwordless():
     """Provide a passwordless mock account."""
     return TEST_ACCOUNTS["passwordless"]
 
 
-@pytest.fixture(params=["standard", "2fa", "passwordless"])
+@pytest.fixture(scope="session", params=["standard", "2fa", "passwordless"])
 def mock_account_all_types(request):
     """Parametrized fixture that provides all account types."""
     return TEST_ACCOUNTS[request.param]
