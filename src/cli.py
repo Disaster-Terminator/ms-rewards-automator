@@ -167,7 +167,7 @@ async def async_main():
 
     if args.test_notification:
         await test_notification_func(config)
-        return
+        return 0
 
     diagnose_enabled = args.diagnose or (args.dev or args.user)
 

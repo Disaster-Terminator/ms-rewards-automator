@@ -121,7 +121,11 @@ class TaskCoordinator:
 
         Headless 模式无法进行手动登录，需要提前准备会话文件或配置自动登录。
         """
-        if getattr(self.args, "headless", False):
+        args_headless = getattr(self.args, "headless", False)
+        config_headless = self.config.get("browser.headless", False)
+        is_headless = args_headless or config_headless
+
+        if is_headless:
             self.logger.error(
                 "Headless 模式下无法进行手动登录。"
                 "解决方案：1) 先在有头模式下登录保存会话；"
