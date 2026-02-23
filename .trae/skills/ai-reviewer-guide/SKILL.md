@@ -48,12 +48,21 @@ reviews.body 结构：
 
 ## Qodo
 
+### 审查机制（重要）
+
+| 评论类型 | 触发时机 | 后续行为 |
+|----------|----------|----------|
+| **Code Review by Qodo** | PR 创建时自动生成 | 只更新解决状态（☑），不发送新评论 |
+| **PR Reviewer Guide 🔍** | 第一次 `/review` 斜杠命令 | 后续 `/review` 更新它 |
+| **Persistent review updated** | 后续 `/review` 斜杠命令 | 通知评论 |
+
 ### 评论类型
 
-| 类型 | 内容 | 发送方式 | API返回 |
+| 类型 | 内容 | 触发方式 | API返回 |
 |------|------|----------|---------|
-| **Code Review by Qodo** | 问题列表（Bug/Rule violation等） | review comment | ❌ 截断 |
-| **PR Reviewer Guide 🔍** | 审查指南（工作量、安全、重点区域） | issue comment | ❌ 无 |
+| **Code Review by Qodo** | 问题列表（Bug/Rule violation等） | PR创建时自动 | ❌ 截断 |
+| **PR Reviewer Guide 🔍** | 审查指南（工作量、安全、重点区域） | 首次 `/review` | ❌ 无 |
+| **Persistent review updated** | 更新通知 | 后续 `/review` | ✅ 有 |
 
 ### 特征标记
 
@@ -68,18 +77,29 @@ reviews.body 结构：
 ### 解决状态检测
 
 **Code Review by Qodo**：
-- **已解决**：评论行开头有 `☑ ☑ ☑ ☑`（注意有空格）
-- **重要**：`✓` 符号是类型前缀，不是已解决标志！
+
+- **已解决**：评论行开头有 `☑ ☑ ☑ ☑ ☑`（5个勾，注意有空格）
+- **重要**：`✓` 符号是类型前缀（如 `✓ Correctness`），不是已解决标志！
+- 解决状态会实时更新，但不会发送新评论
 
 **PR Reviewer Guide 🔍**：
-- 完成状态：**待测试确认**
-- 当前处理方式：直接报告给用户，不判断解决状态
+
+- 不包含具体问题，只是审查指南
+- 直接报告给用户
+
+### 获取最新审查的流程
+
+1. 使用 Playwright 导航到 PR 页面
+2. 找到 "Code Review by Qodo" 评论（查看问题列表和解决状态）
+3. 点击 "View more" 展开所有问题
+4. 找到 "PR Reviewer Guide 🔍" 评论（查看审查指南）
+5. 检查是否有 "Persistent review updated" 通知（确认 PR Reviewer Guide 已更新）
 
 ### 交互命令
 
 | 命令 | 用途 |
 |------|------|
-| `/review` | PR 审查 |
+| `/review` | PR 审查（首次生成 PR Reviewer Guide，后续更新它） |
 | `/describe` | 生成 PR 描述 |
 | `/improve` | 代码建议 |
 | `/checks ci_job` | CI 反馈 |
