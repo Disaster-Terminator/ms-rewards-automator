@@ -222,7 +222,7 @@ streamlit run tools/dashboard.py
 ### 技术文档
 
 - **[技术参考](docs/reports/技术参考.md)** - 防检测策略、健康监控和技术实现细节
-- **[分支管理指南](docs/reference/BRANCH_GUIDE.md)** - 开发工作流和验收标准
+- **[开发工作流](docs/reference/WORKFLOW.md)** - 开发流程和验收标准
 
 ### 配置文件说明
 
@@ -305,7 +305,7 @@ rewards-core/
 │   ├── tasks/             # 任务系统
 │   └── ui/                # 用户界面
 ├── tests/                  # 测试目录
-│   ├── autonomous/        # 自动化测试
+│   ├── fixtures/          # 测试固件
 │   ├── integration/       # 集成测试
 │   └── unit/              # 单元测试
 ├── tools/                  # 辅助工具

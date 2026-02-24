@@ -133,7 +133,7 @@ const lines = text.split('\n').filter(l => l.length > 2);
 - [x] 解析"继续赚取"板块URL任务
 - [x] 完成状态检测
 - [x] 单元测试通过 (22个测试)
-- [ ] 实战验证
+- [x] 实战验证
 
 ### Phase 2
 
@@ -146,12 +146,12 @@ const lines = text.split('\n').filter(l => l.length > 2);
 ### 自动化测试
 
 ```bash
-python scripts/automated_test.py
+python tools/diagnose.py
 ```
 
 - 自动加载会话或等待登录
 - 解析任务并报告结果
-- 保存结果到 `logs/test_results/`
+- 保存结果到 `logs/diagnostics/`
 
 ### 任务识别测试
 
@@ -165,7 +165,7 @@ python tools/test_task_recognition.py
 ### 页面结构诊断
 
 ```bash
-python scripts/diagnose_earn_page.py
+python tools/diagnose_earn_page.py
 ```
 
 - 分析页面HTML结构

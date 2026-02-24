@@ -1,8 +1,8 @@
-# MS Rewards Automator 文档中心
+# RewardsCore 文档中心
 
 > 最后更新: 2026-02-24
 
-欢迎查阅 MS Rewards Automator 项目文档。本文档中心提供完整的使用指南和技术参考资料。
+欢迎查阅 RewardsCore 项目文档。本文档中心提供完整的使用指南和技术参考资料。
 
 ## 快速导航
 
@@ -17,25 +17,17 @@
 
 | 文档 | 说明 |
 |------|------|
-| [分支管理指南](reference/BRANCH_GUIDE.md) | 开发工作流、分支策略和验收标准 |
 | [调度器文档](reference/SCHEDULER.md) | 调度器功能、配置和执行模式 |
 | [配置参考](reference/CONFIG.md) | 完整配置项说明和示例 |
 | [评论处理系统说明](reference/评论处理系统说明.md) | AI 审查评论处理系统架构和使用 |
 | [审查评论处理工作流指南](reference/审查评论处理工作流指南.md) | 审查评论处理快速入门 |
 | [技术参考](reports/技术参考.md) | 反检测策略、健康监控和性能优化 |
 | [任务系统](task_system.md) | 任务系统页面结构和开发文档 |
+| [开发工作流](reference/WORKFLOW.md) | 单 Agent 开发流程和验收标准 |
 
 ### 开发报告
 
 已完成的开发报告存放在 `reports/archive/` 目录。
-
-### 开发中的功能
-
-| 功能 | 分支 | 说明 |
-|------|------|------|
-| 每日任务系统 | `feature/daily-tasks` | 自动完成问答、投票、URL奖励任务 |
-| Tauri 2.0 前端 | `feature/frontend-ui` | 桌面应用界面 |
-| 通知系统 | `feature/notifications` | 多渠道通知（Telegram、微信） |
 
 ### 任务文档
 
@@ -49,9 +41,12 @@ docs/
 ├── guides/                      # 用户指南
 │   └── 用户指南.md
 ├── reference/                   # 技术参考
-│   ├── BRANCH_GUIDE.md          # 分支管理指南
 │   ├── SCHEDULER.md             # 调度器文档
-│   └── CONFIG.md                # 配置参考
+│   ├── CONFIG.md                # 配置参考
+│   ├── WORKFLOW.md              # 开发工作流
+│   ├── 审查评论处理工作流指南.md  # 快速入门
+│   ├── 评论处理系统说明.md       # 完整系统文档
+│   └── archive/                 # 过时参考文档归档
 ├── reports/                     # 开发报告
 │   ├── 技术参考.md              # 核心技术参考
 │   └── archive/                 # 已完成报告归档
@@ -67,7 +62,7 @@ docs/
 | 类型 | 命名格式 | 示例 |
 |------|----------|------|
 | 用户指南 | 中文命名 | 用户指南.md |
-| 技术参考 | 英文命名（保持现有） | BRANCH_GUIDE.md |
+| 技术参考 | 英文命名 | SCHEDULER.md |
 | 开发报告 | 中文命名 | 健康监控开发报告.md |
 | 任务文档 | 中文命名 | 配置一致性任务.md |
 
@@ -88,7 +83,7 @@ docs/
 
 ### 如何参与开发？
 
-1. 阅读 [分支管理指南](reference/BRANCH_GUIDE.md) 了解开发流程
+1. 阅读 [开发工作流](reference/WORKFLOW.md) 了解开发流程
 2. 按照验收标准提交代码
 3. 确保所有测试通过
 
