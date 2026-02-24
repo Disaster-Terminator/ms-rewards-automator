@@ -1,6 +1,9 @@
 ---
 name: resolve-review-comment
-description: 解决PR审查评论。通过 CLI 工具执行解决操作，支持多种解决类型。
+description: |
+  解决PR审查评论（内部 Skill）。
+  触发：用户说"解决某个评论"时。
+  注意：此 Skill 可单独调用，也可由 review-workflow 内部调用。
 ---
 
 # 解决审查评论

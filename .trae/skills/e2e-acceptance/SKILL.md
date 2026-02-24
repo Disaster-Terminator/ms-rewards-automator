@@ -1,7 +1,7 @@
 ---
 name: e2e-acceptance
 description: |
-  E2E无头验收（阶段4-5）。
+  E2E无头验收。
   注意：此 skill 由 acceptance-workflow 内部调用，不应单独使用。
   执行Dev和User无头验收，失败时使用MCP Playwright诊断页面布局。
 ---

@@ -1,213 +1,194 @@
 ---
 name: acceptance-workflow
 description: |
-  完整验收工作流（阶段1-5）。
-  自动执行：静态检查 → 单元测试 → 集成测试 → 审查评论检查 → E2E无头验收。
-  任何阶段失败都会停止并报告。
+  代码验收工作流（强制完整执行）。
+  触发：用户说"验收"、"测试"、"开发完成"时。
+  ⚠️ 必须完整执行所有阶段，不可跳过！
 ---
 
-# 完整验收工作流
+# 代码验收工作流
 
-## 执行流程（强制顺序）
+## ⚠️ 强制执行声明
 
-### 阶段 1：静态检查
+此工作流的所有阶段必须按顺序完整执行，不可跳过任何阶段。
+如果某个阶段失败，必须报告用户并停止，不可跳过继续。
 
-```bash
-ruff check . && ruff format --check .
-```
+---
 
-| 结果 | 动作 |
-|------|------|
-| 通过 | 继续阶段 2 |
-| 失败 | 停止，报告错误 |
+## 前置检查（建议级别）
 
-### 阶段 2：单元测试（并行）
-
-```bash
-pytest tests/unit/ -n auto -v --tb=short --timeout=60 -m "not real"
-```
-
-| 结果 | 动作 |
-|------|------|
-| 全部通过 | 继续阶段 3 |
-| 有失败 | 停止，报告错误 |
-
-### 阶段 3：集成测试（并行）
-
-```bash
-pytest tests/integration/ -n auto -v --tb=short --timeout=120
-```
-
-| 结果 | 动作 |
-|------|------|
-| 全部通过 | 继续阶段 3.5 |
-| 有失败 | 停止，报告错误 |
-
-### 阶段 3.5：审查评论检查（如有PR）
-
-**前置条件**：当前有活跃的PR
-
-#### Step 1: 获取评论状态
+**注意**：此检查仅在验收开始时执行，目的是提醒用户。
 
 ```bash
 python tools/manage_reviews.py list --status pending --format json
 ```
 
-解析输出，获取每个 Thread 的 `enriched_context`。
+检查是否有"必须修复"的评论未处理：
 
-#### Step 2: 分类处理
+| 结果 | 动作 |
+|------|------|
+| 有必须修复项 | **建议**用户先处理评论，但用户坚持可继续验收 |
+| 无必须修复项 | 继续阶段 1 |
 
-**必须修复项判断**：
+**如果没有活跃 PR**：跳过此检查，继续阶段 1
 
-检查 `enriched_context.issue_type`，如果包含以下类型，标记为必须修复：
+---
+
+## 执行流程
+
+### 阶段 1：静态检查
+
+**执行前检查**：
+- [ ] 代码已保存
+
+**执行**：
+```bash
+ruff check . && ruff format --check .
+```
+
+**执行后检查**：
+- [ ] 静态检查已通过
+
+| 结果 | 动作 |
+|------|------|
+| 通过 | 输出 "✅ 阶段 1 完成"，继续阶段 2 |
+| 失败 | 停止，报告错误 |
+
+### 阶段 2：测试（单元 + 集成）
+
+**⚠️ 优先使用并行测试，需先检查环境！**
+
+**执行前检查**：
+- [ ] 阶段 1 已完成
+
+**环境检查**：
+```bash
+python -c "import xdist" 2>$null; if ($LASTEXITCODE -eq 0) { echo "xdist_available" } else { echo "xdist_missing" }
+```
+
+**执行**：
+
+若 xdist 可用：
+```bash
+pytest tests/unit/ -n auto -v --tb=short --timeout=60 -m "not real"
+pytest tests/integration/ -n auto -v --tb=short --timeout=120
+```
+
+若 xdist 不可用（降级）：
+```bash
+pytest tests/unit/ -v --tb=short --timeout=60 -m "not real"
+pytest tests/integration/ -v --tb=short --timeout=120
+```
+
+**执行后检查**：
+- [ ] 单元测试已通过
+- [ ] 集成测试已通过
+
+| 结果 | 动作 |
+|------|------|
+| 全部通过 | 输出 "✅ 阶段 2 完成"，继续阶段 3 |
+| 有失败 | 停止，报告错误 |
+
+### 阶段 3：审查评论检查（建议级别，如有 PR）
+
+**⚠️ 此阶段为建议级别，不强制停止验收流程！**
+
+**设计说明**：当 review-workflow 调用 acceptance-workflow 时，评论状态仍为 pending。为避免死锁，此阶段仅提示用户，不强制停止。
+
+**执行前检查**：
+- [ ] 阶段 2 已完成
+- [ ] 当前有活跃 PR
+
+**执行**：
+```bash
+python tools/manage_reviews.py list --status pending --format json
+```
+
+**检查逻辑**：
+
+解析 `enriched_context.issue_type`，判断是否有必须修复项：
 
 | 类型 | 来源 |
 |------|------|
 | Bug, Security, Rule violation, Reliability | Qodo |
 | bug_risk, security | Sourcery |
 
-```python
-MUST_FIX_TYPES = {"Bug", "Security", "Rule violation", "Reliability", "bug_risk", "security"}
-
-def is_must_fix(issue_type: str) -> bool:
-    for type_name in MUST_FIX_TYPES:
-        if type_name.lower() in issue_type.lower():
-            return True
-    return False
-```
-
 **处理逻辑**：
 
 | 分类 | 行为 |
 |------|------|
-| 有必须修复项 | 停止验收，报告用户 |
-| 仅有自主决断项 | Agent 可自主决定是否采纳 |
+| 有必须修复项 | **提示用户**，但继续阶段 4（由 review-workflow 在阶段 5 解决） |
+| 仅有自主决断项 | 继续阶段 4 |
 
-**自主决断项类型**：
+**执行后检查**：
+- [ ] 评论状态已检查
 
-| 类型 | 来源 |
+| 结果 | 动作 |
 |------|------|
-| suggestion | Sourcery |
-| Correctness, performance | Qodo |
+| 无必须修复项 | 输出 "✅ 阶段 3 完成"，继续阶段 4 |
+| 有必须修复项 | 输出 "⚠️ 阶段 3 完成（存在必须修复项）"，继续阶段 4 |
 
-#### Step 3: 自动解决已修复项
+**注意**：如果没有活跃 PR，跳过此阶段。
 
-对于已修复的评论：
+### 阶段 4：E2E 验收
 
-```bash
-python tools/manage_reviews.py resolve --thread-id {thread_id} --type code_fixed
-```
+**⚠️ 此阶段不可跳过！**
 
-对于拒绝的建议：
+**执行前检查**：
+- [ ] 阶段 3 已完成（或跳过）
 
-```bash
-python tools/manage_reviews.py resolve --thread-id {thread_id} --type rejected --reply "拒绝原因"
-```
+**执行**：
+调用 e2e-acceptance Skill 执行。
 
-#### Step 4: 确认总览意见
+**执行后检查**：
+- [ ] E2E 验收已执行
+- [ ] 验收结果已获取
 
-```bash
-python tools/manage_reviews.py acknowledge --all
-```
+| 结果 | 动作 |
+|------|------|
+| 全部通过 | 输出 "✅ 阶段 4 完成" |
+| 有失败 | 使用 MCP Playwright 诊断，报告错误 |
 
-#### 输出格式
+---
 
-**成功**：
+## 完整性检查（强制）
 
-```
-✅ 审查评论检查通过
-- 必须修复：0 待处理
-- 建议性：X 已忽略，0 待判断
-- 已解决：Y
-- 总览意见：已确认
-```
+在报告完成前，必须确认：
+- [ ] 阶段 1：静态检查 - 已执行
+- [ ] 阶段 2：测试 - 已执行（优先并行，可降级）
+- [ ] 阶段 3：审查评论检查 - 已执行（如有 PR，建议级别）
+- [ ] 阶段 4：E2E 验收 - 已执行
 
-**失败**：
-
-```
-❌ 审查评论检查失败
-- 必须修复：X 待处理
-  - Thread ID: xxx (Bug)
-  - Thread ID: yyy (Security)
-- 请先处理上述问题
-```
-
-**解决结果统计**：
-
-```
-### 评论解决结果
-| ID | 来源 | 类型 | 解决依据 | 回复 | 状态 |
-|----|------|------|----------|------|------|
-| #1 | Sourcery | bug_risk | code_fixed | - | ✅ |
-| #2 | Copilot | suggestion | rejected | 已说明 | ✅ |
-```
-
-**注意**：如果没有活跃PR，跳过此阶段。
-
-### 阶段 4-5：E2E 无头验收
-
-调用 e2e-acceptance skill 执行。
+**如有未执行项，流程未完成！**
 
 ---
 
 ## 输出格式
 
-### 全部通过
+### 成功
 
 ```
 ✅ 验收工作流完成
-- 静态检查：通过
-- 单元测试：X passed（并行执行）
-- 集成测试：Y passed（并行执行）
-- 审查评论：通过（如有PR）
-- Dev 无头验收：通过
-- User 无头验收：通过
+- ✅ 阶段 1：静态检查通过
+- ✅ 阶段 2：测试通过（单元 X passed，集成 Y passed）
+- ✅ 阶段 3：审查评论检查通过（如有 PR）
+- ✅ 阶段 4：E2E 验收通过（Dev + User）
 ```
 
-### 阶段 N 失败
+### 失败
 
 ```
 ❌ 验收工作流在阶段 N 失败
-
-### 错误详情
-<错误信息>
+<错误详情>
 ```
 
----
-
-## 流程图
+### 存在必须修复项（继续验收）
 
 ```
-阶段1: 静态检查
-       ↓
-阶段2: 单元测试
-       ↓
-阶段3: 集成测试
-       ↓
-阶段3.5: 审查评论检查（如有PR）
-       │
-       ├─ Step 1: 获取评论状态
-       │
-       ├─ Step 2: 分类处理
-       │   ├─ 必须修复项 → 停止，报告用户
-       │   └─ 自主决断项 → Agent 决定是否采纳
-       │
-       ├─ Step 3: 自动解决已修复项
-       │
-       └─ Step 4: 确认总览意见
-       ↓
-   ┌───┴───┐
-   ↓       ↓
-  通过    失败
-   ↓       ↓
-阶段4-5  停止报告
-E2E验收
-   ↓
-  完成
+⚠️ 验收工作流完成（存在未处理的必须修复评论）
+- ✅ 阶段 1：静态检查通过
+- ✅ 阶段 2：测试通过
+- ⚠️ 阶段 3：存在 X 个必须修复项待处理
+- ✅ 阶段 4：E2E 验收通过
+- 建议：请在验收后处理上述必须修复项
 ```
-
-## 相关 Skills
-
-- [fetch-reviews](../fetch-reviews/SKILL.md) - 获取评论
-- [resolve-review-comment](../resolve-review-comment/SKILL.md) - 解决评论
-- [e2e-acceptance](../e2e-acceptance/SKILL.md) - E2E 无头验收

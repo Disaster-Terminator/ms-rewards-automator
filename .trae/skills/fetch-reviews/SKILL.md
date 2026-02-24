@@ -1,6 +1,9 @@
 ---
 name: fetch-reviews
-description: 获取PR的AI审查评论。使用 CLI 工具获取结构化 JSON 数据，解析并汇总待处理问题。
+description: |
+  获取PR的AI审查评论（内部 Skill）。
+  触发：用户说"获取评论"、"查看评论"时。
+  注意：此 Skill 可单独调用，也可由 review-workflow 内部调用。
 ---
 
 # AI 审查获取流程
