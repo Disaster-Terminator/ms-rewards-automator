@@ -250,14 +250,21 @@ def cmd_overviews(args: argparse.Namespace) -> None:
             table = Table(title="[bold blue]Review 级别总览意见[/bold blue]")
             table.add_column("ID", style="dim", width=12)
             table.add_column("Source", width=10)
+            table.add_column("Status", width=12)
             table.add_column("Has Prompt", width=10)
             table.add_column("Feedback Count", width=12)
 
             for o in overviews:
                 short_id = o.id[:8] + "..." if len(o.id) > 8 else o.id
+                status_display = (
+                    "[green]acknowledged[/green]"
+                    if o.local_status == "acknowledged"
+                    else "[yellow]pending[/yellow]"
+                )
                 table.add_row(
                     short_id,
                     o.source,
+                    status_display,
                     "[green]Yes[/green]" if o.has_prompt_for_ai else "[dim]No[/dim]",
                     str(len(o.high_level_feedback)),
                 )
@@ -283,6 +290,7 @@ def cmd_overviews(args: argparse.Namespace) -> None:
                 {
                     "id": o.id,
                     "source": o.source,
+                    "local_status": o.local_status,
                     "has_prompt_for_ai": o.has_prompt_for_ai,
                     "high_level_feedback": o.high_level_feedback,
                     "prompt_overall_comments": o.prompt_overall_comments,
@@ -300,6 +308,42 @@ def cmd_overviews(args: argparse.Namespace) -> None:
             ],
         }
         print(json.dumps(result, indent=2, ensure_ascii=False))
+
+
+def cmd_acknowledge(args: argparse.Namespace) -> None:
+    """执行 acknowledge 子命令 - 确认总览意见"""
+    db_path = get_db_path()
+    manager = ReviewManager(db_path)
+
+    if args.all:
+        acknowledged_ids = manager.acknowledge_all_overviews()
+        result = {
+            "success": True,
+            "message": f"已确认 {len(acknowledged_ids)} 个总览意见",
+            "acknowledged_ids": acknowledged_ids,
+        }
+    elif args.id:
+        success = manager.acknowledge_overview(args.id)
+        if success:
+            result = {
+                "success": True,
+                "message": f"总览意见 {args.id} 已确认",
+                "acknowledged_ids": [args.id],
+            }
+        else:
+            result = {
+                "success": False,
+                "message": f"未找到总览意见 {args.id}",
+                "acknowledged_ids": [],
+            }
+    else:
+        result = {
+            "success": False,
+            "message": "请指定 --id 或 --all",
+            "acknowledged_ids": [],
+        }
+
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
 def cmd_stats(args: argparse.Namespace) -> None:
@@ -364,6 +408,11 @@ def main() -> None:
         "--format", choices=["table", "json"], default="table", help="输出格式 (默认: table)"
     )
     parser_overviews.set_defaults(func=cmd_overviews)
+
+    parser_acknowledge = subparsers.add_parser("acknowledge", help="确认总览意见")
+    parser_acknowledge.add_argument("--id", help="总览意见 ID")
+    parser_acknowledge.add_argument("--all", action="store_true", help="确认所有总览意见")
+    parser_acknowledge.set_defaults(func=cmd_acknowledge)
 
     parser_stats = subparsers.add_parser("stats", help="显示统计信息")
     parser_stats.add_argument(

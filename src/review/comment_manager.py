@@ -49,7 +49,9 @@ class ReviewManager:
                     update_data = {
                         "is_resolved": thread.is_resolved,
                         "last_updated": datetime.utcnow().isoformat(),
-                        "enriched_context": thread.enriched_context.model_dump() if thread.enriched_context else None,
+                        "enriched_context": thread.enriched_context.model_dump()
+                        if thread.enriched_context
+                        else None,
                     }
 
                     if thread.is_resolved and existing.get("local_status") != "resolved":
@@ -188,6 +190,58 @@ class ReviewManager:
         with FileLock(self.lock_path):
             overviews = self.db.table("issue_comment_overviews").all()
             return [IssueCommentOverview(**o) for o in overviews]
+
+    def acknowledge_overview(self, overview_id: str) -> bool:
+        """
+        确认单个总览意见
+
+        Args:
+            overview_id: 总览意见 ID
+
+        Returns:
+            是否成功
+        """
+        with FileLock(self.lock_path):
+            overview_table = self.db.table("overviews")
+            existing = overview_table.get(self.Overview.id == overview_id)
+
+            if existing:
+                overview_table.update(
+                    {
+                        "local_status": "acknowledged",
+                        "last_updated": datetime.utcnow().isoformat(),
+                    },
+                    self.Overview.id == overview_id,
+                )
+                logger.info(f"Overview {overview_id} 已确认")
+                return True
+            return False
+
+    def acknowledge_all_overviews(self) -> list[str]:
+        """
+        确认所有总览意见
+
+        Returns:
+            已确认的总览意见 ID 列表
+        """
+        with FileLock(self.lock_path):
+            overview_table = self.db.table("overviews")
+            overviews = overview_table.all()
+
+            acknowledged_ids = []
+            for overview in overviews:
+                if overview.get("local_status") != "acknowledged":
+                    overview_table.update(
+                        {
+                            "local_status": "acknowledged",
+                            "last_updated": datetime.utcnow().isoformat(),
+                        },
+                        self.Overview.id == overview["id"],
+                    )
+                    acknowledged_ids.append(overview["id"])
+
+            logger.info(f"已确认 {len(acknowledged_ids)} 个总览意见")
+            return acknowledged_ids
 
     def get_statistics(self) -> dict:
         """

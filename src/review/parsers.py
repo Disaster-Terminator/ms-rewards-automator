@@ -419,9 +419,9 @@ class ReviewParser:
         r"<code>\s*(?:⚯\s*)?Reliability\s*</code>|"
         r"<code>\s*(?:✓\s*)?Correctness\s*</code>|"
         r"Bug|Rule\s*violation|Security|Reliability|Correctness",
-        re.IGNORECASE
+        re.IGNORECASE,
     )
-    
+
     QODO_TYPE_MAP = {
         "bug": "Bug",
         "rule violation": "Rule violation",
@@ -434,39 +434,45 @@ class ReviewParser:
     def parse_qodo_issue_types(cls, body: str) -> str:
         """
         解析 Qodo 评论正文中的类型信息
-        
+
         支持的格式：
         - <code>📘 Rule violation</code>
         - <code>🐞 Bug</code>
         - 纯文本：Bug, Security 等
-        
+
         Args:
             body: 评论正文
-            
+
         Returns:
             类型字符串，多个类型用逗号拼接，如 "Bug, Security"
             如果没有匹配，返回默认值 "suggestion"
         """
         if not body:
             return "suggestion"
-        
+
         matches = cls.REGEX_QODO_EMOJI_TYPES.findall(body)
         if not matches:
             return "suggestion"
-        
+
         types = []
         for match in matches:
             type_str = match.lower()
             type_str = type_str.replace("<code>", "").replace("</code>", "")
-            type_str = type_str.replace("🐞", "").replace("📘", "").replace("⛨", "").replace("⚯", "").replace("✓", "")
+            type_str = (
+                type_str.replace("🐞", "")
+                .replace("📘", "")
+                .replace("⛨", "")
+                .replace("⚯", "")
+                .replace("✓", "")
+            )
             type_str = type_str.strip()
-            
+
             if type_str in cls.QODO_TYPE_MAP:
                 resolved_type = cls.QODO_TYPE_MAP[type_str]
                 if resolved_type not in types:
                     types.append(resolved_type)
-        
+
         if not types:
             return "suggestion"
-        
+
         return ", ".join(types)

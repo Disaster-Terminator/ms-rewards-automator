@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test,dev]"
+          pip install -e ".[dev]"
 
       - name: Run Ruff linter
         run: ruff check . --output-format=github
@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test,dev]"
+          pip install -e ".[dev]"
 
       - name: Run unit tests
         run: pytest tests/unit/ -n auto -v --tb=short --timeout=60 -m "not real" --cov=src --cov-report=html --cov-report=term-missing
@@ -82,7 +82,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test,dev]"
+          pip install -e ".[dev]"
 
       - name: Run integration tests
         run: pytest tests/integration/ -n auto -v --tb=short --timeout=120

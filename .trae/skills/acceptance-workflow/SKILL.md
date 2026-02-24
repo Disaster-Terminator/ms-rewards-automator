@@ -47,54 +47,99 @@ pytest tests/integration/ -n auto -v --tb=short --timeout=120
 
 **前置条件**：当前有活跃的PR
 
-**检查流程**：
+#### Step 1: 获取评论状态
 
-```
-1. 调用 fetch-reviews skill 获取评论状态
-2. 对于状态为"已修复待标记"的评论，调用 resolve-review-comment skill
-3. 检查是否有"待处理"状态的必须修复项
-4. 检查是否有"待判断"状态的建议性评论
+```bash
+python tools/manage_reviews.py list --status pending --format json
 ```
 
-**自动标记解决逻辑**：
+解析输出，获取每个 Thread 的 `enriched_context`。
 
-```
-对于每个已修复但未标记解决的评论：
-1. 调用 resolve-review-comment skill
-2. 记录解决依据
-3. 输出解决结果统计
-```
+#### Step 2: 分类处理
 
-| 结果 | 动作 |
+**必须修复项判断**：
+
+检查 `enriched_context.issue_type`，如果包含以下类型，标记为必须修复：
+
+| 类型 | 来源 |
 |------|------|
-| 无待处理项 | 继续阶段 4 |
-| 有待处理项 | 停止，报告用户 |
-| 有待判断项 | 提示用户确认后继续 |
+| Bug, Security, Rule violation, Reliability | Qodo |
+| bug_risk, security | Sourcery |
 
-**输出**：
+```python
+MUST_FIX_TYPES = {"Bug", "Security", "Rule violation", "Reliability", "bug_risk", "security"}
+
+def is_must_fix(issue_type: str) -> bool:
+    for type_name in MUST_FIX_TYPES:
+        if type_name.lower() in issue_type.lower():
+            return True
+    return False
+```
+
+**处理逻辑**：
+
+| 分类 | 行为 |
+|------|------|
+| 有必须修复项 | 停止验收，报告用户 |
+| 仅有自主决断项 | Agent 可自主决定是否采纳 |
+
+**自主决断项类型**：
+
+| 类型 | 来源 |
+|------|------|
+| suggestion | Sourcery |
+| Correctness, performance | Qodo |
+
+#### Step 3: 自动解决已修复项
+
+对于已修复的评论：
+
+```bash
+python tools/manage_reviews.py resolve --thread-id {thread_id} --type code_fixed
+```
+
+对于拒绝的建议：
+
+```bash
+python tools/manage_reviews.py resolve --thread-id {thread_id} --type rejected --reply "拒绝原因"
+```
+
+#### Step 4: 确认总览意见
+
+```bash
+python tools/manage_reviews.py acknowledge --all
+```
+
+#### 输出格式
+
+**成功**：
 
 ```
 ✅ 审查评论检查通过
 - 必须修复：0 待处理
 - 建议性：X 已忽略，0 待判断
 - 已解决：Y
+- 总览意见：已确认
+```
 
-或
+**失败**：
 
-
+```
 ❌ 审查评论检查失败
 - 必须修复：X 待处理
+  - Thread ID: xxx (Bug)
+  - Thread ID: yyy (Security)
 - 请先处理上述问题
 ```
 
-**解决结果统计输出格式**：
+**解决结果统计**：
 
 ```
 ### 评论解决结果
-| ID | 来源 | 解决依据 | 回复 | 状态 |
-|----|------|----------|------|------|
-| #1 | Sourcery | code_fixed | - | ✅ |
-| #2 | Copilot | rejected | 已说明 | ✅ |
+| ID | 来源 | 类型 | 解决依据 | 回复 | 状态 |
+|----|------|------|----------|------|------|
+| #1 | Sourcery | bug_risk | code_fixed | - | ✅ |
+| #2 | Copilot | suggestion | rejected | 已说明 | ✅ |
 ```
 
 **注意**：如果没有活跃PR，跳过此阶段。
@@ -140,6 +185,16 @@ pytest tests/integration/ -n auto -v --tb=short --timeout=120
 阶段3: 集成测试
        ↓
 阶段3.5: 审查评论检查（如有PR）
+       │
+       ├─ Step 1: 获取评论状态
+       │
+       ├─ Step 2: 分类处理
+       │   ├─ 必须修复项 → 停止，报告用户
+       │   └─ 自主决断项 → Agent 决定是否采纳
+       │
+       ├─ Step 3: 自动解决已修复项
+       │
+       └─ Step 4: 确认总览意见
        ↓
    ┌───┴───┐
    ↓       ↓
@@ -150,3 +205,9 @@ E2E验收
    ↓
   完成
 ```
+
+## 相关 Skills
+
+- [fetch-reviews](../fetch-reviews/SKILL.md) - 获取评论
+- [resolve-review-comment](../resolve-review-comment/SKILL.md) - 解决评论
+- [e2e-acceptance](../e2e-acceptance/SKILL.md) - E2E 无头验收
