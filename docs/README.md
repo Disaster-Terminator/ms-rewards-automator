@@ -19,11 +19,22 @@
 |------|------|
 | [调度器文档](reference/SCHEDULER.md) | 调度器功能、配置和执行模式 |
 | [配置参考](reference/CONFIG.md) | 完整配置项说明和示例 |
-| [评论处理系统说明](reference/评论处理系统说明.md) | AI 审查评论处理系统架构和使用 |
-| [审查评论处理工作流指南](reference/审查评论处理工作流指南.md) | 审查评论处理快速入门 |
+| [评论处理系统说明](reference/评论处理系统说明.md) | AI 审查评论处理系统架构和数据模型 |
 | [技术参考](reports/技术参考.md) | 反检测策略、健康监控和性能优化 |
 | [任务系统](task_system.md) | 任务系统页面结构和开发文档 |
 | [开发工作流](reference/WORKFLOW.md) | 单 Agent 开发流程和验收标准 |
+
+### Agent 相关
+
+> Agent 相关内容已迁移到 `.trae/skills/` 目录，由 project_rules.md 自动注入。
+
+| Skill | 说明 |
+|-------|------|
+| [review-workflow](../.trae/skills/review-workflow/SKILL.md) | PR 审查评论处理工作流 |
+| [acceptance-workflow](../.trae/skills/acceptance-workflow/SKILL.md) | 代码验收工作流 |
+| [fetch-reviews](../.trae/skills/fetch-reviews/SKILL.md) | 获取 AI 审查评论 |
+| [resolve-review-comment](../.trae/skills/resolve-review-comment/SKILL.md) | 解决单个评论 |
+| [e2e-acceptance](../.trae/skills/e2e-acceptance/SKILL.md) | E2E 无头验收 |
 
 ### 开发报告
 
@@ -44,8 +55,7 @@ docs/
 │   ├── SCHEDULER.md             # 调度器文档
 │   ├── CONFIG.md                # 配置参考
 │   ├── WORKFLOW.md              # 开发工作流
-│   ├── 审查评论处理工作流指南.md  # 快速入门
-│   ├── 评论处理系统说明.md       # 完整系统文档
+│   ├── 评论处理系统说明.md       # 系统架构说明
 │   └── archive/                 # 过时参考文档归档
 ├── reports/                     # 开发报告
 │   ├── 技术参考.md              # 核心技术参考
