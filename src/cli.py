@@ -75,7 +75,15 @@ def parse_arguments():
     parser.add_argument(
         "--diagnose",
         action="store_true",
-        help="启用诊断模式（--dev/--user 默认启用）",
+        default=None,
+        help="启用诊断模式",
+    )
+
+    parser.add_argument(
+        "--no-diagnose",
+        action="store_false",
+        dest="diagnose",
+        help="禁用诊断模式（覆盖 --dev/--user 的默认启用）",
     )
 
     parser.add_argument("--config", default="config.yaml", help="配置文件路径 (默认: config.yaml)")
@@ -184,7 +192,11 @@ async def async_main():
         await test_notification_func(config)
         return 0
 
-    diagnose_enabled = args.diagnose or (args.dev or args.user)
+    # 三态逻辑：None=默认（dev/user启用），True=强制启用，False=强制禁用
+    if args.diagnose is None:
+        diagnose_enabled = args.dev or args.user
+    else:
+        diagnose_enabled = args.diagnose
 
     scheduler_enabled = config.get("scheduler.enabled", True)
 

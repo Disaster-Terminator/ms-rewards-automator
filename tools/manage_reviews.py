@@ -225,6 +225,8 @@ def cmd_list(args: argparse.Namespace) -> None:
                     "is_resolved": t.is_resolved,
                     "file_path": t.file_path,
                     "line_number": t.line_number,
+                    "primary_comment_body": t.primary_comment_body,
+                    "comment_url": t.comment_url,
                     "enriched_context": t.enriched_context.model_dump()
                     if t.enriched_context
                     else None,
@@ -426,7 +428,14 @@ def main() -> None:
         parser.print_help()
         sys.exit(1)
 
-    args.func(args)
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        print(json.dumps({"success": False, "message": "操作已取消"}))
+        sys.exit(130)
+    except Exception as e:
+        print(json.dumps({"success": False, "message": f"错误: {str(e)}"}))
+        sys.exit(1)
 
 
 if __name__ == "__main__":

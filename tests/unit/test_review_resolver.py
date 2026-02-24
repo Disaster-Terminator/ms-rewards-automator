@@ -1,5 +1,5 @@
-from src.review.models import EnrichedContext, ReviewThreadState
-from src.review.resolver import ReviewResolver
+from review.models import EnrichedContext, ReviewThreadState
+from review.resolver import ReviewResolver
 
 
 class TestInjectSourceryTypes:

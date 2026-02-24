@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """比较数据库和 GitHub API 的数据"""
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -34,7 +35,7 @@ def load_db_data() -> list[ReviewThreadState]:
     return manager.get_all_threads()
 
 
-def fetch_api_data() -> list[dict[str, Any]]:
+def fetch_api_data(owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
     """从 GitHub API 获取数据"""
     load_env_file()
     token = os.environ.get("GITHUB_TOKEN")
@@ -43,12 +44,55 @@ def fetch_api_data() -> list[dict[str, Any]]:
         sys.exit(1)
 
     client = GraphQLClient(token)
-    return client.fetch_pr_threads("Disaster-Terminator", "RewardsCore", 9)
+    return client.fetch_pr_threads(owner, repo, pr_number)
+
+
+def parse_arguments():
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(
+        description="比较数据库和 GitHub API 的评论数据",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--owner",
+        default=os.environ.get("GITHUB_OWNER", "Disaster-Terminator"),
+        help="仓库所有者 (默认: Disaster-Terminator，可通过 GITHUB_OWNER 环境变量设置)",
+    )
+
+    parser.add_argument(
+        "--repo",
+        default=os.environ.get("GITHUB_REPO", "RewardsCore"),
+        help="仓库名称 (默认: RewardsCore，可通过 GITHUB_REPO 环境变量设置)",
+    )
+
+    parser.add_argument(
+        "--pr",
+        type=int,
+        default=int(os.environ.get("GITHUB_PR_NUMBER", "9")),
+        help="PR 编号 (默认: 9，可通过 GITHUB_PR_NUMBER 环境变量设置)",
+    )
+
+    return parser.parse_args()
 
 
 def main():
-    threads_api = fetch_api_data()
-    threads_db = load_db_data()
+    args = parse_arguments()
+
+    print(f"=== 验证 PR #{args.pr} ({args.owner}/{args.repo}) ===")
+    print()
+
+    try:
+        threads_api = fetch_api_data(args.owner, args.repo, args.pr)
+    except Exception as e:
+        print(f"错误: 无法从 GitHub API 获取数据 - {e}")
+        sys.exit(1)
+
+    try:
+        threads_db = load_db_data()
+    except Exception as e:
+        print(f"错误: 无法从数据库加载数据 - {e}")
+        sys.exit(1)
 
     print("=== GitHub API vs 数据库数据对比 ===")
     print()

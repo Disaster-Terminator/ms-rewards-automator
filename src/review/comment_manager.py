@@ -22,9 +22,9 @@ class ReviewManager:
         self.lock_path = self.db_path.with_suffix(".lock")
 
         self.db = TinyDB(self.db_path)
-        self.Thread = Query()
-        self.Metadata = Query()
-        self.Overview = Query()
+        self.thread_q = Query()
+        self.metadata_q = Query()
+        self.overview_q = Query()
 
     def save_threads(self, threads: list[ReviewThreadState], metadata: ReviewMetadata) -> None:
         """
@@ -43,7 +43,7 @@ class ReviewManager:
             thread_table = self.db.table("threads")
 
             for thread in threads:
-                existing = thread_table.get(self.Thread.id == thread.id)
+                existing = thread_table.get(self.thread_q.id == thread.id)
 
                 if existing:
                     update_data = {
@@ -60,7 +60,7 @@ class ReviewManager:
                         update_data["resolution_type"] = "manual_on_github"
                         logger.info(f"Thread {thread.id} 已在 GitHub 上手动解决，同步本地状态")
 
-                    thread_table.update(update_data, self.Thread.id == thread.id)
+                    thread_table.update(update_data, self.thread_q.id == thread.id)
                 else:
                     thread_table.insert(thread.model_dump())
 
@@ -78,10 +78,10 @@ class ReviewManager:
             overview_table = self.db.table("overviews")
 
             for overview in overviews:
-                existing = overview_table.get(self.Overview.id == overview.id)
+                existing = overview_table.get(self.overview_q.id == overview.id)
 
                 if existing:
-                    overview_table.update(overview.model_dump(), self.Overview.id == overview.id)
+                    overview_table.update(overview.model_dump(), self.overview_q.id == overview.id)
                 else:
                     overview_table.insert(overview.model_dump())
 
@@ -103,7 +103,7 @@ class ReviewManager:
                     "resolution_type": resolution_type,
                     "last_updated": datetime.utcnow().isoformat(),
                 },
-                self.Thread.id == thread_id,
+                self.thread_q.id == thread_id,
             )
 
         logger.info(f"Thread {thread_id} 本地状态已更新为 resolved ({resolution_type})")
@@ -129,7 +129,7 @@ class ReviewManager:
             线程状态，如果不存在返回 None
         """
         with FileLock(self.lock_path):
-            data = self.db.table("threads").get(self.Thread.id == thread_id)
+            data = self.db.table("threads").get(self.thread_q.id == thread_id)
             if data:
                 return ReviewThreadState(**data)
             return None
@@ -204,7 +204,7 @@ class ReviewManager:
         """
         with FileLock(self.lock_path):
             overview_table = self.db.table("overviews")
-            existing = overview_table.get(self.Overview.id == overview_id)
+            existing = overview_table.get(self.overview_q.id == overview_id)
 
             if existing:
                 overview_table.update(
@@ -212,7 +212,7 @@ class ReviewManager:
                         "local_status": "acknowledged",
                         "last_updated": datetime.utcnow().isoformat(),
                     },
-                    self.Overview.id == overview_id,
+                    self.overview_q.id == overview_id,
                 )
                 logger.info(f"Overview {overview_id} 已确认")
                 return True
@@ -237,7 +237,7 @@ class ReviewManager:
                             "local_status": "acknowledged",
                             "last_updated": datetime.utcnow().isoformat(),
                         },
-                        self.Overview.id == overview["id"],
+                        self.overview_q.id == overview["id"],
                     )
                     acknowledged_ids.append(overview["id"])
 

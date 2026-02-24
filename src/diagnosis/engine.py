@@ -495,9 +495,9 @@ class DiagnosticEngine:
 
         logger.info(f"诊断报告已保存: {filepath}")
 
-    def quick_check(self, page, check_type: str) -> "QuickDiagnosis":
+    async def quick_check(self, page, check_type: str) -> "QuickDiagnosis":
         """
-        快速诊断检查
+        快速诊断检查（异步版本）
 
         Args:
             page: Playwright 页面对象
@@ -511,22 +511,8 @@ class DiagnosticEngine:
         inspector = PageInspector()
         issues = []
 
-        import asyncio
-
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-
-                async def check():
-                    return await inspector.inspect_page(page)
-
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, check())
-                    issues = future.result()
-            else:
-                issues = asyncio.run(inspector.inspect_page(page))
+            issues = await inspector.inspect_page(page)
         except Exception as e:
             logger.error(f"快速检查失败: {e}")
             from .inspector import IssueSeverity, IssueType

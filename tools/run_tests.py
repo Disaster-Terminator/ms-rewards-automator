@@ -55,7 +55,8 @@ def main():
 
     # 2. 属性测试
     results["属性测试"] = run_command(
-        "pytest tests/unit tests/integration -n auto -v --tb=short -m property", "运行属性测试"
+        "pytest tests/unit tests/integration -n auto -v --tb=short -m 'property and not real'",
+        "运行属性测试",
     )
 
     # 3. 环境检查

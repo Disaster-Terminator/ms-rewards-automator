@@ -303,6 +303,11 @@ class ConfigValidator:
                 enabled_services.append(service)
 
                 if service == "telegram":
+                    if self.config_manager is None:
+                        self.errors.append(
+                            "Telegram通知已启用但缺少 config_manager，无法读取环境变量"
+                        )
+                        continue
                     bot_token = self.config_manager.get_with_env(
                         "notification.telegram.bot_token", "TELEGRAM_BOT_TOKEN"
                     )
@@ -319,6 +324,11 @@ class ConfigValidator:
                         )
 
                 elif service == "serverchan":
+                    if self.config_manager is None:
+                        self.errors.append(
+                            "Server酱通知已启用但缺少 config_manager，无法读取环境变量"
+                        )
+                        continue
                     key = self.config_manager.get_with_env(
                         "notification.serverchan.key", "SERVERCHAN_KEY"
                     )
@@ -328,6 +338,11 @@ class ConfigValidator:
                         )
 
                 elif service == "whatsapp":
+                    if self.config_manager is None:
+                        self.errors.append(
+                            "WhatsApp通知已启用但缺少 config_manager，无法读取环境变量"
+                        )
+                        continue
                     phone = self.config_manager.get_with_env(
                         "notification.whatsapp.phone", "WHATSAPP_PHONE"
                     )

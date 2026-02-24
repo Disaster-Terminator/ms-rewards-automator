@@ -140,7 +140,7 @@ python -m venv venv
 source venv/bin/activate
 
 # 安装依赖
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 # 安装浏览器
 playwright install chromium

@@ -434,7 +434,7 @@ class TaskCoordinator:
 
             except ImportError as e:
                 self.logger.warning(f"  ⚠ 任务系统模块导入失败: {e}")
-                self.logger.warning("  请确保已安装所有依赖: pip install -r requirements.txt")
+                self.logger.warning('  请确保已安装所有依赖: pip install -e ".[dev]"')
             except Exception as e:
                 self.logger.error(f"  ✗ 任务执行失败: {e}")
                 import traceback
