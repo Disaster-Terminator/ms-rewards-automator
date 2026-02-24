@@ -21,7 +21,10 @@ class TestConfigValidator:
     @pytest.fixture
     def validator(self):
         """创建 ConfigValidator 实例"""
-        return ConfigValidator()
+        from infrastructure.config_manager import ConfigManager
+
+        config_manager = ConfigManager("config.yaml")
+        return ConfigValidator(config_manager)
 
     @pytest.fixture
     def valid_config(self):

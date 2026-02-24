@@ -135,7 +135,7 @@ class LogRotation:
         Returns:
             总体清理结果
         """
-        total_result: dict[str, dict[str, int | bool]] = {
+        total_result: dict[str, dict[str, int]] = {
             "logs": {},
             "screenshots": {},
             "diagnosis": {},

@@ -70,6 +70,7 @@ PR 创建
 - **Prompt for AI Agents = 完整审查的结构化摘要**
 - **Individual Comments 对应行级评论**
 - **行级评论可通过 `@sourcery-ai resolve` 解决**
+- **动态解决状态**：Sourcery 会根据新推送的 commit 自动检测并更新评论状态，标记为 `✅ Addressed in {commit_hash}`
 
 ### 评论结构
 

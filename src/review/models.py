@@ -55,7 +55,7 @@ class ReviewThreadState(BaseModel):
 
     source: str = Field(..., description="评论来源：Sourcery/Qodo/Copilot")
     file_path: str = Field(default="", description="文件路径")
-    line_number: int = Field(default=0, description="行号")
+    line_number: int | None = Field(default=None, description="行号，None 表示文件级评论")
 
     local_status: str = Field("pending", description="本地处理状态：pending/resolved/ignored")
     resolution_type: str | None = Field(

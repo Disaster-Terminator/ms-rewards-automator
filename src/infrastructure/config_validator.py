@@ -310,16 +310,22 @@ class ConfigValidator:
                         "notification.telegram.chat_id", "TELEGRAM_CHAT_ID"
                     )
                     if not bot_token:
-                        self.errors.append("Telegram通知已启用但缺少bot_token，请配置环境变量TELEGRAM_BOT_TOKEN或config.yaml")
+                        self.errors.append(
+                            "Telegram通知已启用但缺少bot_token，请配置环境变量TELEGRAM_BOT_TOKEN或config.yaml"
+                        )
                     if not chat_id:
-                        self.errors.append("Telegram通知已启用但缺少chat_id，请配置环境变量TELEGRAM_CHAT_ID或config.yaml")
+                        self.errors.append(
+                            "Telegram通知已启用但缺少chat_id，请配置环境变量TELEGRAM_CHAT_ID或config.yaml"
+                        )
 
                 elif service == "serverchan":
                     key = self.config_manager.get_with_env(
                         "notification.serverchan.key", "SERVERCHAN_KEY"
                     )
                     if not key:
-                        self.errors.append("Server酱通知已启用但缺少key，请配置环境变量SERVERCHAN_KEY或config.yaml")
+                        self.errors.append(
+                            "Server酱通知已启用但缺少key，请配置环境变量SERVERCHAN_KEY或config.yaml"
+                        )
 
                 elif service == "whatsapp":
                     phone = self.config_manager.get_with_env(
@@ -329,9 +335,13 @@ class ConfigValidator:
                         "notification.whatsapp.apikey", "WHATSAPP_APIKEY"
                     )
                     if not phone:
-                        self.errors.append("WhatsApp通知已启用但缺少phone，请配置环境变量WHATSAPP_PHONE或config.yaml")
+                        self.errors.append(
+                            "WhatsApp通知已启用但缺少phone，请配置环境变量WHATSAPP_PHONE或config.yaml"
+                        )
                     if not apikey:
-                        self.errors.append("WhatsApp通知已启用但缺少apikey，请配置环境变量WHATSAPP_APIKEY或config.yaml")
+                        self.errors.append(
+                            "WhatsApp通知已启用但缺少apikey，请配置环境变量WHATSAPP_APIKEY或config.yaml"
+                        )
 
         if not enabled_services:
             self.warnings.append("通知功能已启用但没有配置任何通知服务")

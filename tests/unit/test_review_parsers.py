@@ -203,7 +203,7 @@ class TestReviewThreadState:
 
         assert thread.local_status == "pending"
         assert thread.file_path == ""
-        assert thread.line_number == 0
+        assert thread.line_number is None  # 默认是 None，不是 0
         assert thread.resolution_type is None
         assert thread.enriched_context is None
 

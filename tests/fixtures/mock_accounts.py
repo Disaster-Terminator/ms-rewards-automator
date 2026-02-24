@@ -72,6 +72,10 @@ mock_account_strategy = st.builds(
 # Pytest Fixtures
 # ============================================================================
 
+# NOTE: Session-scoped fixtures return references to shared TEST_ACCOUNTS.
+# Tests MUST NOT modify the returned objects to avoid cross-test coupling.
+# If mutation is needed, copy the object first: copy.deepcopy(fixture_value)
+
 
 @pytest.fixture(scope="session")
 def mock_account_standard():

@@ -48,6 +48,7 @@ class ReviewManager:
                 if existing:
                     update_data = {
                         "is_resolved": thread.is_resolved,
+                        "line_number": thread.line_number,
                         "last_updated": datetime.utcnow().isoformat(),
                         "enriched_context": thread.enriched_context.model_dump()
                         if thread.enriched_context

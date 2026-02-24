@@ -60,7 +60,7 @@ class ReviewResolver:
                     comment_url=first_comment.get("url", ""),
                     source=source,
                     file_path=raw.get("path") or "",
-                    line_number=raw.get("line") or 0,
+                    line_number=raw.get("line"),
                     local_status=ReviewParser.parse_status(
                         first_comment.get("body", ""), raw.get("isResolved", False)
                     ),
@@ -185,6 +185,7 @@ class ReviewResolver:
         支持行号范围匹配：
         - 精确匹配：`pyproject.toml:35` 匹配 line=35
         - 范围匹配：`src/file.py:10-20` 匹配 line 在 10-20 范围内的 Thread
+        - 文件级匹配：`line=None` 时按文件路径匹配
 
         Args:
             threads: Thread 列表
@@ -196,18 +197,24 @@ class ReviewResolver:
         if not prompt_comments:
             return threads
 
-        thread_index = {}
+        exact_index = {}
+        file_index = {}
+
         for thread in threads:
             if not thread.is_resolved:
-                key = (thread.file_path, thread.line_number)
-                if key not in thread_index:
-                    thread_index[key] = thread
+                if thread.line_number is not None and thread.line_number > 0:
+                    key = (thread.file_path, thread.line_number)
+                    exact_index[key] = thread
+                else:
+                    if thread.file_path not in file_index:
+                        file_index[thread.file_path] = []
+                    file_index[thread.file_path].append(thread)
 
         for comment in prompt_comments:
             file_path = comment.get("file_path", "")
             line_info = comment.get("line_number", 0)
 
-            if not file_path or line_info == 0:
+            if not file_path:
                 continue
 
             matching_thread = None
@@ -216,12 +223,15 @@ class ReviewResolver:
                 line_start, line_end = line_info
                 for line in range(line_start, line_end + 1):
                     key = (file_path, line)
-                    if key in thread_index:
-                        matching_thread = thread_index[key]
+                    if key in exact_index:
+                        matching_thread = exact_index[key]
                         break
+            elif line_info is None or line_info == 0:
+                if file_path in file_index:
+                    matching_thread = file_index[file_path][0]
             else:
                 key = (file_path, line_info)
-                matching_thread = thread_index.get(key)
+                matching_thread = exact_index.get(key)
 
             if matching_thread and not matching_thread.enriched_context:
                 matching_thread.enriched_context = EnrichedContext(

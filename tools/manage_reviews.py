@@ -189,7 +189,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 def cmd_resolve(args: argparse.Namespace) -> None:
     """执行 resolve 子命令"""
     db_path = get_db_path()
-    resolver = ReviewResolver(token=get_token(), db_path=db_path)
+    resolver = ReviewResolver(token=get_token(), owner=args.owner, repo=args.repo, db_path=db_path)
 
     result = resolver.resolve_thread(
         thread_id=args.thread_id, resolution_type=args.type, reply_text=args.reply
@@ -383,6 +383,8 @@ def main() -> None:
     parser_fetch.set_defaults(func=cmd_fetch)
 
     parser_resolve = subparsers.add_parser("resolve", help="解决评论线程")
+    parser_resolve.add_argument("--owner", required=True, help="仓库所有者")
+    parser_resolve.add_argument("--repo", required=True, help="仓库名称")
     parser_resolve.add_argument("--thread-id", required=True, help="Thread ID")
     parser_resolve.add_argument(
         "--type",
