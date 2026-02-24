@@ -162,7 +162,7 @@ class LogRotation:
             from diagnosis.rotation import cleanup_old_diagnoses
 
             diagnosis_result = cleanup_old_diagnoses(
-                self.logs_dir, max_folders=10, max_age_days=self.max_age_days
+                self.logs_dir, max_folders=10, max_age_days=self.max_age_days, dry_run=dry_run
             )
             total_result["diagnosis"] = diagnosis_result
 

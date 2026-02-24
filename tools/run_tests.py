@@ -48,7 +48,7 @@ def main():
 
     results = {}
 
-    # 1. 单元测试
+    # 1. 单元测试 + 集成测试
     results["测试"] = run_command(
         "pytest tests/unit tests/integration -n auto -v --tb=short", "运行测试"
     )

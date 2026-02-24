@@ -152,6 +152,6 @@ class ReviewDbSchema(BaseModel):
     """数据库 Schema"""
 
     metadata: ReviewMetadata
-    threads: list[ReviewThreadState] = []
-    overviews: list[ReviewOverview] = []
-    issue_comment_overviews: list[IssueCommentOverview] = []
+    threads: list[ReviewThreadState] = Field(default_factory=list)
+    overviews: list[ReviewOverview] = Field(default_factory=list)
+    issue_comment_overviews: list[IssueCommentOverview] = Field(default_factory=list)

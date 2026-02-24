@@ -62,7 +62,7 @@ class StructuredJsonFormatter(logging.Formatter):
         if extra:
             log_entry["extra"] = extra
 
-        return json.dumps(log_entry, ensure_ascii=False)
+        return json.dumps(log_entry, ensure_ascii=False, default=str)
 
 
 class StandardFormatter(logging.Formatter):
