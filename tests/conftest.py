@@ -93,7 +93,7 @@ def temp_workspace(tmp_path):
     # Cleanup handled by pytest tmp_path
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_logger():
     """Provide a mock logger for testing."""
     logger = logging.getLogger("test_logger")
@@ -101,7 +101,7 @@ def mock_logger():
     return logger
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_config():
     """
     Provide a mock ConfigManager for testing.
@@ -128,7 +128,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mock_browser_context():
     """
     Provide a mock BrowserContext for testing.

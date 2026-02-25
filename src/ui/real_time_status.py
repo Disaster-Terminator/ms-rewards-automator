@@ -4,6 +4,7 @@
 """
 
 import logging
+import sys
 import threading
 import time
 from datetime import datetime
@@ -24,32 +25,32 @@ class RealTimeStatusDisplay:
         self.config = config
         self.enabled = config.get("monitoring.real_time_display", True) if config else True
 
-        # 状态数据
         self.current_operation = "初始化"
         self.progress = 0
         self.total_steps = 0
         self.start_time = None
         self.estimated_completion = None
 
-        # 搜索统计
         self.desktop_searches_completed = 0
         self.desktop_searches_total = 0
         self.mobile_searches_completed = 0
         self.mobile_searches_total = 0
 
-        # 错误统计
+        self.search_times: list[float] = []
+        self.max_search_times = 50
+
         self.error_count = 0
         self.warning_count = 0
 
-        # 积分信息
         self.initial_points = 0
         self.current_points = 0
         self.points_gained = 0
 
-        # 显示控制
         self.display_thread = None
         self.stop_display = False
-        self.update_interval = 2  # 2秒更新一次
+        self.update_interval = 2
+        self._lock = threading.Lock()
+        self._force_update = threading.Event()
 
         logger.info("实时状态显示器初始化完成")
 
@@ -61,7 +62,6 @@ class RealTimeStatusDisplay:
         self.start_time = time.time()
         self.stop_display = False
 
-        # 启动显示线程
         self.display_thread = threading.Thread(target=self._display_loop, daemon=True)
         self.display_thread.start()
 
@@ -73,6 +73,7 @@ class RealTimeStatusDisplay:
             return
 
         self.stop_display = True
+        self._force_update.set()
         if self.display_thread.is_alive():
             self.display_thread.join(timeout=1)
 
@@ -83,75 +84,84 @@ class RealTimeStatusDisplay:
         while not self.stop_display:
             try:
                 self._update_display()
-                time.sleep(self.update_interval)
+                self._force_update.wait(timeout=self.update_interval)
+                self._force_update.clear()
             except Exception as e:
                 logger.debug(f"状态显示更新出错: {e}")
                 break
+
+    def _trigger_update(self):
+        """触发立即更新"""
+        self._force_update.set()
 
     def _update_display(self):
         """更新状态显示"""
         if not self.enabled:
             return
 
-        # 清屏（仅在支持的终端中）
-        try:
-            import os
+        with self._lock:
+            desktop_completed = self.desktop_searches_completed
+            desktop_total = self.desktop_searches_total
+            mobile_completed = self.mobile_searches_completed
+            mobile_total = self.mobile_searches_total
+            operation = self.current_operation
+            current_points = self.current_points
+            points_gained = self.points_gained
+            error_count = self.error_count
+            warning_count = self.warning_count
+            search_times = self.search_times.copy()
 
-            if os.name == "nt":  # Windows
-                os.system("cls")
-            else:  # Unix/Linux/Mac
-                os.system("clear")
-        except Exception:
-            # 如果清屏失败，使用换行分隔
+        if sys.stdout.isatty():
+            print("\033[2J\033[H", end="")
+        else:
             print("\n" + "=" * 60)
 
-        # 显示标题
         print("🤖 MS Rewards Automator - 实时状态")
         print("=" * 60)
 
-        # 显示当前操作
-        print(f"📋 当前操作: {self.current_operation}")
+        print(f"📋 当前操作: {operation}")
 
-        # 显示进度
-        if self.total_steps > 0:
-            progress_percent = (self.progress / self.total_steps) * 100
-            progress_bar = self._create_progress_bar(progress_percent)
-            print(f"📊 总体进度: {progress_bar} {progress_percent:.1f}%")
+        total_searches = desktop_total + mobile_total
+        completed_searches = desktop_completed + mobile_completed
+        if total_searches > 0:
+            search_percent = (completed_searches / total_searches) * 100
+            search_bar = self._create_progress_bar(search_percent)
+            print(f"📊 搜索进度: {search_bar} {completed_searches}/{total_searches}")
 
-        # 显示搜索进度
-        if self.desktop_searches_total > 0:
-            desktop_percent = (self.desktop_searches_completed / self.desktop_searches_total) * 100
+        if desktop_total > 0:
+            desktop_percent = (desktop_completed / desktop_total) * 100
             desktop_bar = self._create_progress_bar(desktop_percent, width=20)
-            print(
-                f"🖥️  桌面搜索: {desktop_bar} {self.desktop_searches_completed}/{self.desktop_searches_total}"
-            )
+            print(f"🖥️  桌面搜索: {desktop_bar} {desktop_completed}/{desktop_total}")
 
-        if self.mobile_searches_total > 0:
-            mobile_percent = (self.mobile_searches_completed / self.mobile_searches_total) * 100
+        if mobile_total > 0:
+            mobile_percent = (mobile_completed / mobile_total) * 100
             mobile_bar = self._create_progress_bar(mobile_percent, width=20)
-            print(
-                f"📱 移动搜索: {mobile_bar} {self.mobile_searches_completed}/{self.mobile_searches_total}"
-            )
+            print(f"📱 移动搜索: {mobile_bar} {mobile_completed}/{mobile_total}")
 
-        if self.current_points is not None and self.current_points > 0:
-            print(f"💰 积分状态: {self.current_points} (+{self.points_gained})")
+        if current_points is not None and current_points > 0:
+            print(f"💰 积分状态: {current_points} (+{points_gained})")
 
-        # 显示时间信息
         if self.start_time:
             elapsed = time.time() - self.start_time
             elapsed_str = self._format_duration(elapsed)
             print(f"⏱️  运行时间: {elapsed_str}")
 
-            if self.estimated_completion:
-                remaining = max(0, self.estimated_completion - time.time())
-                remaining_str = self._format_duration(remaining)
+            if completed_searches > 0 and total_searches > 0:
+                remaining_searches = total_searches - completed_searches
+                if search_times:
+                    avg_time_per_search = sum(search_times) / len(search_times)
+                else:
+                    avg_time_per_search = (
+                        elapsed / completed_searches if completed_searches > 0 else 5
+                    )
+
+                remaining_time = remaining_searches * avg_time_per_search
+                remaining_str = self._format_duration(remaining_time)
                 print(f"⏳ 预计剩余: {remaining_str}")
 
-        # 显示错误统计
-        if self.error_count > 0 or self.warning_count > 0:
-            print(f"⚠️  错误/警告: {self.error_count}/{self.warning_count}")
+        if error_count > 0 or warning_count > 0:
+            print(f"⚠️  错误/警告: {error_count}/{warning_count}")
 
-        # 显示当前时间
         current_time = datetime.now().strftime("%H:%M:%S")
         print(f"🕐 当前时间: {current_time}")
 
@@ -201,8 +211,10 @@ class RealTimeStatusDisplay:
         Args:
             operation: 操作描述
         """
-        self.current_operation = operation
+        with self._lock:
+            self.current_operation = operation
         logger.info(f"状态更新: {operation}")
+        self._trigger_update()
 
     def update_progress(self, current: int, total: int):
         """
@@ -212,36 +224,46 @@ class RealTimeStatusDisplay:
             current: 当前进度
             total: 总步骤数
         """
-        self.progress = current
-        self.total_steps = total
+        with self._lock:
+            self.progress = current
+            self.total_steps = total
+        self._trigger_update()
 
-        # 估算完成时间
-        if self.start_time and current > 0:
-            elapsed = time.time() - self.start_time
-            estimated_total_time = elapsed * total / current
-            self.estimated_completion = self.start_time + estimated_total_time
-
-    def update_desktop_searches(self, completed: int, total: int):
+    def update_desktop_searches(self, completed: int, total: int, search_time: float = None):
         """
         更新桌面搜索进度
 
         Args:
             completed: 已完成数量
             total: 总数量
+            search_time: 本次搜索耗时（秒）
         """
-        self.desktop_searches_completed = completed
-        self.desktop_searches_total = total
+        with self._lock:
+            self.desktop_searches_completed = completed
+            self.desktop_searches_total = total
+            if search_time is not None:
+                self.search_times.append(search_time)
+                if len(self.search_times) > self.max_search_times:
+                    self.search_times.pop(0)
+        self._trigger_update()
 
-    def update_mobile_searches(self, completed: int, total: int):
+    def update_mobile_searches(self, completed: int, total: int, search_time: float = None):
         """
         更新移动搜索进度
 
         Args:
             completed: 已完成数量
             total: 总数量
+            search_time: 本次搜索耗时（秒）
         """
-        self.mobile_searches_completed = completed
-        self.mobile_searches_total = total
+        with self._lock:
+            self.mobile_searches_completed = completed
+            self.mobile_searches_total = total
+            if search_time is not None:
+                self.search_times.append(search_time)
+                if len(self.search_times) > self.max_search_times:
+                    self.search_times.pop(0)
+        self._trigger_update()
 
     def update_points(self, current: int, initial: int = None):
         """
@@ -251,47 +273,68 @@ class RealTimeStatusDisplay:
             current: 当前积分
             initial: 初始积分（可选）
         """
-        self.current_points = current
-        if initial is not None:
-            self.initial_points = initial
-        # 处理 None 值的情况
-        if self.current_points is not None and self.initial_points is not None:
-            self.points_gained = self.current_points - self.initial_points
-        elif self.current_points is not None and self.initial_points is None:
-            self.points_gained = 0
-        else:
-            self.points_gained = 0
+        with self._lock:
+            self.current_points = current
+            if initial is not None:
+                self.initial_points = initial
+            if self.current_points is not None and self.initial_points is not None:
+                self.points_gained = self.current_points - self.initial_points
+            elif self.current_points is not None and self.initial_points is None:
+                self.points_gained = 0
+            else:
+                self.points_gained = 0
+        self._trigger_update()
 
     def increment_error_count(self):
         """增加错误计数"""
-        self.error_count += 1
+        with self._lock:
+            self.error_count += 1
+        self._trigger_update()
 
     def increment_warning_count(self):
         """增加警告计数"""
-        self.warning_count += 1
+        with self._lock:
+            self.warning_count += 1
+        self._trigger_update()
 
     def show_completion_summary(self):
         """显示完成摘要"""
         if not self.enabled:
             return
 
-        print("\n" + "=" * 60)
-        print("🎉 任务执行完成！")
-        print("=" * 60)
+        with self._lock:
+            desktop_completed = self.desktop_searches_completed
+            desktop_total = self.desktop_searches_total
+            mobile_completed = self.mobile_searches_completed
+            mobile_total = self.mobile_searches_total
+            points_gained = self.points_gained
+            error_count = self.error_count
+            warning_count = self.warning_count
+
+        self._safe_print("\n" + "=" * 60)
+        self._safe_print("✓ 任务执行完成！")
+        self._safe_print("=" * 60)
 
         if self.start_time:
             total_time = time.time() - self.start_time
             total_time_str = self._format_duration(total_time)
-            print(f"⏱️  总执行时间: {total_time_str}")
+            self._safe_print(f"总执行时间: {total_time_str}")
 
-        print(f"🖥️  桌面搜索: {self.desktop_searches_completed}/{self.desktop_searches_total}")
-        print(f"📱 移动搜索: {self.mobile_searches_completed}/{self.mobile_searches_total}")
-        print(f"💰 积分获得: +{self.points_gained}")
+        self._safe_print(f"🖥️  桌面搜索: {desktop_completed}/{desktop_total}")
+        self._safe_print(f"📱 移动搜索: {mobile_completed}/{mobile_total}")
+        self._safe_print(f"💰 积分获得: +{points_gained}")
 
-        if self.error_count > 0 or self.warning_count > 0:
-            print(f"⚠️  错误/警告: {self.error_count}/{self.warning_count}")
+        if error_count > 0 or warning_count > 0:
+            self._safe_print(f"⚠️  错误/警告: {error_count}/{warning_count}")
 
-        print("=" * 60)
+        self._safe_print("=" * 60)
+
+    def _safe_print(self, message: str):
+        """安全打印，处理编码问题"""
+        try:
+            print(message)
+        except UnicodeEncodeError:
+            print(message.encode("ascii", "replace").decode("ascii"))
 
     def show_simple_status(self, message: str):
         """
@@ -378,10 +421,10 @@ class StatusManager:
                 logger.debug(f"进度回调执行失败: {e}")
 
     @classmethod
-    def update_desktop_searches(cls, completed: int, total: int):
+    def update_desktop_searches(cls, completed: int, total: int, search_time: float = None):
         """更新桌面搜索进度"""
         if cls._display:
-            cls._display.update_desktop_searches(completed, total)
+            cls._display.update_desktop_searches(completed, total, search_time)
         if cls._callbacks["desktop_searches"]:
             try:
                 cls._callbacks["desktop_searches"](completed, total)
@@ -389,10 +432,10 @@ class StatusManager:
                 logger.debug(f"桌面搜索回调执行失败: {e}")
 
     @classmethod
-    def update_mobile_searches(cls, completed: int, total: int):
+    def update_mobile_searches(cls, completed: int, total: int, search_time: float = None):
         """更新移动搜索进度"""
         if cls._display:
-            cls._display.update_mobile_searches(completed, total)
+            cls._display.update_mobile_searches(completed, total, search_time)
         if cls._callbacks["mobile_searches"]:
             try:
                 cls._callbacks["mobile_searches"](completed, total)

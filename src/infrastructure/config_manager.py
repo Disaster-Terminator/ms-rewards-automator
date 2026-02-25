@@ -60,7 +60,12 @@ DEFAULT_CONFIG = {
     "query_engine": {
         "enabled": False,
         "cache_ttl": 3600,
-        "sources": {"local_file": {"enabled": True}, "bing_suggestions": {"enabled": True}},
+        "sources": {
+            "local_file": {"enabled": True},
+            "bing_suggestions": {"enabled": True},
+            "duckduckgo": {"enabled": True},
+            "wikipedia": {"enabled": True},
+        },
         "bing_api": {
             "rate_limit": 10,
             "max_retries": 3,
@@ -71,12 +76,44 @@ DEFAULT_CONFIG = {
         },
     },
     "task_system": {
-        "enabled": True,
+        "enabled": False,
         "min_delay": 2,
         "max_delay": 5,
         "skip_completed": True,
         "debug_mode": False,
         "task_types": {"url_reward": True, "quiz": False, "poll": False},
+        "task_parser": {
+            "skip_hrefs": [
+                "/earn",
+                "/dashboard",
+                "/about",
+                "/refer",
+                "/",
+                "/orderhistory",
+                "/faq",
+                "rewards.bing.com/referandearn",
+                "rewards.bing.com/redeem",
+                "support.microsoft.com",
+                "x.com",
+                "xbox.com",
+                "microsoft.com/about",
+                "news.microsoft.com",
+                "go.microsoft.com",
+                "choice.microsoft.com",
+                "microsoft-edge://",
+            ],
+            "skip_text_patterns": ["抽奖", "sweepstakes"],
+            "completed_text_patterns": ["已完成", "completed"],
+            "points_selector": ".text-caption1Stronger",
+            "completed_circle_class": "bg-statusSuccessBg3",
+            "incomplete_circle_class": "border-neutralStroke1",
+            "login_selectors": [
+                'input[name="loginfmt"]',
+                'input[type="email"]',
+                "#i0116",
+            ],
+            "earn_link_selector": 'a[href="/earn"], a[href^="/earn?"], a[href*="rewards.bing.com/earn"]',
+        },
     },
     "bing_theme": {
         "enabled": False,
@@ -110,6 +147,28 @@ DEFAULT_CONFIG = {
         "fixed_hour": 10,
         "fixed_minute": 0,
     },
+    "anti_detection": {
+        "use_stealth": True,
+        "random_viewport": True,
+        "human_behavior_level": "medium",
+        "scroll_behavior": {
+            "enabled": True,
+            "min_scrolls": 2,
+            "max_scrolls": 5,
+            "scroll_delay_min": 500,
+            "scroll_delay_max": 2000,
+        },
+        "mouse_movement": {
+            "enabled": True,
+            "micro_movement_probability": 0.3,
+        },
+        "typing": {
+            "use_gaussian_delay": True,
+            "avg_delay_ms": 120,
+            "std_delay_ms": 30,
+            "pause_probability": 0.1,
+        },
+    },
     "error_handling": {"max_retries": 3, "retry_delay": 5, "exponential_backoff": True},
     "logging": {"level": "INFO", "file": "logs/automator.log", "console": True},
 }
@@ -118,7 +177,7 @@ DEFAULT_CONFIG = {
 DEV_MODE_OVERRIDES = {
     "search": {
         "desktop_count": 2,
-        "mobile_count": 2,
+        "mobile_count": 0,
         "wait_interval": {
             "min": 0.5,
             "max": 1.5,
@@ -138,7 +197,7 @@ DEV_MODE_OVERRIDES = {
         "persistence_enabled": True,
     },
     "task_system": {
-        "enabled": False,
+        "enabled": True,
         "debug_mode": True,
         "max_tasks": 2,
     },
@@ -152,7 +211,7 @@ DEV_MODE_OVERRIDES = {
 USER_MODE_OVERRIDES = {
     "search": {
         "desktop_count": 3,
-        "mobile_count": 3,
+        "mobile_count": 0,
         "wait_interval": {
             "min": 3,
             "max": 8,
@@ -176,7 +235,7 @@ USER_MODE_OVERRIDES = {
         "persistence_enabled": True,
     },
     "task_system": {
-        "enabled": False,
+        "enabled": True,
         "debug_mode": False,
     },
     "scheduler": {
@@ -383,6 +442,20 @@ class ConfigManager:
                 return default
 
         return value
+
+    def get_with_env(self, key: str, env_var: str, default: Any = None) -> Any:
+        """
+        获取配置项，优先从环境变量读取
+
+        Args:
+            key: 配置键，支持点号分隔的嵌套键
+            env_var: 环境变量名
+            default: 默认值
+
+        Returns:
+            配置值（环境变量优先）
+        """
+        return os.environ.get(env_var) or self.get(key, default)
 
     def validate_config(self, auto_fix: bool = False) -> bool:
         """

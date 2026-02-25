@@ -23,18 +23,27 @@ class Notificator:
         """
         self.config = config
 
-        # 通知配置
         self.enabled = config.get("notification.enabled", False)
         self.telegram_enabled = config.get("notification.telegram.enabled", False)
-        self.telegram_bot_token = config.get("notification.telegram.bot_token", "")
-        self.telegram_chat_id = config.get("notification.telegram.chat_id", "")
+        self.telegram_bot_token = config.get_with_env(
+            "notification.telegram.bot_token", "TELEGRAM_BOT_TOKEN", ""
+        )
+        self.telegram_chat_id = config.get_with_env(
+            "notification.telegram.chat_id", "TELEGRAM_CHAT_ID", ""
+        )
 
         self.serverchan_enabled = config.get("notification.serverchan.enabled", False)
-        self.serverchan_key = config.get("notification.serverchan.key", "")
+        self.serverchan_key = config.get_with_env(
+            "notification.serverchan.key", "SERVERCHAN_KEY", ""
+        )
 
         self.whatsapp_enabled = config.get("notification.whatsapp.enabled", False)
-        self.whatsapp_phone = config.get("notification.whatsapp.phone", "")
-        self.whatsapp_apikey = config.get("notification.whatsapp.apikey", "")
+        self.whatsapp_phone = config.get_with_env(
+            "notification.whatsapp.phone", "WHATSAPP_PHONE", ""
+        )
+        self.whatsapp_apikey = config.get_with_env(
+            "notification.whatsapp.apikey", "WHATSAPP_APIKEY", ""
+        )
 
         logger.info(f"通知推送器初始化完成 (enabled={self.enabled})")
         if self.telegram_enabled:

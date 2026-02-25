@@ -3,14 +3,18 @@
 执行搜索任务，协调各个组件
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import random
 import time
+from typing import Protocol
 
 from playwright.async_api import Page
 
 from browser.element_detector import ElementDetector
+from login.human_behavior_simulator import HumanBehaviorSimulator
 from ui.bing_theme_manager import BingThemeManager
 from ui.cookie_handler import CookieHandler
 from ui.tab_manager import TabManager
@@ -18,12 +22,36 @@ from ui.tab_manager import TabManager
 logger = logging.getLogger(__name__)
 
 
+class StatusManagerProtocol(Protocol):
+    @classmethod
+    def update_desktop_searches(
+        cls, current: int, total: int, search_time: float = None
+    ) -> None: ...
+
+    @classmethod
+    def update_mobile_searches(
+        cls, current: int, total: int, search_time: float = None
+    ) -> None: ...
+
+    @classmethod
+    def update_operation(cls, operation: str) -> None: ...
+
+
 class SearchEngine:
     """搜索引擎类"""
 
     BING_URL = "https://www.bing.com"
 
-    def __init__(self, config, term_generator, anti_ban, monitor=None, query_engine=None):
+    def __init__(
+        self,
+        config,
+        term_generator,
+        anti_ban,
+        monitor=None,
+        query_engine=None,
+        status_manager: type[StatusManagerProtocol] | None = None,
+        human_behavior: HumanBehaviorSimulator | None = None,
+    ):
         """
         初始化搜索引擎
 
@@ -33,18 +61,27 @@ class SearchEngine:
             anti_ban: AntiBanModule 实例
             monitor: StateMonitor 实例（可选）
             query_engine: QueryEngine 实例（可选，用于智能查询生成）
+            status_manager: StatusManager 类（可选，用于进度显示，使用 classmethod）
+            human_behavior: HumanBehaviorSimulator 实例（可选，用于拟人化行为）
         """
         self.config = config
         self.term_generator = term_generator
         self.anti_ban = anti_ban
         self.monitor = monitor
         self.query_engine = query_engine
+        self.status_manager = status_manager
+        self.human_behavior = human_behavior or HumanBehaviorSimulator(logger)
 
         self.element_detector = ElementDetector(config)
         self.theme_manager = BingThemeManager(config)
         self._query_cache = []
 
-        logger.info("搜索引擎初始化完成")
+        self.human_behavior_level = config.get("anti_detection.human_behavior_level", "medium")
+        self.micro_movement_probability = config.get(
+            "anti_detection.mouse_movement.micro_movement_probability", 0.3
+        )
+
+        logger.info(f"搜索引擎初始化完成，拟人化等级: {self.human_behavior_level}")
 
     async def navigate_to_bing(self, page: Page) -> bool:
         """导航到 Bing 搜索页面"""
@@ -62,8 +99,8 @@ class SearchEngine:
             if not self._query_cache:
                 try:
                     count = max(
-                        self.config.get("search.desktop_count", 30),
-                        self.config.get("search.mobile_count", 20),
+                        self.config.get("search.desktop_count", 20),
+                        self.config.get("search.mobile_count", 0),
                     )
                     self._query_cache = await self.query_engine.generate_queries(count)
                     logger.debug(f"预生成了 {len(self._query_cache)} 个查询")
@@ -77,6 +114,224 @@ class SearchEngine:
                 return term
 
         return self.term_generator.get_random_term()
+
+    def _get_term_source(self, term: str) -> str:
+        """获取搜索词来源"""
+        if self.query_engine and self.config.get("query_engine.enabled", False):
+            return self.query_engine.get_query_source(term)
+        return "local_file"
+
+    async def _human_input_search_term(self, page: Page, search_box, term: str) -> bool:
+        """
+        使用拟人化行为输入搜索词
+
+        Args:
+            page: Playwright Page 对象
+            search_box: 搜索框元素
+            term: 搜索词
+
+        Returns:
+            是否成功输入
+        """
+        try:
+            if self.human_behavior_level == "heavy":
+                return await self._human_input_heavy(page, search_box, term)
+            elif self.human_behavior_level == "medium":
+                return await self._human_input_medium(page, search_box, term)
+            else:
+                return await self._human_input_light(page, search_box, term)
+        except Exception as e:
+            logger.error(f"拟人化输入失败: {e}")
+            return await self._fallback_input(page, search_box, term)
+
+    async def _human_input_heavy(self, page: Page, search_box, term: str) -> bool:
+        """完整拟人化输入：贝塞尔曲线移动 + 自然点击 + 正态分布打字"""
+        logger.debug("使用 heavy 级别拟人化输入")
+
+        box = await search_box.bounding_box()
+        if box:
+            target_x = box["x"] + box["width"] / 2
+            target_y = box["y"] + box["height"] / 2
+            await self.human_behavior.move_mouse_naturally(page, target_x, target_y)
+            await self.human_behavior.human_delay(100, 300)
+
+        await search_box.click()
+        await self.human_behavior.human_delay(50, 150)
+
+        await page.keyboard.press("Control+A")
+        await self.human_behavior.human_delay(50, 100)
+        await page.keyboard.press("Backspace")
+        await self.human_behavior.human_delay(100, 200)
+
+        for _i, char in enumerate(term):
+            await page.keyboard.type(char)
+            delay = self.human_behavior.get_typing_delay()
+            await asyncio.sleep(delay / 1000.0)
+            if random.random() < 0.1:
+                await self.human_behavior.human_delay(100, 300)
+
+        if random.random() < self.micro_movement_probability:
+            await self.human_behavior.random_mouse_movement(page)
+
+        return await self._verify_input(search_box, term)
+
+    async def _human_input_medium(self, page: Page, search_box, term: str) -> bool:
+        """中等拟人化输入：自然点击 + 正态分布打字 + 30%鼠标微动"""
+        logger.debug("使用 medium 级别拟人化输入")
+
+        await search_box.click()
+        await self.human_behavior.human_delay(100, 200)
+
+        await page.keyboard.press("Control+A")
+        await self.human_behavior.human_delay(50, 100)
+        await page.keyboard.press("Backspace")
+        await self.human_behavior.human_delay(100, 200)
+
+        for _i, char in enumerate(term):
+            await page.keyboard.type(char)
+            delay = self.human_behavior.get_typing_delay()
+            await asyncio.sleep(delay / 1000.0)
+
+        if random.random() < self.micro_movement_probability:
+            await self.human_behavior.random_mouse_movement(page)
+
+        return await self._verify_input(search_box, term)
+
+    async def _human_input_light(self, page: Page, search_box, term: str) -> bool:
+        """轻量拟人化输入：仅正态分布延迟"""
+        logger.debug("使用 light 级别拟人化输入")
+
+        await search_box.click()
+        await asyncio.sleep(0.2)
+
+        await page.keyboard.press("Control+A")
+        await asyncio.sleep(0.1)
+        await page.keyboard.press("Backspace")
+        await asyncio.sleep(0.2)
+
+        for char in term:
+            await page.keyboard.type(char)
+            delay = self.human_behavior.get_typing_delay()
+            await asyncio.sleep(delay / 1000.0)
+
+        return await self._verify_input(search_box, term)
+
+    async def _fallback_input(self, page: Page, search_box, term: str) -> bool:
+        """回退输入方法（原有逻辑）"""
+        logger.debug("使用回退输入方法")
+
+        try:
+            await search_box.fill(term)
+            await asyncio.sleep(0.3)
+            return await self._verify_input(search_box, term)
+        except Exception:
+            try:
+                await search_box.click()
+                await page.keyboard.type(term, delay=50)
+                return await self._verify_input(search_box, term)
+            except Exception:
+                try:
+                    await search_box.evaluate(
+                        "(el, value) => { el.value = value; }",
+                        term,
+                    )
+                    await search_box.evaluate("""
+                        el => {
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    """)
+                    return await self._verify_input(search_box, term)
+                except Exception:
+                    return False
+
+    async def _verify_input(self, search_box, expected: str) -> bool:
+        """验证输入是否成功"""
+        try:
+            input_value = await search_box.input_value()
+            if input_value == expected:
+                logger.info(f"✓ 成功输入搜索词: {expected}")
+                return True
+            else:
+                logger.warning(f"输入验证失败: 期望'{expected}', 实际'{input_value}'")
+                return False
+        except Exception as e:
+            logger.error(f"验证输入时出错: {e}")
+            return False
+
+    async def _human_submit_search(self, page: Page) -> bool:
+        """
+        使用拟人化行为提交搜索
+
+        Returns:
+            是否成功提交
+        """
+        if self.human_behavior_level in ("medium", "heavy"):
+            await self.human_behavior.human_delay(100, 300)
+
+        await page.keyboard.press("Enter")
+        await asyncio.sleep(2)
+
+        current_url = page.url
+        if "search" in current_url.lower() or "/search?" in current_url:
+            logger.info("✓ 搜索提交成功")
+            return True
+
+        await page.keyboard.press("Escape")
+        await asyncio.sleep(0.3)
+        await page.keyboard.press("Enter")
+        await asyncio.sleep(2)
+
+        current_url = page.url
+        if "search" in current_url.lower() or "/search?" in current_url:
+            logger.info("✓ 搜索提交成功（Escape+Enter）")
+            return True
+
+        search_button_selectors = [
+            "input#sb_form_go",
+            "button#sb_form_go",
+            "label#search_icon",
+            "button[aria-label*='搜索']",
+            "button[aria-label*='Search']",
+        ]
+
+        for selector in search_button_selectors:
+            try:
+                button = await page.query_selector(selector)
+                if button and await button.is_visible():
+                    if self.human_behavior_level == "heavy":
+                        await self.human_behavior.human_click(page, selector)
+                    else:
+                        await button.click()
+                    await asyncio.sleep(2)
+
+                    current_url = page.url
+                    if "search" in current_url.lower() or "/search?" in current_url:
+                        logger.info(f"✓ 搜索提交成功（点击按钮: {selector}）")
+                        return True
+            except Exception:
+                continue
+
+        try:
+            await page.evaluate("""
+                () => {
+                    const form = document.querySelector('form#sb_form') ||
+                               document.querySelector('form[action*="search"]') ||
+                               document.querySelector('form');
+                    if (form) form.submit();
+                }
+            """)
+            await asyncio.sleep(2)
+
+            current_url = page.url
+            if "search" in current_url.lower() or "/search?" in current_url:
+                logger.info("✓ 搜索提交成功（JavaScript）")
+                return True
+        except Exception:
+            pass
+
+        logger.error("所有提交方法都失败")
+        return False
 
     async def perform_single_search(self, page: Page, term: str, health_monitor=None) -> bool:
         """执行单次搜索"""
@@ -146,172 +401,29 @@ class SearchEngine:
 
             logger.info(f"✓ 找到搜索框，准备输入: {term}")
 
-            try:
-                logger.debug("准备输入搜索词...")
+            logger.debug("使用拟人化输入...")
+            input_success = await self._human_input_search_term(page, search_box, term)
 
-                try:
-                    logger.debug("尝试方法1: fill()")
-                    await search_box.fill("")
-                    await asyncio.sleep(0.3)
-                    await search_box.fill(term)
-                    await asyncio.sleep(0.5)
+            if not input_success:
+                logger.error("拟人化输入失败，尝试回退方法...")
+                input_success = await self._fallback_input(page, search_box, term)
 
-                    input_value = await search_box.input_value()
-                    if input_value == term:
-                        logger.info(f"✓ 方法1成功输入: {term}")
-                    else:
-                        logger.warning(f"方法1输入验证失败: 期望'{term}', 实际'{input_value}'")
-                        raise Exception("fill方法输入验证失败")
-
-                except Exception as e1:
-                    logger.debug(f"方法1失败: {e1}")
-
-                    try:
-                        logger.debug("尝试方法2: click + type()")
-                        await search_box.click()
-                        await asyncio.sleep(0.3)
-
-                        await page.keyboard.press("Control+A")
-                        await asyncio.sleep(0.1)
-                        await page.keyboard.press("Backspace")
-                        await asyncio.sleep(0.3)
-
-                        await page.keyboard.type(term, delay=50)
-                        await asyncio.sleep(0.5)
-
-                        input_value = await search_box.input_value()
-                        if input_value == term:
-                            logger.info(f"✓ 方法2成功输入: {term}")
-                        else:
-                            logger.warning(f"方法2输入验证失败: 期望'{term}', 实际'{input_value}'")
-                            raise Exception("type方法输入验证失败")
-
-                    except Exception as e2:
-                        logger.debug(f"方法2失败: {e2}")
-
-                        try:
-                            logger.debug("尝试方法3: JavaScript setValue")
-                            await search_box.evaluate(f"el => el.value = '{term}'")
-                            await asyncio.sleep(0.3)
-
-                            await search_box.evaluate("""
-                                el => {
-                                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                                }
-                            """)
-                            await asyncio.sleep(0.5)
-
-                            input_value = await search_box.input_value()
-                            if input_value == term:
-                                logger.info(f"✓ 方法3成功输入: {term}")
-                            else:
-                                logger.error(
-                                    f"方法3输入验证失败: 期望'{term}', 实际'{input_value}'"
-                                )
-                                raise Exception("JavaScript方法输入验证失败")
-
-                        except Exception as e3:
-                            logger.error(f"所有输入方法都失败: {e1}, {e2}, {e3}")
-                            await self.element_detector.take_diagnostic_screenshot(
-                                page, f"input_all_methods_failed_{term[:20]}.png"
-                            )
-                            return False
-
-            except Exception as e:
-                logger.error(f"输入搜索词过程异常: {e}")
+            if not input_success:
+                logger.error("所有输入方法都失败")
+                await self.element_detector.take_diagnostic_screenshot(
+                    page, f"input_all_methods_failed_{term[:20]}.png"
+                )
                 return False
 
             logger.debug("准备提交搜索...")
+            submit_success = await self._human_submit_search(page)
 
-            try:
-                logger.debug("尝试方法1: 按 Enter 键")
-                await page.keyboard.press("Enter")
-                await asyncio.sleep(2)
-
-                current_url = page.url
-                if "search" in current_url.lower() or "/search?" in current_url:
-                    logger.info("✓ 方法1成功：Enter 键提交搜索")
-                else:
-                    logger.debug(f"方法1失败，URL未变化: {current_url}")
-
-                    logger.debug("尝试方法2: Escape + Enter")
-                    await page.keyboard.press("Escape")
-                    await asyncio.sleep(0.3)
-                    await page.keyboard.press("Enter")
-                    await asyncio.sleep(2)
-
-                    current_url = page.url
-                    if "search" in current_url.lower() or "/search?" in current_url:
-                        logger.info("✓ 方法2成功：Escape + Enter 提交搜索")
-                    else:
-                        logger.debug(f"方法2失败，URL未变化: {current_url}")
-
-                        logger.debug("尝试方法3: 点击搜索按钮")
-                        search_button_selectors = [
-                            "input#sb_form_go",
-                            "button#sb_form_go",
-                            "label#search_icon",
-                            "button[aria-label*='搜索']",
-                            "button[aria-label*='Search']",
-                            "input[type='submit']",
-                            "button[type='submit']",
-                        ]
-
-                        button_clicked = False
-                        for selector in search_button_selectors:
-                            try:
-                                button = await page.query_selector(selector)
-                                if button and await button.is_visible():
-                                    await button.click()
-                                    await asyncio.sleep(2)
-                                    button_clicked = True
-                                    logger.debug(f"点击了搜索按钮: {selector}")
-                                    break
-                            except Exception:
-                                continue
-
-                        if button_clicked:
-                            current_url = page.url
-                            if "search" in current_url.lower() or "/search?" in current_url:
-                                logger.info("✓ 方法3成功：点击按钮提交搜索")
-                            else:
-                                logger.warning(f"方法3失败，URL未变化: {current_url}")
-                        else:
-                            logger.warning("未找到搜索按钮")
-
-                            logger.debug("尝试方法4: JavaScript 提交表单")
-                            try:
-                                await page.evaluate("""
-                                    () => {
-                                        const form = document.querySelector('form#sb_form') ||
-                                                   document.querySelector('form[action*="search"]') ||
-                                                   document.querySelector('form');
-                                        if (form) {
-                                            form.submit();
-                                            return true;
-                                        }
-                                        return false;
-                                    }
-                                """)
-                                await asyncio.sleep(2)
-
-                                current_url = page.url
-                                if "search" in current_url.lower() or "/search?" in current_url:
-                                    logger.info("✓ 方法4成功：JavaScript 提交表单")
-                                else:
-                                    logger.error(f"所有提交方法都失败，当前URL: {current_url}")
-                                    await self.element_detector.take_diagnostic_screenshot(
-                                        page, f"submit_all_methods_failed_{term[:20]}.png"
-                                    )
-                            except Exception as e4:
-                                logger.error(f"方法4失败: {e4}")
-
-            except Exception as e:
-                logger.error(f"提交搜索过程异常: {e}")
+            if not submit_success:
+                logger.error("搜索提交失败")
                 await self.element_detector.take_diagnostic_screenshot(
-                    page, f"submit_exception_{term[:20]}.png"
+                    page, f"submit_failed_{term[:20]}.png"
                 )
+                return False
 
             try:
                 await self.element_detector.wait_for_page_ready(
@@ -322,15 +434,16 @@ class SearchEngine:
 
             await asyncio.sleep(random.uniform(1, 2))
 
-            current_url = page.url
-            if "search" not in current_url.lower() and "/search?" not in current_url:
-                logger.warning(f"搜索可能未成功，当前URL: {current_url}")
+            if not await self._verify_search_result(page, term):
+                logger.warning(f"搜索结果验证失败: {term}")
                 await self.element_detector.take_diagnostic_screenshot(
-                    page, f"search_not_submitted_{term[:20]}.png"
+                    page, f"search_verification_failed_{term[:20]}.png"
                 )
                 return False
-            else:
-                logger.info(f"✓ 搜索已成功提交，当前URL: {current_url}")
+
+            logger.info("✓ 搜索已成功提交并验证")
+            current_url = page.url
+            logger.debug(f"当前URL: {current_url}")
 
             await self.anti_ban.simulate_human_scroll(page)
 
@@ -345,6 +458,59 @@ class SearchEngine:
 
         except Exception as e:
             logger.error(f"搜索失败 '{term}': {e}")
+            return False
+
+    async def _verify_search_result(self, page: Page, term: str) -> bool:
+        """
+        验证搜索结果是否成功
+
+        Args:
+            page: Playwright Page 对象
+            term: 搜索词
+
+        Returns:
+            是否验证成功
+        """
+        try:
+            current_url = page.url
+            if "search" not in current_url.lower() and "/search?" not in current_url:
+                logger.warning(f"URL 不包含搜索标识: {current_url}")
+                return False
+
+            try:
+                page_title = await page.title()
+                if term.lower() in page_title.lower():
+                    logger.debug(f"搜索词出现在页面标题中: {page_title}")
+                else:
+                    logger.debug(f"搜索词未出现在标题中，但URL有效: {page_title}")
+            except Exception:
+                pass
+
+            try:
+                result_count = await page.evaluate("""
+                    () => {
+                        const results = document.querySelectorAll('#b_results .b_algo');
+                        return results.length;
+                    }
+                """)
+
+                if result_count and result_count > 0:
+                    logger.debug(f"找到 {result_count} 个搜索结果")
+                    return True
+                else:
+                    logger.warning("未找到搜索结果元素")
+                    no_result_indicator = await page.query_selector(".b_noresults")
+                    if no_result_indicator:
+                        logger.info("搜索无结果（但搜索本身成功）")
+                        return True
+                    logger.warning("未找到搜索结果且无'无结果'指示器，可能遇到错误页面")
+                    return False
+            except Exception as e:
+                logger.debug(f"检查搜索结果数量失败: {e}")
+                return False
+
+        except Exception as e:
+            logger.error(f"验证搜索结果时出错: {e}")
             return False
 
     async def _click_random_result(self, page: Page) -> None:
@@ -454,40 +620,42 @@ class SearchEngine:
 
         for i in range(count):
             term = await self._get_search_term()
+            source = self._get_term_source(term)
 
-            logger.info(f"[{i + 1}/{count}] 搜索: {term}")
+            logger.info(f"[{i + 1}/{count}] 搜索: {term} (来源: {source})")
 
-            try:
-                from src.ui.real_time_status import StatusManager
+            # 更新进度：当前正在执行第 i+1 次搜索
+            if self.status_manager:
+                logger.debug(f"更新进度: 桌面搜索 {i}/{count}")
+                self.status_manager.update_desktop_searches(i, count)
 
-                StatusManager.update_desktop_searches(i, count)
-            except Exception:
-                pass
-
-            start_time = time.time() if health_monitor else 0
+            search_start = time.time()
+            start_time = search_start if health_monitor else 0
             search_success = await self.perform_single_search(page, term, health_monitor)
+            search_time = time.time() - search_start
 
             if search_success:
                 success_count += 1
                 if health_monitor:
                     response_time = time.time() - start_time
                     health_monitor.record_search_result(True, response_time)
+                # 更新搜索计数
+                if self.monitor:
+                    self.monitor.session_data["desktop_searches"] += 1
             else:
                 logger.warning(f"搜索 {i + 1} 失败，继续...")
                 if health_monitor:
                     health_monitor.record_search_result(False)
 
+            # 更新进度：第 i+1 次搜索完成
+            if self.status_manager:
+                logger.debug(f"更新进度: 桌面搜索完成 {i + 1}/{count}")
+                self.status_manager.update_desktop_searches(i + 1, count, search_time)
+
             if i < count - 1:
                 wait_time = self.anti_ban.get_random_wait_time()
                 logger.debug(f"等待 {wait_time:.1f} 秒...")
                 await asyncio.sleep(wait_time)
-
-        try:
-            from src.ui.real_time_status import StatusManager
-
-            StatusManager.update_desktop_searches(success_count, count)
-        except Exception:
-            pass
 
         logger.info(f"✓ 桌面搜索完成: {success_count}/{count} 成功")
         return success_count
@@ -500,40 +668,51 @@ class SearchEngine:
 
         for i in range(count):
             term = await self._get_search_term()
+            source = self._get_term_source(term)
 
-            logger.info(f"[{i + 1}/{count}] 搜索: {term}")
+            logger.info(f"[{i + 1}/{count}] 搜索: {term} (来源: {source})")
 
-            try:
-                from src.ui.real_time_status import StatusManager
+            # 更新进度：当前正在执行第 i+1 次搜索
+            if self.status_manager:
+                logger.debug(f"更新进度: 移动搜索 {i}/{count}")
+                self.status_manager.update_mobile_searches(i, count)
 
-                StatusManager.update_mobile_searches(i, count)
-            except Exception:
-                pass
-
-            start_time = time.time() if health_monitor else 0
+            search_start = time.time()
+            start_time = search_start if health_monitor else 0
             search_success = await self.perform_single_search(page, term, health_monitor)
+            search_time = time.time() - search_start
 
             if search_success:
                 success_count += 1
                 if health_monitor:
                     response_time = time.time() - start_time
                     health_monitor.record_search_result(True, response_time)
+                # 更新搜索计数
+                if self.monitor:
+                    self.monitor.session_data["mobile_searches"] += 1
             else:
                 logger.warning(f"搜索 {i + 1} 失败，继续...")
                 if health_monitor:
                     health_monitor.record_search_result(False)
+
+            # 更新进度：第 i+1 次搜索完成
+            if self.status_manager:
+                logger.debug(f"更新进度: 移动搜索完成 {i + 1}/{count}")
+                self.status_manager.update_mobile_searches(i + 1, count, search_time)
 
             if i < count - 1:
                 wait_time = self.anti_ban.get_random_wait_time()
                 logger.debug(f"等待 {wait_time:.1f} 秒...")
                 await asyncio.sleep(wait_time)
 
-        try:
-            from src.ui.real_time_status import StatusManager
-
-            StatusManager.update_mobile_searches(success_count, count)
-        except Exception:
-            pass
-
         logger.info(f"✓ 移动搜索完成: {success_count}/{count} 成功")
         return success_count
+
+    async def close(self):
+        """关闭搜索引擎，释放资源"""
+        if self.query_engine:
+            try:
+                await self.query_engine.close()
+                logger.debug("QueryEngine 已关闭")
+            except Exception as e:
+                logger.debug(f"关闭 QueryEngine 失败: {e}")

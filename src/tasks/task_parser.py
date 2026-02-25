@@ -10,38 +10,208 @@ from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from tasks.task_base import TaskMetadata
 
+_DEFAULT_SKIP_HREFS = [
+    "/earn",
+    "/dashboard",
+    "/about",
+    "/refer",
+    "/",
+    "/orderhistory",
+    "/faq",
+    "rewards.bing.com/referandearn",
+    "rewards.bing.com/redeem",
+    "support.microsoft.com",
+    "x.com",
+    "xbox.com",
+    "microsoft.com/about",
+    "news.microsoft.com",
+    "go.microsoft.com",
+    "choice.microsoft.com",
+    "microsoft-edge://",
+]
+
+_DEFAULT_SKIP_TEXT_PATTERNS = ["抽奖", "sweepstakes"]
+
+_DEFAULT_COMPLETED_TEXT_PATTERNS = ["已完成", "completed"]
+
+_DEFAULT_POINTS_SELECTOR = ".text-caption1Stronger"
+
+_DEFAULT_COMPLETED_CIRCLE_CLASS = "bg-statusSuccessBg3"
+_DEFAULT_INCOMPLETE_CIRCLE_CLASS = "border-neutralStroke1"
+
+_DEFAULT_LOGIN_SELECTORS = [
+    'input[name="loginfmt"]',
+    'input[type="email"]',
+    "#i0116",
+]
+
+_DEFAULT_EARN_LINK_SELECTOR = 'a[href="/earn"], a[href^="/earn?"], a[href*="rewards.bing.com/earn"]'
+
 
 class TaskParser:
     """Parser for Microsoft Rewards dashboard tasks"""
 
     TASK_SECTIONS = ["section#streaks", "section#offers", "section#snapshot", "section#dailyset"]
 
+    EARN_URL = "https://rewards.bing.com/earn"
+
     def __init__(self, config=None):
         self.logger = logging.getLogger(__name__)
         self.config = config
         self.debug_mode = config.get("task_system.debug_mode", False) if config else False
+        self._init_parser_config()
+
+    def _init_parser_config(self):
+        """Initialize parser configuration from config or use defaults"""
+        parser_config = self.config.get("task_system.task_parser", {}) if self.config else {}
+
+        self.skip_hrefs = self._validate_string_list(
+            parser_config.get("skip_hrefs"), _DEFAULT_SKIP_HREFS, "skip_hrefs"
+        )
+        self.skip_text_patterns = self._validate_string_list(
+            parser_config.get("skip_text_patterns"),
+            _DEFAULT_SKIP_TEXT_PATTERNS,
+            "skip_text_patterns",
+        )
+        self.completed_text_patterns = self._validate_string_list(
+            parser_config.get("completed_text_patterns"),
+            _DEFAULT_COMPLETED_TEXT_PATTERNS,
+            "completed_text_patterns",
+        )
+        self.points_selector = self._validate_css_selector(
+            parser_config.get("points_selector"),
+            _DEFAULT_POINTS_SELECTOR,
+            "points_selector",
+        )
+        self.completed_circle_class = self._validate_class_name(
+            parser_config.get("completed_circle_class"),
+            _DEFAULT_COMPLETED_CIRCLE_CLASS,
+            "completed_circle_class",
+        )
+        self.incomplete_circle_class = self._validate_class_name(
+            parser_config.get("incomplete_circle_class"),
+            _DEFAULT_INCOMPLETE_CIRCLE_CLASS,
+            "incomplete_circle_class",
+        )
+        self.login_selectors = self._validate_string_list(
+            parser_config.get("login_selectors"),
+            _DEFAULT_LOGIN_SELECTORS,
+            "login_selectors",
+        )
+        self.earn_link_selector = self._validate_css_selector(
+            parser_config.get("earn_link_selector"),
+            _DEFAULT_EARN_LINK_SELECTOR,
+            "earn_link_selector",
+        )
+
+    def _validate_string_list(self, value: list | None, default: list[str], name: str) -> list[str]:
+        """Validate and sanitize a list of strings, fallback to default on failure"""
+        if value is None:
+            return default
+
+        if not isinstance(value, list):
+            self.logger.warning(f"{name} should be a list, using default")
+            return default
+
+        result = []
+        for item in value:
+            if isinstance(item, str):
+                sanitized = self._sanitize_js_string(item)
+                if sanitized:
+                    result.append(sanitized)
+
+        if not result:
+            self.logger.warning(f"{name} empty after validation, using default")
+            return default
+
+        return result
+
+    def _validate_css_selector(self, value: str | None, default: str, name: str) -> str:
+        """Validate CSS selector - only allow safe characters, fallback to default"""
+        if value is None:
+            return default
+
+        if not isinstance(value, str):
+            self.logger.warning(f"{name} should be a string, using default")
+            return default
+
+        safe_chars = set(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.[]:>#=~+*(), /?&^"
+        )
+        if all(c in safe_chars or c in ['"', "'"] for c in value):
+            return value.strip()
+
+        self.logger.warning(f"Invalid characters in {name}, using default")
+        return default
+
+    def _validate_class_name(self, value: str | None, default: str, name: str) -> str:
+        """Validate CSS class name, fallback to default"""
+        if value is None:
+            return default
+
+        if not isinstance(value, str):
+            self.logger.warning(f"{name} should be a string, using default")
+            return default
+
+        safe_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_ ")
+        if all(c in safe_chars for c in value):
+            return value.strip()
+
+        self.logger.warning(f"Invalid characters in {name}, using default")
+        return default
+
+    def _sanitize_js_string(self, value: str) -> str:
+        """Sanitize string for safe use in JavaScript"""
+        if not isinstance(value, str):
+            return ""
+
+        dangerous_chars = ["<", ">", '"', "'", "`", "\\", "\n", "\r", "\0"]
+        result = value
+        for char in dangerous_chars:
+            result = result.replace(char, "")
+
+        return result.strip()
 
     async def discover_tasks(self, page: Page) -> list[TaskMetadata]:
         """
-        Navigate to dashboard and discover all available tasks
+        Navigate to earn page and discover all available tasks.
+        Strategy: Navigate to dashboard first, then click the "赢取" link to earn page.
+        This ensures proper page rendering.
         """
-        self.logger.info("Discovering tasks from dashboard...")
+        self.logger.info("Discovering tasks from earn page...")
 
         try:
-            # Navigate to rewards dashboard if not already there
             current_url = page.url
-            on_rewards_page = (
-                "rewards.microsoft.com" in current_url or "rewards.bing.com" in current_url
-            )
-            if not on_rewards_page:
-                await page.goto(
-                    "https://rewards.bing.com/", wait_until="domcontentloaded", timeout=30000
-                )
+            on_earn_page = "/earn" in current_url or "earn" in current_url.split("/")[-1]
 
-            # Wait for OAuth redirect to complete (if any)
+            if not on_earn_page:
+                self.logger.info(f"当前不在earn页面 ({current_url})")
+
+                if "dashboard" not in current_url:
+                    self.logger.info("导航到dashboard...")
+                    await page.goto(
+                        "https://rewards.bing.com/dashboard",
+                        wait_until="networkidle",
+                        timeout=60000,
+                    )
+                    await page.wait_for_load_state("domcontentloaded")
+                    await page.wait_for_timeout(2000)
+
+                self.logger.info("Clicking earn link to navigate to earn page...")
+                earn_link = page.locator(self.earn_link_selector)
+                if await earn_link.count() > 0:
+                    await earn_link.first.click()
+                    await page.wait_for_load_state("networkidle", timeout=30000)
+                    await page.wait_for_load_state("domcontentloaded")
+                    await page.wait_for_timeout(3000)
+                else:
+                    self.logger.warning("Earn link not found, navigating directly...")
+                    await page.goto(self.EARN_URL, wait_until="networkidle", timeout=60000)
+                    await page.wait_for_load_state("domcontentloaded")
+                    await page.wait_for_timeout(3000)
+
             await self._wait_for_dashboard(page)
 
-            # DIAGNOSTIC: Log current state
             self.logger.info(f"Final URL: {page.url}")
             try:
                 page_title = await page.title()
@@ -49,19 +219,20 @@ class TaskParser:
             except Exception:
                 pass
 
-            # Check if on login page
             if await self._is_login_page(page):
                 self.logger.error("Detected login page, cannot discover tasks")
                 self.logger.info("  提示: 会话可能已过期，请重新登录")
                 return []
 
-            # Wait for React content to finish loading
             await self._wait_for_content_load(page)
 
-            # Parse tasks from the page
             tasks = await self._parse_tasks_from_page(page)
 
             self.logger.info(f"Discovered {len(tasks)} tasks")
+
+            if self.debug_mode:
+                await self._save_diagnostics(page, "task_discovery")
+
             return tasks
 
         except PlaywrightTimeout:
@@ -72,7 +243,7 @@ class TaskParser:
             return []
 
     async def _wait_for_dashboard(self, page: Page):
-        """Wait for OAuth redirects to complete and land on rewards page"""
+        """Wait for OAuth redirects to complete and land on earn page"""
         max_wait_attempts = 5
         for attempt in range(max_wait_attempts):
             await page.wait_for_load_state("domcontentloaded")
@@ -91,10 +262,10 @@ class TaskParser:
                     await page.wait_for_url("**/rewards.*", timeout=15000)
                     self.logger.info("  OAuth 自动登录成功，已跳转到 rewards 页面")
                 except PlaywrightTimeout:
-                    self.logger.warning("  OAuth 自动登录超时，尝试直接导航到 dashboard...")
+                    self.logger.warning("  OAuth 自动登录超时，尝试直接导航到 earn 页面...")
                     try:
                         await page.goto(
-                            "https://rewards.bing.com/dashboard",
+                            self.EARN_URL,
                             wait_until="networkidle",
                             timeout=30000,
                         )
@@ -102,7 +273,7 @@ class TaskParser:
                         new_url = page.url
                         self.logger.info(f"  导航后 URL: {new_url}")
                         if "rewards" in new_url:
-                            self.logger.info("  成功导航到 dashboard")
+                            self.logger.info("  成功导航到 earn 页面")
                             break
                     except Exception as e:
                         self.logger.warning(f"  导航失败: {e}")
@@ -115,18 +286,18 @@ class TaskParser:
         if "login" in final_url.lower() or "oauth" in final_url.lower():
             self.logger.warning("  最终仍在 OAuth 页面，检查页面内容...")
             try:
-                has_dashboard_content = await page.evaluate("""
+                has_earn_content = await page.evaluate("""
                     () => {
-                        const sections = document.querySelectorAll('section#dailyset, section#streaks, section[id*="daily"]');
+                        const sections = document.querySelectorAll('section#dailyset, section#streaks, section[id*="daily"], [class*="earn"], [class*="card"]');
                         return sections.length > 0;
                     }
                 """)
-                if has_dashboard_content:
-                    self.logger.info("  页面已包含 dashboard 内容，继续执行")
+                if has_earn_content:
+                    self.logger.info("  页面已包含 earn 内容，继续执行")
                 else:
-                    self.logger.warning("  页面不包含 dashboard 内容，尝试强制导航...")
+                    self.logger.warning("  页面不包含 earn 内容，尝试强制导航...")
                     await page.goto(
-                        "https://rewards.bing.com/dashboard",
+                        self.EARN_URL,
                         wait_until="networkidle",
                         timeout=30000,
                     )
@@ -151,75 +322,78 @@ class TaskParser:
         except Exception as e:
             self.logger.debug(f"  No cookie consent banner: {e}")
 
-        section_selectors = [
-            "section#streaks",
-            "section#offers",
-            "section#snapshot",
-            "section[id*='streak']",
-            "section[id*='offer']",
-        ]
-        section_found = False
+        max_attempts = 30
 
-        for selector in section_selectors:
+        current_url = (getattr(page, "url", "") or "").lower()
+        if any(token in current_url for token in ("login", "signin", "oauth", "consent")):
+            self.logger.info(
+                f"  Detected login/OAuth page ({current_url[:50]}...), redirecting to earn page"
+            )
             try:
-                await page.wait_for_selector(selector, timeout=5000)
-                self.logger.debug(f"  Found section: {selector}")
-                section_found = True
-                break
-            except PlaywrightTimeout:
-                continue
+                await page.goto(self.EARN_URL, wait_until="networkidle", timeout=30000)
+            except Exception as e:
+                self.logger.debug(f"  Redirect failed: {e}")
 
-        if not section_found:
-            self.logger.warning("  No task sections found, waiting for page to stabilize...")
-            await page.wait_for_timeout(3000)
-
-        max_attempts = 10
         for i in range(max_attempts):
             try:
-                current_url = page.url
-                if "login" in current_url.lower() or "oauth" in current_url.lower():
-                    self.logger.warning(
-                        "  Page navigated away, attempting to return to dashboard..."
-                    )
-                    await page.goto(
-                        "https://rewards.bing.com/dashboard",
-                        wait_until="domcontentloaded",
-                        timeout=30000,
-                    )
-                    await page.wait_for_timeout(2000)
-            except Exception:
-                pass
-
-            try:
-                skeleton_count = await page.evaluate("""
+                result = await page.evaluate("""
                     () => {
-                        const skeletons = document.querySelectorAll('.animate-pulse, [class*="skeleton"], [class*="loading"]');
-                        return skeletons.length;
+                        const main = document.querySelector('main, [role="main"]') || document.body;
+                        const links = main.querySelectorAll('a[href]');
+                        let taskLinks = 0;
+                        for (const link of links) {
+                            const href = link.getAttribute('href') || '';
+                            const text = link.innerText || '';
+                            if ((href.includes('bing.com/search') ||
+                                href.includes('bing.com/spotlight') ||
+                                href.includes('/earn/quest') ||
+                                href.includes('form=ML2')) && text.length > 5) {
+                                taskLinks++;
+                            }
+                        }
+                        const hasSection = main.querySelector('section') !== null;
+                        const hasContent = main.innerText.length > 100;
+                        return {
+                            taskLinks: taskLinks,
+                            totalLinks: links.length,
+                            hasSection: hasSection,
+                            hasContent: hasContent
+                        };
                     }
                 """)
 
-                if skeleton_count == 0:
-                    self.logger.info(f"  Dashboard content loaded (after {i + 1} checks)")
+                task_links = result.get("taskLinks", 0)
+                total_links = result.get("totalLinks", 0)
+                has_section = result.get("hasSection", False)
+                has_content = result.get("hasContent", False)
+
+                self.logger.debug(
+                    f"  Check: {task_links} task links, {total_links} total, section={has_section}, content={has_content} (attempt {i + 1})"
+                )
+
+                if task_links >= 1:
+                    self.logger.info(f"  Found {task_links} task links after {i + 1} checks")
+                    await page.wait_for_timeout(2000)
                     return
 
-                self.logger.debug(f"  Still loading... ({skeleton_count} skeletons remaining)")
+                if has_section and has_content and i >= 5:
+                    self.logger.info(
+                        f"  Page loaded with sections but no task links after {i + 1}s"
+                    )
+                    await page.wait_for_timeout(2000)
+                    return
+
             except Exception as e:
-                self.logger.debug(f"  Error checking skeletons: {e}")
+                self.logger.debug(f"  Error checking links: {e}")
 
             await page.wait_for_timeout(1000)
 
-        self.logger.warning(f"  Content may not be fully loaded after {max_attempts}s")
+        self.logger.warning(f"  Content load check completed after {max_attempts}s")
 
     async def _is_login_page(self, page: Page) -> bool:
         """Check if currently on login page"""
         try:
-            login_selectors = [
-                'input[name="loginfmt"]',
-                'input[type="email"]',
-                "#i0116",
-            ]
-
-            for selector in login_selectors:
+            for selector in self.login_selectors:
                 element = await page.query_selector(selector)
                 if element:
                     return True
@@ -228,143 +402,187 @@ class TaskParser:
         except Exception:
             return False
 
+    def _build_full_js_parser(self) -> str:
+        """Build complete JavaScript parser as a single IIFE"""
+        return """
+            (args) => {
+                const [skipHrefs, skipTextPatterns, completedTextPatterns, pointsSelector, completedCircleClass, incompleteCircleClass] = args;
+
+                function shouldSkip(href, text) {
+                    const hrefLower = href.toLowerCase();
+                    const combined = (href + ' ' + text).toLowerCase();
+
+                    if (hrefLower.startsWith('microsoft-edge://')) return true;
+                    if (hrefLower.includes('xbox.com')) return true;
+                    if (hrefLower === '#' || hrefLower.endsWith('#')) return true;
+
+                    for (const skip of skipHrefs) {
+                        if (skip.startsWith('/') || skip === '/') {
+                            if (hrefLower === skip || hrefLower.endsWith(skip)) return true;
+                            if (hrefLower.startsWith(skip + '?')) return true;
+                        } else {
+                            if (hrefLower.includes(skip)) return true;
+                        }
+                    }
+
+                    for (const pattern of skipTextPatterns) {
+                        if (combined.includes(pattern.toLowerCase())) return true;
+                    }
+
+                    if (hrefLower.includes('referandearn') || hrefLower.includes('/redeem')) return true;
+
+                    return false;
+                }
+
+                function extractPoints(el) {
+                    const pointsEl = el.querySelector(pointsSelector);
+                    if (pointsEl) {
+                        const num = pointsEl.innerText.trim().match(/\\d+/);
+                        if (num) return parseInt(num[0]);
+                    }
+
+                    const text = el.innerText || '';
+                    const match = text.match(/\\+(\\d+)/) ||
+                                 text.match(/(\\d+)\\s*(?:points?|pts?|积分|分)/i);
+                    if (match) return parseInt(match[1]);
+                    return 0;
+                }
+
+                function isCompleted(el) {
+                    const text = (el.innerText || '').toLowerCase();
+
+                    for (const pattern of completedTextPatterns) {
+                        if (text.includes(pattern.toLowerCase())) return true;
+                    }
+
+                    const progressMatch = text.match(/(\\d+)\\/(\\d+)/);
+                    if (progressMatch && progressMatch[1] === progressMatch[2]) return true;
+
+                    const circleEl = el.querySelector('[class*="rounded-full"]');
+                    if (circleEl) {
+                        const circleClass = circleEl.className || '';
+                        if (circleClass.includes(completedCircleClass)) return true;
+                        if (circleClass.includes(incompleteCircleClass)) return false;
+
+                        const style = window.getComputedStyle(circleEl);
+                        const bgColor = style.backgroundColor || '';
+                        if (bgColor.includes('rgb') && !bgColor.includes('rgba(0, 0, 0, 0)')) {
+                            return true;
+                        }
+                    }
+
+                    const checkmark = el.querySelector('[class*="checkmark"], [aria-label*="complete"], [aria-label*="done"]');
+                    if (checkmark) return true;
+
+                    return false;
+                }
+
+                function extractTitle(el) {
+                    const text = el.innerText || '';
+                    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 2);
+
+                    for (const line of lines) {
+                        if (line.match(/^\\d+$/) || line.match(/^\\d+\\/\\d+/)) continue;
+                        if (line.includes('到期') || line.includes('过期')) continue;
+                        if (line.match(/^\\+?\\d+\\s*(积分|points?)?$/i)) continue;
+                        return line.substring(0, 100);
+                    }
+                    return '';
+                }
+
+                function getTaskType(href, text) {
+                    const combined = (href + ' ' + text).toLowerCase();
+                    if (combined.includes('quiz') || combined.includes('测验')) return 'quiz';
+                    if (combined.includes('poll') || combined.includes('投票')) return 'poll';
+                    return 'urlreward';
+                }
+
+                const tasks = [];
+                const seenHrefs = new Set();
+                const debug = [];
+
+                const main = document.querySelector('main, [role="main"]') || document.body;
+                const links = main.querySelectorAll('a[href]');
+                debug.push('Total links: ' + links.length);
+
+                for (const link of links) {
+                    const href = link.getAttribute('href') || '';
+                    if (!href || seenHrefs.has(href)) continue;
+
+                    const text = link.innerText || '';
+                    debug.push('Checking: ' + href.substring(0, 50) + ' | text: ' + text.substring(0, 30));
+
+                    if (shouldSkip(href, text)) {
+                        debug.push('  Skipped by shouldSkip');
+                        continue;
+                    }
+
+                    seenHrefs.add(href);
+
+                    const title = extractTitle(link);
+                    debug.push('  Title: ' + title);
+                    if (!title) continue;
+
+                    const points = extractPoints(link);
+                    const completed = isCompleted(link);
+                    const taskType = getTaskType(href, text);
+
+                    tasks.push({
+                        title: title,
+                        href: href,
+                        points: points,
+                        taskType: taskType,
+                        completed: completed
+                    });
+                }
+
+                return { tasks: tasks, debug: debug };
+            }
+        """
+
     async def _parse_tasks_from_page(self, page: Page) -> list[TaskMetadata]:
         """
-        Parse task elements from the dashboard page.
-        Uses JavaScript evaluation to extract structured task data from the React DOM.
-        Supports both link-based and button-based task cards.
+        Parse task elements from the earn page.
+        Page structure (4 sections):
+        1. 连胜 (Streak) - stamp collection, manual claim
+        2. 升级活动 (Level up) - special bonuses
+        3. 任务 (Tasks) - card container with multiple <a> links
+        4. 继续赚取 (Continue earning) - URL tasks with point circles
+
+        Completion status detection:
+        - Completed: circleClass contains 'bg-statusSuccessBg3'
+        - Incomplete: circleClass contains 'border border-neutralStroke1'
         """
         tasks = []
 
         try:
-            raw_tasks = await page.evaluate("""
-                () => {
-                    const tasks = [];
+            js_parser = self._build_full_js_parser()
+            raw_tasks = await page.evaluate(
+                js_parser,
+                [
+                    self.skip_hrefs,
+                    self.skip_text_patterns,
+                    self.completed_text_patterns,
+                    self.points_selector,
+                    self.completed_circle_class,
+                    self.incomplete_circle_class,
+                ],
+            )
 
-                    const sectionIds = ['streaks', 'offers', 'snapshot', 'dailyset'];
-                    let sections = [];
+            debug_info = raw_tasks.get("debug", [])
+            task_list = raw_tasks.get("tasks", [])
 
-                    for (const sectionId of sectionIds) {
-                        const section = document.querySelector(`section#${sectionId}`);
-                        if (section) sections.push({id: sectionId, el: section});
-                    }
-
-                    if (sections.length === 0) {
-                        sections = Array.from(document.querySelectorAll('section')).map(s => ({
-                            id: s.id || 'unknown',
-                            el: s
-                        }));
-                    }
-
-                    if (sections.length === 0) {
-                        const mainContent = document.querySelector('main, [role="main"], #main, .main-content');
-                        if (mainContent) {
-                            sections = [{id: 'main', el: mainContent}];
-                        }
-                    }
-
-                    for (const {id: sectionId, el: section} of sections) {
-                        const cards = section.querySelectorAll('a[href], button[href], [role="link"], [data-href], button');
-
-                        for (const card of cards) {
-                            const tagName = card.tagName.toLowerCase();
-                            const href = card.getAttribute('href') || card.getAttribute('data-href') || '';
-
-                            if (href === '/earn' || href === '/dashboard' ||
-                                href === '/redeem' || href === '/about' || href === '/refer' ||
-                                href === '/' || href === '#' || href.includes('/orderhistory') ||
-                                href.includes('/faq') || href.includes('support.microsoft.com') ||
-                                href.includes('x.com') || href.includes('xbox.com') ||
-                                href.includes('microsoft.com/about') || href.includes('news.microsoft.com') ||
-                                href.includes('go.microsoft.com') || href.includes('choice.microsoft.com')) {
-                                continue;
-                            }
-
-                            const text = card.innerText || '';
-                            const ariaLabel = card.getAttribute('aria-label') || '';
-
-                            const skipTexts = ['接受', '拒绝', '管理 cookie', 'accept', 'reject', 'manage cookie',
-                                              '提供反馈', 'feedback', '了解详细信息', 'learn more',
-                                              '订单历史记录', 'order history'];
-                            if (skipTexts.some(s => text.toLowerCase().includes(s) || ariaLabel.toLowerCase().includes(s))) {
-                                continue;
-                            }
-
-                            let title = '';
-                            const headings = card.querySelectorAll('h3, h4, p, span, div');
-                            for (const h of headings) {
-                                const t = h.innerText.trim();
-                                if (t && t.length > 2 && t.length < 200 && !t.includes('\\n')) {
-                                    title = t;
-                                    break;
-                                }
-                            }
-                            if (!title) {
-                                const cleanText = text.replace(/\\s+/g, ' ').trim().substring(0, 80);
-                                if (cleanText && cleanText.length > 2) {
-                                    title = cleanText;
-                                } else {
-                                    title = ariaLabel;
-                                }
-                            }
-
-                            if (!title && !href) continue;
-
-                            let points = 0;
-                            const pointsMatch = text.match(/(\\d+)\\s*(?:points?|pts?|积分|分)/i);
-                            if (pointsMatch) {
-                                points = parseInt(pointsMatch[1]);
-                            } else {
-                                const numMatch = text.match(/\\+(\\d+)/);
-                                if (numMatch) points = parseInt(numMatch[1]);
-                            }
-
-                            let taskType = 'urlreward';
-                            const combined = (href + ' ' + text + ' ' + ariaLabel).toLowerCase();
-                            if (combined.includes('quiz') || combined.includes('测验')) {
-                                taskType = 'quiz';
-                            } else if (combined.includes('poll') || combined.includes('投票')) {
-                                taskType = 'poll';
-                            }
-
-                            let completed = false;
-                            const completedEl = card.querySelector(
-                                '[class*="completed"], [class*="done"], [class*="check"], ' +
-                                'svg[class*="check"], [aria-label*="Completed"], [aria-label*="完成"]'
-                            );
-                            if (completedEl) completed = true;
-                            if (ariaLabel.toLowerCase().includes('completed') ||
-                                ariaLabel.includes('完成')) {
-                                completed = true;
-                            }
-
-                            const isButton = tagName === 'button' && !href;
-
-                            tasks.push({
-                                sectionId: sectionId,
-                                title: title,
-                                href: href,
-                                points: points,
-                                taskType: taskType,
-                                completed: completed,
-                                ariaLabel: ariaLabel,
-                                isButton: isButton
-                            });
-                        }
-                    }
-
-                    return tasks;
-                }
-            """)
-
-            if not raw_tasks:
+            if not task_list:
                 self.logger.warning("No task elements found on page")
                 await self._save_diagnostics(page)
                 return tasks
 
-            self.logger.info(f"Found {len(raw_tasks)} potential task elements")
+            for line in debug_info[:20]:
+                self.logger.debug(f"  JS DEBUG: {line}")
 
-            for i, raw in enumerate(raw_tasks):
+            self.logger.info(f"Found {len(task_list)} potential task elements")
+
+            for i, raw in enumerate(task_list):
                 try:
                     title = raw.get("title", f"Task {i + 1}")
                     href = raw.get("href", "")
@@ -396,7 +614,7 @@ class TaskParser:
 
         return tasks
 
-    async def _save_diagnostics(self, page: Page):
+    async def _save_diagnostics(self, page: Page, reason: str = "no_tasks"):
         """Save diagnostic screenshot and HTML for debugging"""
         if not self.debug_mode:
             self.logger.info("💡 提示: 在config.yaml中启用task_system.debug_mode以保存诊断数据")
@@ -409,12 +627,12 @@ class TaskParser:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         try:
-            screenshot_path = f"logs/diagnostics/no_tasks_{timestamp}.png"
+            screenshot_path = f"logs/diagnostics/{reason}_{timestamp}.png"
             await page.screenshot(path=screenshot_path, full_page=True)
             self.logger.warning(f"📸 截图已保存: {screenshot_path}")
 
             html = await page.content()
-            html_path = f"logs/diagnostics/no_tasks_{timestamp}.html"
+            html_path = f"logs/diagnostics/{reason}_{timestamp}.html"
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(html)
             self.logger.warning(f"📄 HTML已保存: {html_path}")

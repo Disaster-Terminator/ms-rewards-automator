@@ -11,7 +11,6 @@ from .query_source import QuerySource
 class BingSuggestionsSource(QuerySource):
     """Query source that fetches suggestions from Bing Suggestions API"""
 
-    # Seed queries to bootstrap suggestions
     SEED_QUERIES = [
         "technology",
         "science",
@@ -43,11 +42,24 @@ class BingSuggestionsSource(QuerySource):
             config: ConfigManager instance
         """
         super().__init__(config)
-        self.api_client = BingAPIClient(config)
+        self._api_client: BingAPIClient | None = None
         self.suggestions_per_seed = config.get("query_engine.bing_api.suggestions_per_seed", 3)
         self._available = True
 
         self.logger.info("BingSuggestionsSource initialized")
+
+    @property
+    def api_client(self) -> BingAPIClient:
+        """Get or create API client"""
+        if self._api_client is None:
+            self._api_client = BingAPIClient(self.config)
+        return self._api_client
+
+    async def close(self):
+        """Close the API client"""
+        if self._api_client:
+            await self._api_client.close()
+            self._api_client = None
 
     async def fetch_queries(self, count: int) -> list[str]:
         """

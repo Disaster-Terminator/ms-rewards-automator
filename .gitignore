@@ -44,6 +44,9 @@ cookies.json
 config.yaml
 config.local.yaml
 
+# 环境变量文件（包含 Token）
+.env
+
 # 日志文件
 logs/
 *.log
@@ -77,7 +80,17 @@ htmlcov/
 *.tmp
 temp/
 
+# 代码审查临时文件
+1.txt
+2.md
+Copilot.txt
+
 # 截图和调试文件
 screenshots/*.png
 screenshots/*.html
 !screenshots/points_detection_failed.png
+
+# Trae 规格和文档
+.trae/spec/
+.trae/documents/
+.trae/data/

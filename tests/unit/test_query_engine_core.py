@@ -116,6 +116,66 @@ class TestQueryEngineCore:
         # Verify different keys store different values
         assert engine.cache.get("queries_5_False") != engine.cache.get("queries_5_True")
 
+    def test_get_query_source_returns_correct_source(self, mock_config):
+        """Test that get_query_source returns the correct source name"""
+        engine = QueryEngine(mock_config)
+
+        engine._query_sources = {
+            "python tutorial": "duckduckgo",
+            "pytest mocker": "duckduckgo",
+            "artificial intelligence": "wikipedia",
+            "openai chatgpt": "bing_suggestions",
+        }
+
+        assert engine.get_query_source("python tutorial") == "duckduckgo"
+        assert engine.get_query_source("PyTest Mocker") == "duckduckgo"
+        assert engine.get_query_source("artificial intelligence") == "wikipedia"
+        assert engine.get_query_source("openai chatgpt") == "bing_suggestions"
+
+    def test_get_query_source_returns_default_for_missing(self, mock_config):
+        """Test that get_query_source returns 'local_file' for missing queries"""
+        engine = QueryEngine(mock_config)
+
+        engine._query_sources = {
+            "python tutorial": "duckduckgo",
+        }
+
+        assert engine.get_query_source("unknown query") == "local_file"
+        assert engine.get_query_source("missing term") == "local_file"
+
+    def test_get_query_source_normalizes_query(self, mock_config):
+        """Test that get_query_source normalizes the query (lowercase, strip)"""
+        engine = QueryEngine(mock_config)
+
+        engine._query_sources = {
+            "python tutorial": "duckduckgo",
+        }
+
+        assert engine.get_query_source("Python Tutorial") == "duckduckgo"
+        assert engine.get_query_source("  python tutorial  ") == "duckduckgo"
+        assert engine.get_query_source("PYTHON TUTORIAL") == "duckduckgo"
+
+    def test_deduplicate_queries_syncs_query_sources(self, mock_config):
+        """Test that deduplication syncs _query_sources dict"""
+        engine = QueryEngine(mock_config)
+
+        engine._query_sources = {
+            "query1": "source_a",
+            "query2": "source_b",
+            "query1 ": "source_c",
+            "query3": "source_d",
+            "removed_query": "source_e",
+        }
+
+        queries = ["query1", "query2", "QUERY1", "query3"]
+        result = engine._deduplicate_queries(queries)
+
+        assert len(result) == 3
+        assert engine.get_query_source("query1") == "source_a"
+        assert engine.get_query_source("query2") == "source_b"
+        assert engine.get_query_source("query3") == "source_d"
+        assert engine.get_query_source("removed_query") == "local_file"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

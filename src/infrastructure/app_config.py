@@ -13,8 +13,8 @@ from typing import Any
 class SearchConfig:
     """搜索配置"""
 
-    desktop_count: int = 30
-    mobile_count: int = 20
+    desktop_count: int = 20
+    mobile_count: int = 0
     wait_interval_min: int = 5
     wait_interval_max: int = 15
     search_terms_file: str = "tools/search_terms.txt"
@@ -279,8 +279,8 @@ class AppConfig:
 
         return cls(
             search=SearchConfig(
-                desktop_count=get_nested(search_dict, "desktop_count", 30),
-                mobile_count=get_nested(search_dict, "mobile_count", 20),
+                desktop_count=get_nested(search_dict, "desktop_count", 20),
+                mobile_count=get_nested(search_dict, "mobile_count", 0),
                 wait_interval_min=get_nested(search_dict.get("wait_interval"), "min", 5),
                 wait_interval_max=get_nested(search_dict.get("wait_interval"), "max", 15),
                 search_terms_file=get_nested(

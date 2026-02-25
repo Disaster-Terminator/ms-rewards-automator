@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class BingAPIClient:
     """Client for Bing Suggestions API (no authentication required)"""
 
-    # Bing Suggestions API endpoint (no auth required)
     SUGGESTIONS_URL = "https://api.bing.com/osjson.aspx"
 
     def __init__(self, config):
@@ -25,16 +24,34 @@ class BingAPIClient:
             config: ConfigManager instance
         """
         self.config = config
-        self.rate_limit_delay = 60 / config.get(
-            "query_engine.bing_api.rate_limit", 10
-        )  # seconds between requests
+        self.rate_limit_delay = 60 / config.get("query_engine.bing_api.rate_limit", 10)
         self.last_request_time = 0
         self.max_retries = config.get("query_engine.bing_api.max_retries", 3)
         self.timeout = config.get("query_engine.bing_api.timeout", 15)
+        self._session: aiohttp.ClientSession | None = None
+        self._semaphore: asyncio.Semaphore | None = None
 
-        logger.info(
+        logger.debug(
             f"BingAPIClient initialized with rate limit: {self.rate_limit_delay:.2f}s between requests"
         )
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session"""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def _get_semaphore(self) -> asyncio.Semaphore:
+        """Get or create semaphore for rate limiting"""
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(1)
+        return self._semaphore
+
+    async def close(self):
+        """Close the aiohttp session"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     async def get_suggestions(self, query: str) -> list[str]:
         """
@@ -92,7 +109,8 @@ class BingAPIClient:
         encoded_query = quote(query)
         url = f"{self.SUGGESTIONS_URL}?query={encoded_query}"
 
-        async with self._semaphore:
+        semaphore = await self._get_semaphore()
+        async with semaphore:
             session = await self._get_session()
             async with session.get(
                 url, timeout=aiohttp.ClientTimeout(total=self.timeout)

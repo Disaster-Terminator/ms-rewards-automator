@@ -9,7 +9,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from infrastructure.config_validator import ConfigValidator
@@ -19,17 +18,40 @@ class TestConfigValidator:
     """ConfigValidator 测试类"""
 
     @pytest.fixture
-    def validator(self):
+    def mock_config_manager(self):
+        """创建 Mock ConfigManager"""
+        mock_manager = Mock()
+        mock_manager.config = {
+            "search": {
+                "desktop_count": 20,
+                "mobile_count": 0,
+                "wait_interval": {"min": 2, "max": 5},
+            },
+            "browser": {
+                "headless": True,
+                "prevent_focus": "enhanced",
+                "slow_mo": 50,
+                "timeout": 30000,
+            },
+            "account": {"storage_state_path": "storage_state.json"},
+            "monitoring": {"enabled": True},
+            "notification": {"enabled": False},
+        }
+        mock_manager.get_with_env = Mock(return_value=None)
+        return mock_manager
+
+    @pytest.fixture
+    def validator(self, mock_config_manager):
         """创建 ConfigValidator 实例"""
-        return ConfigValidator()
+        return ConfigValidator(mock_config_manager)
 
     @pytest.fixture
     def valid_config(self):
         """创建有效的配置数据"""
         return {
             "search": {
-                "desktop_count": 30,
-                "mobile_count": 20,
+                "desktop_count": 20,
+                "mobile_count": 0,
                 "wait_interval": {"min": 2, "max": 5},
             },
             "browser": {

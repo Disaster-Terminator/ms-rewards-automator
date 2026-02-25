@@ -70,6 +70,7 @@ class QueryEngine:
         self.sources = []
         self.cache = QueryCache(ttl=config.get("query_engine.cache_ttl", 3600))
         self.logger = logging.getLogger(__name__)
+        self._query_sources: dict[str, str] = {}
 
         # Initialize sources
         self._init_sources()
@@ -79,8 +80,9 @@ class QueryEngine:
     def _init_sources(self) -> None:
         """Initialize query sources based on configuration"""
         from .query_sources import BingSuggestionsSource, LocalFileSource
+        from .query_sources.duckduckgo_source import DuckDuckGoSource
+        from .query_sources.wikipedia_source import WikipediaSource
 
-        # Always include local file source (fallback)
         try:
             local_source = LocalFileSource(self.config)
             if local_source.is_available():
@@ -91,7 +93,26 @@ class QueryEngine:
         except Exception as e:
             self.logger.error(f"Failed to initialize LocalFileSource: {e}")
 
-        # Bing Suggestions source (optional)
+        if self.config.get("query_engine.sources.duckduckgo.enabled", True):
+            try:
+                ddg_source = DuckDuckGoSource(self.config)
+                self.sources.append(ddg_source)
+                self.logger.info("✓ DuckDuckGoSource enabled")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize DuckDuckGoSource: {e}")
+        else:
+            self.logger.info("DuckDuckGoSource disabled in config")
+
+        if self.config.get("query_engine.sources.wikipedia.enabled", True):
+            try:
+                wiki_source = WikipediaSource(self.config)
+                self.sources.append(wiki_source)
+                self.logger.info("✓ WikipediaSource enabled")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize WikipediaSource: {e}")
+        else:
+            self.logger.info("WikipediaSource disabled in config")
+
         if self.config.get("query_engine.sources.bing_suggestions.enabled", True):
             try:
                 bing_source = BingSuggestionsSource(self.config)
@@ -159,23 +180,23 @@ class QueryEngine:
             self.logger.error("No query sources available")
             return []
 
-        # Calculate queries per source
         queries_per_source = max(1, count // len(self.sources))
 
-        # Fetch from all sources concurrently
         tasks = [source.fetch_queries(queries_per_source) for source in self.sources]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Combine results
         all_queries = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 self.logger.error(f"Source {self.sources[i].get_source_name()} failed: {result}")
             elif isinstance(result, list):
+                source_name = self.sources[i].get_source_name()
+                for query in result:
+                    normalized = query.lower().strip()
+                    if normalized:
+                        self._query_sources[normalized] = source_name
                 all_queries.extend(result)
-                self.logger.debug(
-                    f"Source {self.sources[i].get_source_name()} returned {len(result)} queries"
-                )
+                self.logger.debug(f"Source {source_name} returned {len(result)} queries")
 
         return all_queries
 
@@ -191,29 +212,45 @@ class QueryEngine:
         """
         from .bing_api_client import BingAPIClient
 
+        api_client = None
         try:
             api_client = BingAPIClient(self.config)
 
-            # Select a subset of queries to expand (to avoid too many API calls)
             max_to_expand = self.config.get("query_engine.bing_api.max_expand", 5)
             queries_to_expand = random.sample(queries, min(max_to_expand, len(queries)))
 
-            # Expand
-            expanded = await api_client.expand_queries(
-                queries_to_expand,
-                suggestions_per_query=self.config.get(
-                    "query_engine.bing_api.suggestions_per_query", 3
-                ),
-            )
+            # Create a set of existing queries for O(1) lookup
+            existing_queries = {q.lower().strip() for q in queries}
+            expanded = []
+
+            for query in queries_to_expand:
+                suggestions = await api_client.get_suggestions(query)
+                for suggestion in suggestions[
+                    : self.config.get("query_engine.bing_api.suggestions_per_query", 3)
+                ]:
+                    normalized = suggestion.lower().strip()
+                    # Only add if not already in original queries or expanded list
+                    if normalized and normalized not in existing_queries:
+                        self._query_sources[normalized] = "bing_suggestions"
+                        existing_queries.add(normalized)
+                        expanded.append(suggestion)
+
+            # Prepend original queries to expanded suggestions
+            # Note: expanded queries are guaranteed unique vs original due to existing_queries check
+            # Final deduplication is handled by _deduplicate_queries() in generate_queries()
+            result = queries + expanded
 
             self.logger.debug(
-                f"Expanded {len(queries_to_expand)} queries to {len(expanded)} queries"
+                f"Expanded {len(queries_to_expand)} queries to {len(result)} queries ({len(expanded)} new)"
             )
-            return expanded
+            return result
 
         except Exception as e:
             self.logger.error(f"Query expansion failed: {e}")
-            return queries  # Return original queries on failure
+            return queries
+        finally:
+            if api_client:
+                await api_client.close()
 
     def _deduplicate_queries(self, queries: list[str]) -> list[str]:
         """
@@ -229,12 +266,13 @@ class QueryEngine:
         unique = []
 
         for query in queries:
-            # Normalize: lowercase and strip whitespace
             normalized = query.lower().strip()
 
             if normalized and normalized not in seen:
                 seen.add(normalized)
-                unique.append(query)  # Keep original case
+                unique.append(query)
+
+        self._query_sources = {k: v for k, v in self._query_sources.items() if k in seen}
 
         self.logger.debug(f"Deduplicated {len(queries)} queries to {len(unique)} unique queries")
         return unique
@@ -257,6 +295,19 @@ class QueryEngine:
         """Check if Bing Suggestions source is available"""
         return any(source.get_source_name() == "bing_suggestions" for source in self.sources)
 
+    def get_query_source(self, query: str) -> str:
+        """
+        Get the source name for a query
+
+        Args:
+            query: Query string
+
+        Returns:
+            Source name or 'local_file' (default)
+        """
+        normalized = query.lower().strip()
+        return self._query_sources.get(normalized, "local_file")
+
     def get_statistics(self) -> dict:
         """
         Get query engine statistics
@@ -270,3 +321,12 @@ class QueryEngine:
             "cache_size": len(self.cache.cache),
             "cache_ttl": self.cache.ttl,
         }
+
+    async def close(self):
+        """Close all sources and release resources"""
+        for source in self.sources:
+            if hasattr(source, "close"):
+                try:
+                    await source.close()
+                except Exception as e:
+                    self.logger.debug(f"Error closing source {source.get_source_name()}: {e}")

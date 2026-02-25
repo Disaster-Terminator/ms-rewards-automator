@@ -54,20 +54,20 @@ class MSRewardsApp:
     8. 清理资源
     """
 
-    def __init__(self, config: Any, args: Any):
+    def __init__(self, config: Any, args: Any, diagnose: bool = False):
         """
         初始化应用
 
         Args:
             config: ConfigManager 实例，包含所有配置信息
             args: 命令行参数对象，影响运行行为
+            diagnose: 是否启用诊断模式
         """
         self.config = config
         self.args = args
+        self.diagnose = diagnose
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        # 核心组件（延迟初始化）
-        # 这些组件会在首次使用时通过SystemInitializer创建
         self.browser_sim: BrowserSimulator | None = None
         self.search_engine: SearchEngine | None = None
         self.account_mgr: AccountManager | None = None
@@ -76,27 +76,56 @@ class MSRewardsApp:
         self.notificator: Notificator | None = None
         self.health_monitor: HealthMonitor | None = None
         self.task_manager: TaskManager | None = None
+        self.diagnosis_reporter = None
+        self._page_inspector = None
 
-        # 浏览器实例（运行时创建）
         self.browser = None
         self.context = None
         self.page = None
 
-        # 设备状态跟踪
-        # 用于在桌面和移动模式之间切换时保持状态一致
-        self.current_device = "desktop"  # 当前设备类型
+        self.current_device = "desktop"
 
-        # 初始化器组件
-        # 负责创建和配置所有核心子系统
         from .system_initializer import SystemInitializer
 
         self.initializer = SystemInitializer(config, args, self.logger)
 
-        # 任务协调器组件
-        # 负责协调具体任务的执行流程
         from .task_coordinator import TaskCoordinator
 
         self.coordinator = TaskCoordinator(config, args, self.logger, self.browser_sim)
+
+        if self.diagnose:
+            try:
+                from pathlib import Path
+
+                from diagnosis.inspector import PageInspector
+                from diagnosis.reporter import DiagnosisReporter
+                from diagnosis.rotation import cleanup_old_diagnoses
+
+                self.diagnosis_reporter = DiagnosisReporter(output_dir="logs/diagnosis")
+                self._page_inspector = PageInspector()
+                self.logger.info("诊断模式已启用")
+                cleanup_old_diagnoses(Path("logs"))
+            except ImportError as e:
+                module_name = getattr(e, "name", "未知模块")
+                self.logger.error(
+                    f"诊断模块导入失败，缺失依赖: {module_name}. "
+                    "降级策略: 禁用诊断功能，程序继续运行"
+                )
+                self.diagnose = False
+                self.diagnosis_reporter = None
+            except (OSError, PermissionError) as e:
+                self.logger.error(
+                    f"诊断目录初始化失败（文件系统错误）: {e}. 降级策略: 禁用诊断功能，程序继续运行"
+                )
+                self.diagnose = False
+                self.diagnosis_reporter = None
+            except Exception as e:
+                self.logger.exception(
+                    f"诊断模块初始化发生未预期错误: {e.__class__.__name__}: {e}. "
+                    "降级策略: 禁用诊断功能，程序继续运行"
+                )
+                self.diagnose = False
+                self.diagnosis_reporter = None
 
     async def run(self) -> int:
         """
@@ -136,6 +165,8 @@ class MSRewardsApp:
             self.logger.info("\n[3/8] 检查登录状态...")
             StatusManager.update_operation("检查登录状态")
             await self._handle_login()
+            if self.diagnose:
+                await self._diagnose_checkpoint("login")
             StatusManager.update_progress(3, 8)
 
             # 4. 检查初始积分
@@ -169,7 +200,8 @@ class MSRewardsApp:
             traceback.print_exc()
             raise
         finally:
-            # 确保所有资源都被正确清理
+            if self.diagnose:
+                self._print_diagnosis_summary()
             await self._cleanup()
 
     async def _init_components(self) -> None:
@@ -228,6 +260,11 @@ class MSRewardsApp:
                 f"desktop_{self.args.browser}",
                 storage_state=self.config.get("account.storage_state_path"),
             )
+
+            if self.health_monitor:
+                self.health_monitor.register_browser(self.browser, self.context)
+                self.logger.debug("已注册浏览器到健康监控器")
+
             self.logger.info("✓ 浏览器实例创建成功")
         else:
             self.logger.info("✓ 使用现有的浏览器实例")
@@ -261,18 +298,31 @@ class MSRewardsApp:
 
     async def _execute_searches(self) -> None:
         """执行搜索任务"""
-        # 5. 桌面搜索
+        if getattr(self.args, "skip_search", False):
+            self.logger.info("\n[5-6/8] 跳过搜索任务（--skip-search）")
+            StatusManager.update_progress(6, 8)
+            return
+
         if not self.args.mobile_only:
-            # 检查页面是否有效，如果崩溃则重建
             if await self._is_page_crashed():
                 self.logger.warning("  页面已崩溃，重建浏览器上下文...")
                 await self._recreate_page()
             await self.coordinator.execute_desktop_search(self.page)
+            if self.diagnose:
+                await self._diagnose_checkpoint("search_desktop")
 
-        # 6. 移动搜索
-        if not self.args.desktop_only:
+        mobile_count = self.config.get("search.mobile_count", 0)
+        if not self.args.desktop_only and mobile_count > 0:
             self.page = await self.coordinator.execute_mobile_search(self.page)
-            self.current_device = "desktop"  # 移动搜索完成后切换回桌面
+            self.current_device = "desktop"
+            if self.diagnose:
+                await self._diagnose_checkpoint("search_mobile")
+        elif self.args.desktop_only and mobile_count > 0:
+            self.logger.info("[6/8] 因 --desktop-only 参数跳过移动搜索")
+            StatusManager.update_progress(6, 8)
+        elif mobile_count <= 0:
+            self.logger.info("[6/8] 移动搜索已禁用 (mobile_count=0)")
+            StatusManager.update_progress(6, 8)
 
     async def _is_page_crashed(self) -> bool:
         """检查页面是否已崩溃"""
@@ -310,8 +360,9 @@ class MSRewardsApp:
     async def _execute_daily_tasks(self) -> None:
         """执行日常任务"""
         if not self.args.skip_daily_tasks:
-            # 执行日常任务，并获取可能更新后的页面引用
             self.page = await self.coordinator.execute_daily_tasks(self.page)
+            if self.diagnose:
+                await self._diagnose_checkpoint("tasks")
 
     async def _generate_report(self) -> None:
         """生成报告和通知"""
@@ -385,8 +436,53 @@ class MSRewardsApp:
 
         self.logger.info("=" * 70)
 
+    async def _diagnose_checkpoint(self, checkpoint_type: str) -> None:
+        """
+        执行诊断检查点
+
+        Args:
+            checkpoint_type: 检查点类型 (login/search_desktop/search_mobile/tasks)
+        """
+        if not self.diagnose or not self.page or not self.diagnosis_reporter:
+            return
+
+        try:
+            issues = await self._page_inspector.inspect_page(self.page)
+
+            success = not any(i.severity.value in ["critical", "error"] for i in issues)
+
+            self.diagnosis_reporter.add_checkpoint(checkpoint_type, issues, success)
+
+            if issues:
+                self.logger.info(f"  诊断 [{checkpoint_type}]: 发现 {len(issues)} 个问题")
+                for issue in issues[:3]:
+                    self.logger.debug(f"    - {issue.title}: {issue.description}")
+            else:
+                self.logger.debug(f"  诊断 [{checkpoint_type}]: 通过")
+
+        except Exception as e:
+            self.logger.debug(f"诊断检查点失败 {checkpoint_type}: {e}")
+
+    def _print_diagnosis_summary(self) -> None:
+        """打印诊断摘要"""
+        if not self.diagnose or not self.diagnosis_reporter:
+            return
+
+        try:
+            self.diagnosis_reporter.save_summary()
+            self.diagnosis_reporter.print_summary()
+        except Exception as e:
+            self.logger.warning(f"打印诊断摘要失败: {e}")
+
     async def _cleanup(self) -> None:
         """清理资源"""
+        # 关闭搜索引擎（释放 QueryEngine 资源）
+        if self.search_engine:
+            try:
+                await self.search_engine.close()
+            except Exception as e:
+                self.logger.debug(f"关闭搜索引擎失败: {e}")
+
         # 关闭浏览器
         if self.browser_sim:
             self.logger.info("\n关闭浏览器...")

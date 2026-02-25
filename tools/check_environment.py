@@ -255,7 +255,7 @@ def main():
     else:
         print("⚠ 部分检查未通过，请按照上述提示修复。")
         print("\n常见解决方案:")
-        print("1. 安装依赖: pip install -r requirements.txt")
+        print('1. 安装依赖: pip install -e ".[dev]"')
         print("2. 安装浏览器: playwright install")
         print("3. 创建配置: 复制 config.example.yaml 为 config.yaml")
         return 1

@@ -1,76 +1,136 @@
 # ============================================================
-# MS Rewards Automator - 示例配置文件
+# RewardsCore - 示例配置文件
 # ============================================================
 # 复制此文件为 config.yaml 并填写你的配置
 
 # 执行模式（可选）
 execution:
-  mode: "normal"  # fast(快速), normal(默认), slow(安全)
+  mode: "normal" # fast(快速), normal(默认), slow(安全)
 
 # 搜索任务
 search:
-  desktop_count: 30 # 桌面端搜索次数
-  mobile_count: 20 # 移动端搜索次数
+  desktop_count: 20 # 桌面端搜索次数
+  mobile_count: 0 # 移动端搜索次数（已禁用，微软 Rewards 改版后移动搜索无积分）
   wait_interval:
-    min: 5  # 最小等待时间（秒）
-    max: 15  # 最大等待时间（秒）
+    min: 5 # 最小等待时间（秒）
+    max: 15 # 最大等待时间（秒）
+  search_terms_file: "tools/search_terms.txt" # 本地搜索词文件路径
 
 # 浏览器
 browser:
   headless: false # 首次运行建议 false（显示浏览器，方便手动登录）
   type: "chromium" # 浏览器类型: chromium(Playwright内置,推荐), chrome, edge
   force_dark_mode: false # 禁用强制深色模式
+  slow_mo: 100 # 操作延迟（毫秒），用于调试
+  timeout: 30000 # 页面加载超时（毫秒）
 
 # 账户配置
 account:
   storage_state_path: "storage_state.json" # 会话状态文件路径
   login_url: "https://rewards.microsoft.com/" # 登录页面
 
-# 登录方式（二选一）
+# 登录方式
 login:
-  # 方式1: 手动登录（推荐，更可靠）
-  # - 首次运行时浏览器会打开，手动登录即可
-  # - 登录后会保存会话，后续自动加载
-  # - 支持 2FA，有足够时间完成验证
+  state_machine_enabled: true # 启用状态机登录流程
+  max_transitions: 20 # 最大状态转换次数
+  timeout_seconds: 300 # 登录超时（秒）
+  stay_signed_in: true # 保持登录状态
+  manual_intervention_timeout: 120 # 手动干预等待时间（秒）
 
-  # 方式2: 自动登录（可选，不推荐）
-  # - 填写下方 email, password, totp_secret
-  # - 注意：经常被微软拒绝，成功率不高
-  # - 提示：微软账号通常需要 2FA 验证，请填写 totp_secret
+  # 自动登录（可选，不推荐）
   auto_login:
     enabled: false # 是否启用自动登录
-    email: "" # Microsoft 账号
-    password: "" # 密码
-    totp_secret: "" # 2FA 密钥（从验证器应用获取）
+    email: "" # Microsoft 账号(或设置环境变量 MS_REWARDS_EMAIL)
+    password: "" # 密码(或设置环境变量 MS_REWARDS_PASSWORD)
+    totp_secret: "" # 2FA 密钥(或设置环境变量 MS_REWARDS_TOTP_SECRET)
+
+# 查询引擎（在线搜索词来源）
+query_engine:
+  enabled: true # 启用在线查询源（DuckDuckGo、Wikipedia等）
+  cache_ttl: 3600 # 缓存有效期（秒）
+  sources:
+    local_file:
+      enabled: true # 本地搜索词文件
+    duckduckgo:
+      enabled: true # DuckDuckGo 建议API
+      timeout: 15 # 超时（秒）
+    wikipedia:
+      enabled: true # Wikipedia 热门话题
+      timeout: 15 # 超时（秒）
+    bing_suggestions:
+      enabled: true # Bing 建议API
+  bing_api:
+    rate_limit: 10 # 请求速率限制
+    max_retries: 3 # 最大重试次数
+    timeout: 15 # 超时（秒）
+    suggestions_per_query: 3 # 每个查询的建议数
+    max_expand: 5 # 最大扩展查询数
+
+# 反检测与拟人化行为
+anti_detection:
+  use_stealth: true # 使用隐身模式
+  random_viewport: true # 随机视口大小
+  human_behavior_level: "medium" # 拟人化等级: light(轻量), medium(中等), heavy(重度)
+  scroll_behavior:
+    enabled: true # 启用滚动行为
+    min_scrolls: 2 # 最小滚动次数
+    max_scrolls: 5 # 最大滚动次数
+    scroll_delay_min: 500 # 滚动延迟最小值（毫秒）
+    scroll_delay_max: 2000 # 滚动延迟最大值（毫秒）
+  mouse_movement:
+    enabled: true # 启用鼠标移动
+    micro_movement_probability: 0.3 # 微小移动概率
+  typing:
+    use_gaussian_delay: true # 使用高斯分布延迟
+    avg_delay_ms: 120 # 平均打字延迟（毫秒）
+    std_delay_ms: 30 # 延迟标准差（毫秒）
+    pause_probability: 0.1 # 思考暂停概率
 
 # 任务系统
 task_system:
   enabled: false # 禁用任务系统
+  min_delay: 2 # 任务间最小延迟（秒）
+  max_delay: 5 # 任务间最大延迟（秒）
+  skip_completed: true # 跳过已完成任务
   debug_mode: false
+  task_types:
+    url_reward: true # URL奖励任务
+    quiz: false # 问答任务
+    poll: false # 投票任务
 
 # 通知（可选）
 notification:
   enabled: false
   telegram:
-    bot_token: ""
-    chat_id: ""
+    enabled: false
+    bot_token: "" # 或设置环境变量 TELEGRAM_BOT_TOKEN
+    chat_id: "" # 或设置环境变量 TELEGRAM_CHAT_ID
+  serverchan:
+    enabled: false
+    key: "" # 或设置环境变量 SERVERCHAN_KEY
+  whatsapp:
+    enabled: false
+    phone: "" # 或设置环境变量 WHATSAPP_PHONE
+    apikey: "" # 或设置环境变量 WHATSAPP_APIKEY
 
 # 调度器（默认启用）
 scheduler:
   enabled: true
   timezone: "Asia/Shanghai"
-  mode: "scheduled"
+  mode: "scheduled" # scheduled(定时), random(随机), fixed(固定)
   run_once_on_start: true
-  scheduled_hour: 17
-  max_offset_minutes: 45
-  random_start_hour: 8
-  random_end_hour: 22
-  fixed_hour: 10
-  fixed_minute: 0
+  scheduled_hour: 17 # 定时模式：执行小时
+  max_offset_minutes: 45 # 最大偏移分钟
+  random_start_hour: 8 # 随机模式：开始小时
+  random_end_hour: 22 # 随机模式：结束小时
+  fixed_hour: 10 # 固定模式：小时
+  fixed_minute: 0 # 固定模式：分钟
 
 # 日志
 logging:
-  level: "INFO"
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "logs/automator.log"
+  console: true
 
 # Bing主题设置
 bing_theme:
@@ -82,6 +142,19 @@ bing_theme:
 
 # 健康监控
 monitoring:
+  enabled: true # 启用监控
+  check_interval: 5 # 检查间隔（秒）
+  check_points_before_task: true # 任务前检查积分
+  alert_on_no_increase: true # 积分不增长时告警
+  max_no_increase_count: 3 # 最大不增长次数
+  real_time_display: true # 实时显示
   health_check:
-    enabled: false
-    interval: 30
+    enabled: true # 启用健康检查
+    interval: 30 # 检查间隔（秒）
+    save_reports: true # 保存报告
+
+# 错误处理
+error_handling:
+  max_retries: 3 # 最大重试次数
+  retry_delay: 5 # 重试延迟（秒）
+  exponential_backoff: true # 指数退避

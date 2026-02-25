@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from playwright.async_api import BrowserContext, Page
 
+from browser.page_utils import temp_page as create_temp_page
 from ui.real_time_status import StatusManager
 
 if TYPE_CHECKING:
@@ -115,34 +116,55 @@ class TaskCoordinator:
 
         StatusManager.update_progress(3, 8)
 
+    def _check_headless_requirements(self) -> None:
+        """检查 headless 模式下的登录要求
+
+        Headless 模式无法进行手动登录，需要提前准备会话文件或配置自动登录。
+        """
+        args_headless = getattr(self.args, "headless", False)
+        config_headless = self.config.get("browser.headless", False)
+        is_headless = args_headless or config_headless
+
+        if is_headless:
+            self.logger.error(
+                "Headless 模式下无法进行手动登录。"
+                "解决方案：1) 先在有头模式下登录保存会话；"
+                "2) 配置自动登录凭据（login.auto_login）"
+            )
+            raise RuntimeError(
+                "Headless 模式需要会话文件或自动登录配置。请先运行 `rscore`（有头模式）完成登录。"
+            )
+
     async def _do_login(self, page: Any, account_mgr: Any, context: Any) -> None:
         """执行登录流程"""
         import os
 
         self.logger.warning("  未登录，需要登录")
 
+        auto_login_config = self.config.get("login.auto_login", {})
+        auto_login_enabled = auto_login_config.get("enabled", False)
+
+        email = (
+            os.environ.get("MS_REWARDS_EMAIL")
+            or auto_login_config.get("email", "")
+            or self.config.get("account.email", "")
+        )
+        password = (
+            os.environ.get("MS_REWARDS_PASSWORD")
+            or auto_login_config.get("password", "")
+            or self.config.get("account.password", "")
+        )
+
+        need_manual_login = False
+
         if account_mgr.use_state_machine:
-            auto_login_config = self.config.get("login.auto_login", {})
-            auto_login_enabled = auto_login_config.get("enabled", False)
-
-            # 优先从环境变量读取凭据（更安全），然后从配置文件读取
-            email = (
-                os.environ.get("MS_REWARDS_EMAIL")
-                or auto_login_config.get("email", "")
-                or self.config.get("account.email", "")
-            )
-            password = (
-                os.environ.get("MS_REWARDS_PASSWORD")
-                or auto_login_config.get("password", "")
-                or self.config.get("account.password", "")
-            )
-            totp_secret = (
-                os.environ.get("MS_REWARDS_TOTP_SECRET")
-                or auto_login_config.get("totp_secret", "")
-                or self.config.get("account.totp_secret", "")
-            )
-
             if auto_login_enabled and email and password:
+                totp_secret = (
+                    os.environ.get("MS_REWARDS_TOTP_SECRET")
+                    or auto_login_config.get("totp_secret", "")
+                    or self.config.get("account.totp_secret", "")
+                )
+
                 self.logger.info("  尝试自动登录...")
                 StatusManager.update_operation("自动登录")
 
@@ -155,10 +177,14 @@ class TaskCoordinator:
                     await account_mgr.save_session(context)
                     self.logger.info("  ✓ 会话已保存")
                 else:
-                    await self._manual_login(page, account_mgr, context)
+                    need_manual_login = True
             else:
-                await self._manual_login(page, account_mgr, context)
+                need_manual_login = True
         else:
+            need_manual_login = True
+
+        if need_manual_login:
+            self._check_headless_requirements()
             await self._manual_login(page, account_mgr, context)
 
     async def _manual_login(self, page: Any, account_mgr: Any, context: Any) -> None:
@@ -215,10 +241,10 @@ class TaskCoordinator:
         state_monitor = self._get_state_monitor()
         health_monitor = self._get_health_monitor()
         browser_sim = self._get_browser_sim()
+        mobile_count = self.config.get("search.mobile_count", 0)
 
         self.logger.info("\n[6/8] 执行移动搜索...")
         StatusManager.update_operation("执行移动搜索")
-        mobile_count = self.config.get("search.mobile_count")
         StatusManager.update_mobile_searches(0, mobile_count)
 
         if self.args.dry_run:
@@ -349,24 +375,66 @@ class TaskCoordinator:
                     pending_count = len(tasks) - completed_count
                     self.logger.info(f"    待完成: {pending_count}, 已完成: {completed_count}")
 
-                    # 执行任务
                     if tasks:
+                        points_detector = state_monitor.points_detector
+
+                        points_before = getattr(state_monitor, "last_points", None) or getattr(
+                            state_monitor, "initial_points", None
+                        )
+
+                        if points_before is None:
+                            self.logger.info("  获取任务前积分...")
+                            async with create_temp_page(page.context) as temp:
+                                points_before = await points_detector.get_current_points(
+                                    temp, skip_navigation=False
+                                )
+
+                            if points_before is None:
+                                self.logger.warning("  ⚠️ 无法获取任务前积分，跳过积分验证")
+                                points_before = None
+                            else:
+                                self.logger.info(f"  任务前积分: {points_before}")
+                        else:
+                            self.logger.info(f"  任务前积分 (缓存): {points_before}")
+
                         self.logger.info("  开始执行任务...")
                         report = await task_manager.execute_tasks(page, tasks)
 
+                        async with create_temp_page(page.context) as temp:
+                            points_after = await points_detector.get_current_points(
+                                temp, skip_navigation=False
+                            )
+
+                        if points_after is None:
+                            self.logger.warning("  ⚠️ 积分检测失败，使用报告值")
+                            actual_points_gained = report.points_earned
+                        elif points_before is None:
+                            self.logger.warning("  ⚠️ 无任务前积分基线，使用报告值")
+                            self.logger.info(f"  任务后积分: {points_after}")
+                            actual_points_gained = report.points_earned
+                        else:
+                            self.logger.info(f"  任务后积分: {points_after}")
+                            actual_points_gained = max(0, points_after - points_before)
+                            if actual_points_gained != report.points_earned:
+                                self.logger.warning(
+                                    f"  ⚠️ 积分验证: 报告 {report.points_earned}, 实际 {actual_points_gained}"
+                                )
+                            if hasattr(state_monitor, "last_points"):
+                                state_monitor.last_points = points_after
+
                         state_monitor.session_data["tasks_completed"] = report.completed
                         state_monitor.session_data["tasks_failed"] = report.failed
-                        state_monitor.session_data["points_gained"] += report.points_earned
+                        state_monitor.session_data["points_gained"] += actual_points_gained
 
                         self.logger.info("  ✓ 任务执行完成")
                         self.logger.info(
                             f"    完成: {report.completed}, 失败: {report.failed}, 跳过: {report.skipped}"
                         )
-                        self.logger.info(f"    获得积分: +{report.points_earned}")
+                        self.logger.info(f"    实际获得积分: +{actual_points_gained}")
 
             except ImportError as e:
                 self.logger.warning(f"  ⚠ 任务系统模块导入失败: {e}")
-                self.logger.warning("  请确保已安装所有依赖: pip install -r requirements.txt")
+                self.logger.warning('  请确保已安装所有依赖: pip install -e ".[dev]"')
             except Exception as e:
                 self.logger.error(f"  ✗ 任务执行失败: {e}")
                 import traceback
@@ -380,7 +448,7 @@ class TaskCoordinator:
                 self.logger.info("  [模拟] 将执行日常任务")
 
         StatusManager.update_progress(7, 8)
-        return page  # 返回页面引用
+        return page
 
     def _log_task_debug_info(self) -> None:
         """记录任务调试信息"""
@@ -409,10 +477,18 @@ class TaskCoordinator:
             from browser.anti_ban_module import AntiBanModule
             from search.search_engine import SearchEngine
             from search.search_term_generator import SearchTermGenerator
+            from ui.real_time_status import StatusManager
 
             term_gen = SearchTermGenerator(self.config)
             anti_ban = AntiBanModule(self.config)
-            self._search_engine = SearchEngine(self.config, term_gen, anti_ban)
+            state_monitor = self._get_state_monitor()
+            self._search_engine = SearchEngine(
+                self.config,
+                term_gen,
+                anti_ban,
+                monitor=state_monitor,
+                status_manager=StatusManager,
+            )
         return self._search_engine
 
     def _get_state_monitor(self) -> Any:

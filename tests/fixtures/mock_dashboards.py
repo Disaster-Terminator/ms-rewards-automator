@@ -5,6 +5,7 @@ Provides mock dashboard data and generators for testing task parsing
 and execution functionality.
 """
 
+import copy
 from dataclasses import dataclass
 from typing import Any
 
@@ -105,25 +106,25 @@ FULL_DASHBOARD = generate_mock_dashboard(num_tasks=10, completed_ratio=0.5)
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_dashboard_empty():
     """Provide an empty dashboard."""
-    return EMPTY_DASHBOARD
+    return copy.deepcopy(EMPTY_DASHBOARD)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_dashboard_simple():
     """Provide a simple dashboard with 3 tasks."""
     return generate_mock_dashboard(num_tasks=3, completed_ratio=0.0)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_dashboard_full():
     """Provide a full dashboard with 10 tasks."""
     return generate_mock_dashboard(num_tasks=10, completed_ratio=0.5)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_dashboard_generator():
     """Provide the dashboard generator function."""
     return generate_mock_dashboard

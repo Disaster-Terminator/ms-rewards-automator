@@ -103,11 +103,11 @@ class TestBingSuggestionsSource:
         assert source.get_source_name() == "bing_suggestions"
 
     def test_rate_limit_configuration(self, mock_config_bing):
-        """Test that rate limit is configured from config"""
+        """Test that suggestions_per_seed is configured from config"""
         BingSuggestionsSource(mock_config_bing)
 
-        # Verify config was read
-        mock_config_bing.get.assert_any_call("query_engine.bing_api.rate_limit", 10)
+        # Verify config was read for suggestions_per_seed (BingSuggestionsSource's own config)
+        mock_config_bing.get.assert_any_call("query_engine.bing_api.suggestions_per_seed", 3)
 
 
 if __name__ == "__main__":

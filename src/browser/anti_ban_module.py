@@ -78,12 +78,22 @@ class AntiBanModule:
 
     def get_random_wait_time(self) -> float:
         """
-        获取随机等待时间
+        获取随机等待时间（使用正态分布，更接近人类行为）
 
         Returns:
             随机等待时间（秒）
         """
-        wait_time = random.uniform(self.wait_min, self.wait_max)
+        mean = (self.wait_min + self.wait_max) / 2
+        std = (self.wait_max - self.wait_min) / 4
+
+        wait_time = random.gauss(mean, std)
+        wait_time = max(self.wait_min, min(self.wait_max, wait_time))
+
+        if random.random() < 0.1:
+            extra_pause = random.uniform(1, 3)
+            wait_time += extra_pause
+            logger.debug(f"模拟思考停顿，额外等待 {extra_pause:.1f} 秒")
+
         logger.debug(f"生成随机等待时间: {wait_time:.2f} 秒")
         return wait_time
 

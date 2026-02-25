@@ -91,18 +91,27 @@ def test_property_log_message_persistence(message):
 
         logger = setup_logging(log_level="INFO", log_file=log_file, console=False)
 
-        # 记录消息
         logger.info(message)
 
-        # 刷新并关闭所有 handlers
         for handler in logger.handlers[:]:
             handler.flush()
             handler.close()
             logger.removeHandler(handler)
 
-        # 读取日志文件
         with open(log_file, encoding="utf-8") as f:
             log_content = f.read()
 
-        # 验证消息在日志中（排除控制字符）
-        assert message in log_content or len(message.strip()) == 0
+        import json
+
+        found = False
+        for line in log_content.strip().split("\n"):
+            if line.strip():
+                try:
+                    entry = json.loads(line)
+                    if entry.get("message") == message:
+                        found = True
+                        break
+                except json.JSONDecodeError:
+                    pass
+
+        assert found or len(message.strip()) == 0

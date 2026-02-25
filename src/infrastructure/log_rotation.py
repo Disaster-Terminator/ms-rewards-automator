@@ -84,10 +84,9 @@ class LogRotation:
             logger.warning(f"目录不存在: {directory}")
             return {"deleted": 0, "errors": 0, "skipped": 0}
 
-        result = {"deleted": 0, "errors": 0, "skipped": 0, "total_size_freed": 0}
+        result: dict[str, int] = {"deleted": 0, "errors": 0, "skipped": 0, "total_size_freed": 0}
 
-        # 获取所有匹配的文件
-        files = []
+        files: list[Path] = []
         if patterns:
             for pattern in patterns:
                 files.extend(directory.glob(pattern))
@@ -136,18 +135,21 @@ class LogRotation:
         Returns:
             总体清理结果
         """
-        total_result = {"logs": {}, "screenshots": {}, "diagnostics": {}}
+        total_result: dict[str, dict[str, int]] = {
+            "logs": {},
+            "screenshots": {},
+            "diagnosis": {},
+            "diagnostics": {},
+        }
 
         # 1. 清理主日志文件（保留最近的）
         if self.logs_dir.exists():
             main_log = self.logs_dir / "automator.log"
             if main_log.exists():
                 try:
-                    # 读取文件行数
                     with open(main_log, encoding="utf-8") as f:
                         lines = f.readlines()
 
-                    # 如果超过 10000 行，保留最后 10000 行
                     if len(lines) > 10000:
                         with open(main_log, "w", encoding="utf-8") as f:
                             f.writelines(lines[-10000:])
@@ -155,11 +157,21 @@ class LogRotation:
                 except Exception as e:
                     logger.error(f"日志轮替失败: {e}")
 
-        # 2. 清理 logs/diagnostics
+        # 2. 清理诊断目录（logs/diagnosis）
+        diagnosis_dir = self.logs_dir / "diagnosis"
+        if diagnosis_dir.exists():
+            from diagnosis.rotation import cleanup_old_diagnoses
+
+            diagnosis_result = cleanup_old_diagnoses(
+                self.logs_dir, max_folders=10, max_age_days=self.max_age_days, dry_run=dry_run
+            )
+            total_result["diagnosis"] = diagnosis_result
+
+        # 2.5 清理诊断目录（logs/diagnostics）- 运行时诊断文件
         diagnostics_dir = self.logs_dir / "diagnostics"
         if diagnostics_dir.exists():
             total_result["diagnostics"] = self.cleanup_directory(
-                diagnostics_dir, patterns=["*.html", "*.png", "*.md"], dry_run=dry_run
+                diagnostics_dir, patterns=["*.png", "*.html", "*.md"], dry_run=dry_run
             )
 
         # 3. 清理 screenshots
@@ -184,13 +196,16 @@ class LogRotation:
 
         # 输出汇总
         total_deleted = (
-            total_result["diagnostics"].get("deleted", 0)
+            total_result["diagnosis"].get("deleted", 0)
+            + total_result["diagnostics"].get("deleted", 0)
             + total_result["screenshots"].get("deleted", 0)
             + total_result["logs"].get("deleted", 0)
         )
-        total_size = total_result["diagnostics"].get("total_size_freed", 0) + total_result[
-            "screenshots"
-        ].get("total_size_freed", 0)
+        total_size = (
+            total_result["diagnosis"].get("total_size_freed", 0)
+            + total_result["diagnostics"].get("total_size_freed", 0)
+            + total_result["screenshots"].get("total_size_freed", 0)
+        )
 
         logger.info(
             f"清理完成: 删除 {total_deleted} 个文件，释放 {total_size / 1024 / 1024:.2f} MB"
