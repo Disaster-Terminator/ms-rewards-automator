@@ -3,20 +3,24 @@ import { useStore, TaskStatus, Health, Points, Config, HistoryItem } from '../st
 
 declare const __TAURI_ENV_DEBUG__: string | undefined
 
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
+const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined
 const isTauriDev = typeof __TAURI_ENV_DEBUG__ !== 'undefined' && __TAURI_ENV_DEBUG__ !== ''
 const isTauriProduction = isTauri && !isTauriDev
 
-let API_BASE = '/api'
-const TAURI_DEV_API_BASE = 'http://localhost:8000/api'
 let dynamicPort: number | null = null
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null
 let isConnecting = false
 let connectionPromise: Promise<void> | null = null
 
 const getApiBase = async (): Promise<string> => {
+  // If in browser (not Tauri), use relative path to leverage Vite proxy
+  if (!isTauri) {
+    return '/api'
+  }
+
+  // If in Tauri Dev, use hardcoded dev port
   if (isTauriDev) {
-    return TAURI_DEV_API_BASE
+    return 'http://localhost:8000/api'
   }
   
   if (isTauriProduction) {
@@ -39,7 +43,7 @@ const getApiBase = async (): Promise<string> => {
       return 'http://localhost:8000/api'
     }
   }
-  return API_BASE
+  return '/api'
 }
 
 const getApi = async () => {
@@ -127,21 +131,32 @@ export const startHeartbeat = () => {
   heartbeatInterval = setInterval(async () => {
     try {
       const api = await getApi()
-      const response = await api.get('/health')
+      const [healthResponse, statusResponse] = await Promise.all([
+        api.get('/health'),
+        api.get('/status')
+      ])
+      
       const store = useStore.getState()
       store.setLastHeartbeat(new Date().toISOString())
       store.setBackendReady(true)
       store.setDataError(null)
-      store.setHealth(response.data)
+      store.setHealth(healthResponse.data)
+      store.setTaskStatus(statusResponse.data)
+      
+      // Auto-sync runner store if WS is failing
+      if (!store.wsConnected && statusResponse.data.is_running) {
+        const { useRunnerStore } = await import('../core/runnerStore')
+        if (useRunnerStore.getState().status !== 'running') {
+          useRunnerStore.getState().setStatus('running')
+        }
+      }
+      
       heartbeatFailures = 0
     } catch (error) {
       heartbeatFailures++
       const store = useStore.getState()
       
-      console.warn(`Heartbeat failed (${heartbeatFailures}/${MAX_HEARTBEAT_FAILURES})`)
-      
       if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
-        console.log('Max heartbeat failures reached, marking backend as not ready')
         store.setBackendReady(false)
         heartbeatFailures = 0
       }
@@ -160,8 +175,8 @@ let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempts = 0
 let wsHeartbeatInterval: ReturnType<typeof setInterval> | null = null
-const MAX_RECONNECT_DELAY = 30000
-const INITIAL_RECONNECT_DELAY = 500
+const MAX_RECONNECT_DELAY = 10000 
+const INITIAL_RECONNECT_DELAY = 1000
 const WS_HEARTBEAT_INTERVAL = 30000
 
 const scheduleReconnect = () => {
@@ -169,10 +184,8 @@ const scheduleReconnect = () => {
     clearTimeout(reconnectTimer)
   }
   
-  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
+  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(1.5, reconnectAttempts), MAX_RECONNECT_DELAY)
   reconnectAttempts++
-  
-  console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts})`)
   
   reconnectTimer = setTimeout(async () => {
     await connectWebSocket()
@@ -193,7 +206,11 @@ export const connectWebSocket = async (): Promise<void> => {
   connectionPromise = new Promise(async (resolve) => {
     let wsUrl: string
     
-    if (isTauriDev) {
+    if (!isTauri) {
+      // Browser mode: use relative path for proxy
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      wsUrl = `${protocol}//${window.location.host}/ws`
+    } else if (isTauriDev) {
       wsUrl = 'ws://localhost:8000/ws'
     } else if (isTauriProduction) {
       let port = dynamicPort
@@ -205,14 +222,12 @@ export const connectWebSocket = async (): Promise<void> => {
           dynamicPort = port
           useStore.getState().setBackendPort(port)
         } catch (e) {
-          console.warn('Failed to get backend port:', e)
           port = 8000
         }
       }
       wsUrl = `ws://localhost:${port}/ws`
     } else {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      wsUrl = `${protocol}//${window.location.host}/ws`
+      wsUrl = `ws://localhost:8000/ws`
     }
 
     console.log('Connecting to WebSocket:', wsUrl)
@@ -221,8 +236,8 @@ export const connectWebSocket = async (): Promise<void> => {
       ws = new WebSocket(wsUrl)
     } catch (error) {
       console.error('Failed to create WebSocket:', error)
-      scheduleReconnect()
       isConnecting = false
+      scheduleReconnect()
       resolve()
       return
     }
@@ -231,21 +246,16 @@ export const connectWebSocket = async (): Promise<void> => {
       if (ws?.readyState !== WebSocket.OPEN) {
         console.warn('WebSocket connection timeout')
         ws?.close()
-        scheduleReconnect()
         isConnecting = false
         resolve()
       }
-    }, 10000)
+    }, 5000)
 
     ws.onopen = () => {
       clearTimeout(connectionTimeout)
       console.log('WebSocket connected')
       useStore.getState().setWsConnected(true)
       reconnectAttempts = 0
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer)
-        reconnectTimer = null
-      }
       isConnecting = false
       
       if (wsHeartbeatInterval) {
@@ -276,11 +286,12 @@ export const connectWebSocket = async (): Promise<void> => {
     ws.onerror = (error) => {
       clearTimeout(connectionTimeout)
       console.error('WebSocket error:', error)
+      ws?.close() // Ensure onclose is triggered
       isConnecting = false
       resolve()
     }
 
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data)
         const store = useStore.getState()
@@ -298,22 +309,29 @@ export const connectWebSocket = async (): Promise<void> => {
           case 'log':
             if (data.data) {
               store.addLog(data.data)
+              const lowerLog = data.data.toLowerCase();
+              if (lowerLog.includes('登录失败') || 
+                  lowerLog.includes('timeouterror') || 
+                  lowerLog.includes('连接失败') ||
+                  lowerLog.includes('error - 执行失败')) {
+                const { useRunnerStore } = await import('../core/runnerStore')
+                useRunnerStore.getState().setStatus('failed', data.data.split(':').pop()?.trim())
+              }
             }
             break
           case 'task_event':
-            console.log('Task event:', data.event, data.message)
+            if (data.event === 'stopped' || data.event === 'finished') {
+              const { useRunnerStore } = await import('../core/runnerStore')
+              useRunnerStore.getState().setStatus('standby')
+            }
             break
           case 'ping':
             if (ws?.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'pong' }))
             }
             break
-          case 'pong':
-            break
         }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error)
-      }
+      } catch (error) {}
     }
   })
   
@@ -341,84 +359,51 @@ export const disconnectWebSocket = () => {
 
 export const initializeTauriEvents = async () => {
   if (!isTauri) return
-  
   try {
     const { listen } = await import('@tauri-apps/api/event')
-    
-    listen<string>('py-log', (event) => {
-      const store = useStore.getState()
-      store.addLog(event.payload)
-    })
-    
-    listen<string>('py-error', (event) => {
-      const store = useStore.getState()
-      store.addLog(`[ERROR] ${event.payload}`)
-    })
-    
+    listen<string>('py-log', (event) => useStore.getState().addLog(event.payload))
+    listen<string>('py-error', (event) => useStore.getState().addLog(`[ERROR] ${event.payload}`))
     listen<number | null>('backend-terminated', (event) => {
-      console.log('Backend process terminated with code:', event.payload)
-      const store = useStore.getState()
-      store.setWsConnected(false)
-      store.setBackendReady(false)
-      if (event.payload !== 0) {
-        store.setDataError('后端进程异常退出，请重启应用')
-      }
+      useStore.getState().setWsConnected(false)
+      useStore.getState().setBackendReady(false)
       scheduleReconnect()
     })
-    
-    console.log('Tauri event listeners initialized')
-  } catch (e) {
-    console.warn('Failed to initialize Tauri events:', e)
-  }
+  } catch (e) {}
 }
 
 export const initializeData = async () => {
   const store = useStore.getState()
   store.setDataLoading(true)
-  store.setDataError(null)
-
   try {
-    const [status, health, points, config, history, logs] = await Promise.all([
+    const [status, health, points, config, logs] = await Promise.all([
       fetchStatus(),
       fetchHealth(),
       fetchPoints(),
       fetchConfig(),
-      fetchHistory(),
       fetchRecentLogs(),
     ])
-
     store.setTaskStatus(status)
     store.setHealth(health)
     store.setPoints(points)
     store.setConfig(config)
-    store.setHistory(history)
     store.setLogs(logs)
-    store.setLastDataUpdate(new Date().toISOString())
-    store.setDataLoading(false)
     store.setBackendReady(true)
   } catch (error) {
-    console.error('Failed to initialize data:', error)
-    store.setDataError('无法连接到服务器，请检查服务是否正常运行')
-    store.setDataLoading(false)
     store.setBackendReady(false)
-    throw error
+  } finally {
+    store.setDataLoading(false)
   }
 }
 
 export const refreshData = async () => {
-  const store = useStore.getState()
-  
   try {
     const [status, health, points] = await Promise.all([
       fetchStatus(),
       fetchHealth(),
       fetchPoints(),
     ])
-
-    store.setTaskStatus(status)
-    store.setHealth(health)
-    store.setPoints(points)
-  } catch (error) {
-    console.error('Failed to refresh data:', error)
-  }
+    useStore.getState().setTaskStatus(status)
+    useStore.getState().setHealth(health)
+    useStore.getState().setPoints(points)
+  } catch (error) {}
 }

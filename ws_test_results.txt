@@ -1,0 +1,36 @@
+=== Testing WebSocket Connectivity ===
+
+[FAIL] ws://localhost:8000/ws -> HTTP/1.1 200 OK
+  Headers: HTTP/1.1 200 OK
+
+date: Wed, 25 Feb 2026 17:00:50 GMT
+
+server: uvicorn
+
+content-type: text/html; charset=utf-8
+
+accept-ranges: bytes
+
+content-length: 617
+
+last-modified: Wed, 25 Feb 2026 15:09:50 GMT
+
+etag: "0b6920abcee4bffa8f63a4b17011ada7"
+[FAIL] ws://localhost:5174/ws -> HTTP/1.1 200 OK
+  Headers: HTTP/1.1 200 OK
+
+date: Wed, 25 Feb 2026 17:00:50 GMT
+
+server: uvicorn
+
+content-type: text/html; charset=utf-8
+
+accept-ranges: bytes
+
+content-length: 617
+
+last-modified: Wed, 25 Feb 2026 15:09:50 GMT
+
+etag: "0b6920abcee4bffa8f63a4b17011ada7"
+
+Done.
