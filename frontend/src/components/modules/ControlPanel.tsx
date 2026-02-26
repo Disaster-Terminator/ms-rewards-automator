@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
 import { useRunnerStore } from '../../core/runnerStore';
 import { ConfigModal } from './ConfigModal';
@@ -43,14 +44,35 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ status: propStatus, 
   const [accountOpen, setAccountOpen] = useState(false);
 
   return (
-    <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-xl p-8 h-[450px] flex flex-col justify-between relative overflow-hidden transition-all duration-500">
+    <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-xl p-8 h-full flex flex-col justify-between relative overflow-hidden transition-all duration-500">
       <ConfigModal open={configOpen} onOpenChange={setConfigOpen} />
       <AccountSheet open={accountOpen} onOpenChange={setAccountOpen} />
       
-      {/* Decorative background glow */}
-      <div className={`absolute top-0 right-0 w-64 h-64 blur-[100px] -z-10 animate-pulse transition-colors duration-1000 ${
-        displayStatus.label.includes('FAILED') || displayStatus.label.includes('ERROR') ? 'bg-red-500/10' : 'bg-blue-500/10'
-      }`} />
+      {/* Premium Aurora Background Effect */}
+      <div className="absolute inset-0 -z-10 overflow-hidden opacity-20">
+        <motion.div 
+          animate={{ 
+            x: [0, 50, -50, 0], 
+            y: [0, -30, 30, 0],
+            scale: [1, 1.2, 0.9, 1] 
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className={`absolute -top-20 -right-20 w-80 h-80 blur-[100px] rounded-full transition-colors duration-2000 ${
+            displayStatus.label.includes('FAILED') || displayStatus.label.includes('ERROR') ? 'bg-red-500' : 'bg-blue-600'
+          }`}
+        />
+        <motion.div 
+          animate={{ 
+            x: [0, -40, 40, 0], 
+            y: [0, 50, -50, 0],
+            scale: [1, 0.8, 1.1, 1] 
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className={`absolute -bottom-20 -left-20 w-72 h-72 blur-[100px] rounded-full transition-colors duration-2000 ${
+            displayStatus.label.includes('FAILED') || displayStatus.label.includes('ERROR') ? 'bg-orange-500/60' : 'bg-indigo-500/60'
+          }`}
+        />
+      </div>
       
       <div>
         <div className="flex items-center gap-2 mb-4">
@@ -66,7 +88,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ status: propStatus, 
         </p>
 
         {/* Pipeline Stack Visual */}
-        <div className="mt-12">
+        <div className="mt-auto pt-6">
           <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Pipeline Stack</span>
           <div className="flex items-center gap-0 mt-3">
             <PipelineNode active={backendReady} label="Backend" />

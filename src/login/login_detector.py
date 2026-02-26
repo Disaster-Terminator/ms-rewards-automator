@@ -269,8 +269,12 @@ class LoginDetector:
             page.on("response", handle_response)
 
             try:
-                await page.reload(wait_until="networkidle", timeout=10000)
-            except Exception:
+                # Use domcontentloaded instead of networkidle, as networkidle can hang indefinitely on MS sites
+                await page.reload(wait_until="domcontentloaded", timeout=10000)
+                # Give a short explicit wait for API responses to accumulate after DOM load
+                await page.wait_for_timeout(2000)
+            except Exception as e:
+                logger.debug(f"[API响应检测] 页面重载或等待超时: {e}")
                 pass
 
             for response in responses:

@@ -75,7 +75,7 @@ export const TerminalLog: React.FC<TerminalLogProps> = ({ logs, wsConnected }) =
 
   return (
     <div 
-      className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden flex flex-col h-[500px] transition-all duration-500"
+      className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden flex flex-col h-full transition-all duration-500"
       onMouseEnter={() => setIsAutoScrollPaused(true)}
       onMouseLeave={() => setIsAutoScrollPaused(false)}
     >

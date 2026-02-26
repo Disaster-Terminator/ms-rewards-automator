@@ -1,22 +1,22 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "MS Rewards Automator",
+  "productName": "RewardsCore",
   "version": "1.0.0",
   "identifier": "com.msrewards.automator",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://localhost:5174",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
       {
-        "title": "MS Rewards Automator",
+        "title": "RewardsCore",
         "width": 1280,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 750,
         "resizable": true,
         "fullscreen": false,
         "center": true,

@@ -572,11 +572,8 @@ class AccountManager:
             logger.info("直接导航到 Microsoft 登录页面...")
             await page.goto("https://login.live.com", wait_until="domcontentloaded", timeout=30000)
 
-            # 等待页面完全加载
-            await page.wait_for_load_state("networkidle", timeout=10000)
-            await page.wait_for_timeout(2000)
-
-            await page.wait_for_timeout(1000)
+            # 等待页面完全加载 (避免使用 networkidle 因为很容易卡死)
+            await page.wait_for_timeout(3000)
 
             # 使用状态机处理登录
             success = await self.state_machine.handle_login(page, credentials)

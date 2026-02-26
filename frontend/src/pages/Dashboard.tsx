@@ -12,6 +12,7 @@ const Dashboard: React.FC = () => {
     taskStatus,
     wsConnected,
     backendReady,
+    pointsHistory,
   } = useStore();
 
   // Derive stats from the existing store
@@ -33,11 +34,24 @@ const Dashboard: React.FC = () => {
 
   // Convert string logs to LogEntry format
   const logEntries = logs.map((log) => {
-    // Match common timestamp formats: [10:00:00], 10:00:00, or 2024-05-20 10:00:00
+    // Try structured parsing for "TIMESTAMP - NAME - LEVEL - MESSAGE"
+    const parts = log.split(' - ');
+    
+    if (parts.length >= 4 && /^(\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}/.test(parts[0])) {
+      const fullTimestamp = parts[0]; // e.g., "2024-05-20 10:00:00,123"
+      const timestampMatch = fullTimestamp.match(/(\d{2}:\d{2}:\d{2})/);
+      const timestamp = timestampMatch ? timestampMatch[1] : fullTimestamp;
+      
+      const level = parts[2].trim().toUpperCase();
+      const message = parts.slice(3).join(' - ').trim();
+      
+      return { timestamp, level, message };
+    }
+
+    // Fallback for other formats (like uvicorn or plain messages)
     const timestampMatch = log.match(/(\d{2}:\d{2}:\d{2})/);
     const timestamp = timestampMatch ? timestampMatch[1] : new Date().toLocaleTimeString('en-US', { hour12: false });
     
-    // Clean up level detection
     const upperLog = log.toUpperCase();
     let level = 'INFO';
     if (upperLog.includes('ERROR') || upperLog.includes('CRITICAL')) level = 'ERROR';
@@ -46,42 +60,46 @@ const Dashboard: React.FC = () => {
     else if (upperLog.includes('DEBUG')) level = 'DEBUG';
     else if (upperLog.includes('SYSTEM')) level = 'SYSTEM';
 
-    // Remove the level prefix from the message if it exists to avoid double display
     const cleanMessage = log
-      .replace(/^\[?(\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}\]?\s*/, '')
+      .replace(/^\[?(\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}([,.]\d{3})?\]?\s*/, '')
       .replace(new RegExp(`^${level}:?\\s*`, 'i'), '')
       .replace(/^\[(INFO|ERROR|WARN|SUCCESS|DEBUG|SYSTEM)\]\s*/, '')
+      .replace(/^\s*-\s*/, '') 
       .trim();
 
-    return { timestamp, level, message: cleanMessage };
+    return { timestamp, level, message: cleanMessage || log.trim() };
   });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-6 font-sans">
-      <div className="max-w-[1600px] mx-auto grid grid-cols-12 gap-6">
+    <div className="h-screen w-screen overflow-y-auto overflow-x-hidden bg-[#0a0a0a] text-white p-6 font-sans flex flex-col justify-start">
+      <div className="max-w-[1600px] min-h-full mx-auto flex flex-col gap-6 w-full">
         
-        {/* Left Main Panel - col-span-8 */}
-        <div className="col-span-8 space-y-6">
-          <ControlPanel 
-            status={instanceStatus} 
-            name={instanceName}
-            wsConnected={wsConnected}
-            backendReady={backendReady}
-          />
+        {/* Top Section: Control and Stats (Constrained Height) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-none h-[45vh] min-h-[380px] max-h-[450px]">
+          {/* Left Main Panel - col-span-8 */}
+          <div className="lg:col-span-7 xl:col-span-8 h-full">
+            <ControlPanel 
+              status={instanceStatus} 
+              name={instanceName}
+              wsConnected={wsConnected}
+              backendReady={backendReady}
+            />
+          </div>
+
+          {/* Right Stats Panel - col-span-4 */}
+          <div className="lg:col-span-5 xl:col-span-4 h-full">
+            <StatsMatrix 
+              points={totalPoints}
+              cpu={cpuUsage}
+              uptime={uptime}
+              network={networkIO}
+              pointsHistory={pointsHistory}
+            />
+          </div>
         </div>
 
-        {/* Right Stats Panel - col-span-4 */}
-        <div className="col-span-4">
-          <StatsMatrix 
-            points={totalPoints}
-            cpu={cpuUsage}
-            uptime={uptime}
-            network={networkIO}
-          />
-        </div>
-
-        {/* Bottom Log Panel - col-span-12 */}
-        <div className="col-span-12">
+        {/* Bottom Section: Log Panel (Fills remaining space) */}
+        <div className="flex-1 min-h-[200px]">
           <TerminalLog logs={logEntries} wsConnected={wsConnected} />
         </div>
 
