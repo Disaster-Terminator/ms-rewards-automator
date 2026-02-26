@@ -53,3 +53,15 @@ class QuerySource(ABC):
             True if available, False otherwise
         """
         pass
+
+    def get_priority(self) -> int:
+        """
+        Return priority (lower value = higher priority)
+
+        Default priority is 100. Subclasses can override this method
+        to provide custom priority values.
+
+        Returns:
+            Priority value
+        """
+        return 100

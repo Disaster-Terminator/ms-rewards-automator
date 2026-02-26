@@ -120,6 +120,10 @@ class DuckDuckGoSource(QuerySource):
         """Return the name of this source"""
         return "duckduckgo"
 
+    def get_priority(self) -> int:
+        """Return priority (lower = higher priority)"""
+        return 50
+
     def is_available(self) -> bool:
         """Check if this source is available"""
         return self._available

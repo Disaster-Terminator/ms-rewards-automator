@@ -102,6 +102,10 @@ class BingSuggestionsSource(QuerySource):
         """Return the name of this source"""
         return "bing_suggestions"
 
+    def get_priority(self) -> int:
+        """Return priority (lower = higher priority)"""
+        return 70
+
     def is_available(self) -> bool:
         """Check if this source is available"""
         return self._available

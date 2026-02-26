@@ -3,11 +3,12 @@
 AI 审查评论管理工具 CLI
 
 用法:
-    python tools/manage_reviews.py fetch --owner OWNER --repo REPO --pr PR_NUMBER
+    python tools/manage_reviews.py fetch --owner OWNER --repo REPO [--pr PR_NUMBER]
     python tools/manage_reviews.py resolve --thread-id THREAD_ID --type RESOLUTION_TYPE [--reply "回复内容"]
     python tools/manage_reviews.py list [--status STATUS] [--source SOURCE] [--format FORMAT]
     python tools/manage_reviews.py overviews
     python tools/manage_reviews.py stats
+    python tools/manage_reviews.py verify-context
 
 环境变量:
     GITHUB_TOKEN: GitHub Personal Access Token (也可通过 .env 文件配置)
@@ -15,6 +16,7 @@ AI 审查评论管理工具 CLI
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -57,7 +59,8 @@ def get_token() -> str:
                 {
                     "success": False,
                     "message": "错误: 未设置 GITHUB_TOKEN 环境变量，请在 .env 文件中配置",
-                }
+                },
+                ensure_ascii=False,
             )
         )
         sys.exit(1)
@@ -164,10 +167,90 @@ def print_threads_table(threads: list[ReviewThreadState], title: str = "审查�
 
 def cmd_fetch(args: argparse.Namespace) -> None:
     """执行 fetch 子命令"""
+    import subprocess
+
+    logger = logging.getLogger(__name__)
     db_path = get_db_path()
+
+    pr_number = args.pr
+    if pr_number is None:
+        try:
+            result = subprocess.run(
+                ["gh", "pr", "view", "--json", "number", "-R", f"{args.owner}/{args.repo}"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                import json as json_module
+
+                pr_data = json_module.loads(result.stdout)
+                pr_number = pr_data.get("number")
+            else:
+                logger.error(f"gh pr view 命令失败: {result.stderr}")
+                print(
+                    json.dumps(
+                        {
+                            "success": False,
+                            "message": "无法自动获取 PR 编号，请使用 --pr 参数指定",
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                return
+        except FileNotFoundError:
+            logger.error("gh 命令未安装")
+            print(
+                json.dumps(
+                    {
+                        "success": False,
+                        "message": "gh 命令未安装，请安装 GitHub CLI 或手动指定 --pr 参数",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return
+        except subprocess.TimeoutExpired:
+            logger.error("gh 命令执行超时")
+            print(
+                json.dumps(
+                    {
+                        "success": False,
+                        "message": "gh 命令执行超时，请检查网络连接或手动指定 --pr 参数",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return
+        except PermissionError:
+            logger.error("gh 命令权限不足")
+            print(
+                json.dumps(
+                    {
+                        "success": False,
+                        "message": "gh 命令权限不足，请检查 GitHub CLI 认证状态或手动指定 --pr 参数",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return
+        except Exception as e:
+            logger.error(f"获取 PR 编号失败: {type(e).__name__}")
+            print(
+                json.dumps(
+                    {"success": False, "message": "获取 PR 编号失败，请使用 --pr 参数指定"},
+                    ensure_ascii=False,
+                )
+            )
+            return
+
+    if pr_number is None:
+        print(json.dumps({"success": False, "message": "未指定 PR 编号"}, ensure_ascii=False))
+        return
+
     resolver = ReviewResolver(token=get_token(), owner=args.owner, repo=args.repo, db_path=db_path)
 
-    result = resolver.fetch_threads(args.pr)
+    result = resolver.fetch_threads(pr_number)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
@@ -354,7 +437,91 @@ def cmd_stats(args: argparse.Namespace) -> None:
         print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
+def cmd_verify_context(args: argparse.Namespace) -> None:
+    """执行 verify-context 子命令 - 验证本地评论是否属于当前分支"""
+    import logging
+    import subprocess
+
+    logger = logging.getLogger(__name__)
+    db_path = get_db_path()
+    manager = ReviewManager(db_path)
+    git_error = None
+
+    try:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            current_branch = result.stdout.strip()
+        else:
+            current_branch = ""
+            git_error = f"git 命令执行失败: {result.stderr}"
+            logger.warning(git_error)
+    except FileNotFoundError:
+        current_branch = ""
+        git_error = "git 命令未找到，请确保已安装 Git"
+        logger.warning(git_error)
+    except subprocess.TimeoutExpired:
+        current_branch = ""
+        git_error = "git 命令执行超时"
+        logger.warning(git_error)
+    except Exception as e:
+        current_branch = ""
+        git_error = f"获取分支信息异常: {e}"
+        logger.warning(git_error)
+
+    metadata = manager.get_metadata()
+
+    if metadata is None:
+        output = {
+            "success": True,
+            "valid": None,
+            "message": "无本地评论数据",
+        }
+    elif not metadata.branch:
+        output = {
+            "success": True,
+            "valid": None,
+            "warning": "旧版本数据，缺少分支信息，跳过验证",
+            "stored_pr": metadata.pr_number,
+        }
+        if git_error:
+            output["git_warning"] = git_error
+    elif current_branch == metadata.branch:
+        output = {
+            "success": True,
+            "valid": True,
+            "current_branch": current_branch,
+            "stored_branch": metadata.branch,
+            "stored_pr": metadata.pr_number,
+            "message": "上下文验证通过",
+        }
+        if git_error:
+            output["git_warning"] = git_error
+    else:
+        output = {
+            "success": True,
+            "valid": False,
+            "current_branch": current_branch,
+            "stored_branch": metadata.branch,
+            "stored_pr": metadata.pr_number,
+            "message": f"分支不匹配：当前分支 {current_branch}，本地数据属于 {metadata.branch} (PR #{metadata.pr_number})",
+            "action": f"请执行 'python tools/manage_reviews.py fetch --owner {metadata.owner} --repo {metadata.repo} --pr <当前分支的PR号>' 重新拉取评论",
+        }
+        if git_error:
+            output["git_warning"] = git_error
+
+    print(json.dumps(output, indent=2, ensure_ascii=False))
+
+
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
     parser = argparse.ArgumentParser(
         description="AI 审查评论管理工具", formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -364,7 +531,9 @@ def main() -> None:
     parser_fetch = subparsers.add_parser("fetch", help="获取 PR 的评论线程")
     parser_fetch.add_argument("--owner", required=True, help="仓库所有者")
     parser_fetch.add_argument("--repo", required=True, help="仓库名称")
-    parser_fetch.add_argument("--pr", type=int, required=True, help="PR 编号")
+    parser_fetch.add_argument(
+        "--pr", type=int, required=False, help="PR 编号（可选，不指定时自动获取当前分支的 PR）"
+    )
     parser_fetch.set_defaults(func=cmd_fetch)
 
     parser_resolve = subparsers.add_parser("resolve", help="解决评论线程")
@@ -407,6 +576,9 @@ def main() -> None:
     )
     parser_stats.set_defaults(func=cmd_stats)
 
+    parser_verify = subparsers.add_parser("verify-context", help="验证本地评论是否属于当前分支")
+    parser_verify.set_defaults(func=cmd_verify_context)
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -416,10 +588,15 @@ def main() -> None:
     try:
         args.func(args)
     except KeyboardInterrupt:
-        print(json.dumps({"success": False, "message": "操作已取消"}))
+        print(json.dumps({"success": False, "message": "操作已取消"}, ensure_ascii=False))
         sys.exit(130)
     except Exception:
-        print(json.dumps({"success": False, "message": "操作失败，请检查日志获取详细信息"}))
+        print(
+            json.dumps(
+                {"success": False, "message": "操作失败，请检查日志获取详细信息"},
+                ensure_ascii=False,
+            )
+        )
         sys.exit(1)
 
 
