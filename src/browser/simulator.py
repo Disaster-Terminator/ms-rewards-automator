@@ -11,6 +11,7 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 
 from browser.anti_focus_scripts import AntiFocusScripts
 from browser.state_manager import BrowserStateManager
+from constants import BING_URLS
 
 logger = logging.getLogger(__name__)
 
@@ -374,7 +375,7 @@ class BrowserSimulator:
                 logger.debug("尝试在新上下文中恢复主题设置...")
                 # 导航到Bing首页以便应用主题
                 await main_page.goto(
-                    "https://www.bing.com", wait_until="domcontentloaded", timeout=10000
+                    BING_URLS["home"], wait_until="domcontentloaded", timeout=10000
                 )
                 await asyncio.sleep(1)  # 等待页面稳定
 

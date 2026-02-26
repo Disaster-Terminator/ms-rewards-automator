@@ -11,6 +11,7 @@ from pathlib import Path
 
 from playwright.async_api import BrowserContext, Page
 
+from constants import BING_URLS, LOGIN_URLS, REWARDS_URLS
 from login.edge_popup_handler import EdgePopupHandler
 from login.handlers import (
     AuthBlockedHandler,
@@ -42,7 +43,7 @@ class AccountManager:
         """
         self.config = config
         self.storage_state_path = config.get("account.storage_state_path", "storage_state.json")
-        self.login_url = config.get("account.login_url", "https://rewards.microsoft.com/")
+        self.login_url = config.get("account.login_url", REWARDS_URLS["rewards_home"])
 
         # 初始化登录检测器（向后兼容）
         self.login_detector = LoginDetector(config)
@@ -336,7 +337,7 @@ class AccountManager:
 
         # 直接导航到 Microsoft 登录页面（使用通用登录页，而不是 rewards 页面）
         # rewards 页面需要登录后才能访问，会返回 HTTP 错误
-        manual_login_url = "https://login.live.com"
+        manual_login_url = LOGIN_URLS["microsoft_login"]
 
         try:
             logger.info(f"导航到登录页面: {manual_login_url}")
@@ -486,9 +487,7 @@ class AccountManager:
                 logger.info("检测到 OAuth 回调页面，登录可能已完成")
                 logger.info("尝试导航到 Bing 首页验证登录状态...")
                 try:
-                    await page.goto(
-                        "https://www.bing.com", wait_until="domcontentloaded", timeout=15000
-                    )
+                    await page.goto(BING_URLS["home"], wait_until="domcontentloaded", timeout=15000)
                     await asyncio.sleep(2)
                     current_url = page.url.lower()
                     logger.info(f"已导航到: {current_url}")
@@ -502,9 +501,7 @@ class AccountManager:
 
                 # 导航到 Bing 以便检测登录状态
                 try:
-                    await page.goto(
-                        "https://www.bing.com", wait_until="domcontentloaded", timeout=15000
-                    )
+                    await page.goto(BING_URLS["home"], wait_until="domcontentloaded", timeout=15000)
                     logger.debug(f"已导航到 Bing: {page.url}")
 
                     # 等待页面完全加载
@@ -570,7 +567,9 @@ class AccountManager:
             # 也不要点击 Bing 登录按钮（会触发 Edge 弹窗）
             # 直接导航到 Microsoft 登录页面
             logger.info("直接导航到 Microsoft 登录页面...")
-            await page.goto("https://login.live.com", wait_until="domcontentloaded", timeout=30000)
+            await page.goto(
+                LOGIN_URLS["microsoft_login"], wait_until="domcontentloaded", timeout=30000
+            )
 
             # 等待页面完全加载
             await page.wait_for_load_state("networkidle", timeout=10000)

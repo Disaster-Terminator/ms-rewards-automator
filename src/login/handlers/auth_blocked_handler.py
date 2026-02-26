@@ -8,6 +8,8 @@ This occurs when Microsoft's anti-automation system blocks the login attempt.
 import asyncio
 from typing import Any
 
+from constants import LOGIN_URLS
+
 from ..login_state_machine import LoginState
 from ..state_handler import StateHandler
 
@@ -93,7 +95,7 @@ class AuthBlockedHandler(StateHandler):
 
         # Navigate back to login page to restart
         try:
-            await page.goto("https://login.live.com", wait_until="domcontentloaded")
+            await page.goto(LOGIN_URLS["microsoft_login"], wait_until="domcontentloaded")
             self.logger.info("Navigated back to login page for retry")
         except Exception as e:
             self.logger.error(f"Failed to navigate to login page: {e}")

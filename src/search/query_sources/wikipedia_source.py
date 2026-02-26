@@ -6,13 +6,15 @@ import random
 
 import aiohttp
 
+from constants import QUERY_SOURCE_URLS
+
 from .query_source import QuerySource
 
 
 class WikipediaSource(QuerySource):
     """Query source that fetches trending topics from Wikipedia API"""
 
-    API_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+    API_URL = QUERY_SOURCE_URLS["wikipedia_summary"]
 
     TRENDING_TOPICS = [
         "Artificial_intelligence",
@@ -42,7 +44,7 @@ class WikipediaSource(QuerySource):
         "OpenAI",
     ]
 
-    RANDOM_URL = "https://en.wikipedia.org/api/rest_v1/page/random/summary"
+    RANDOM_URL = QUERY_SOURCE_URLS["wikipedia_random"]
 
     def __init__(self, config):
         """

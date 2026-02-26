@@ -12,6 +12,8 @@ from typing import Any
 
 from playwright.async_api import BrowserContext, Page
 
+from constants import BING_URLS
+
 logger = logging.getLogger(__name__)
 
 
@@ -427,7 +429,7 @@ class BingThemeManager:
                     break
 
             if not bing_origin:
-                bing_origin = {"origin": "https://www.bing.com", "localStorage": []}
+                bing_origin = {"origin": BING_URLS["origin"], "localStorage": []}
                 storage_state["origins"].append(bing_origin)
 
             if "localStorage" not in bing_origin:

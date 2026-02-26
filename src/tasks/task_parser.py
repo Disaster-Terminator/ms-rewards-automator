@@ -8,6 +8,7 @@ import logging
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 
+from constants import REWARDS_URLS
 from tasks.task_base import TaskMetadata
 
 _DEFAULT_SKIP_HREFS = [
@@ -53,7 +54,7 @@ class TaskParser:
 
     TASK_SECTIONS = ["section#streaks", "section#offers", "section#snapshot", "section#dailyset"]
 
-    EARN_URL = "https://rewards.bing.com/earn"
+    EARN_URL = REWARDS_URLS["earn"]
 
     def __init__(self, config=None):
         self.logger = logging.getLogger(__name__)
@@ -190,7 +191,7 @@ class TaskParser:
                 if "dashboard" not in current_url:
                     self.logger.info("导航到dashboard...")
                     await page.goto(
-                        "https://rewards.bing.com/dashboard",
+                        REWARDS_URLS["dashboard_explicit"],
                         wait_until="networkidle",
                         timeout=60000,
                     )

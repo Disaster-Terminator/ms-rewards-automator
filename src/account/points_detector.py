@@ -8,13 +8,15 @@ import re
 
 from playwright.async_api import Page
 
+from constants import REWARDS_URLS
+
 logger = logging.getLogger(__name__)
 
 
 class PointsDetector:
     """积分检测器类"""
 
-    DASHBOARD_URL = "https://rewards.bing.com/"
+    DASHBOARD_URL = REWARDS_URLS["dashboard"]
 
     POINTS_SELECTORS = [
         "p.text-title1.font-semibold",

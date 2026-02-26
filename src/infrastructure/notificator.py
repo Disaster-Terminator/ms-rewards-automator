@@ -8,6 +8,8 @@ from datetime import datetime
 
 import aiohttp
 
+from constants import NOTIFICATION_URLS
+
 logger = logging.getLogger(__name__)
 
 
@@ -67,7 +69,7 @@ class Notificator:
             logger.debug("Telegram 未配置，跳过发送")
             return False
 
-        url = f"https://api.telegram.org/bot{self.telegram_bot_token}/sendMessage"
+        url = NOTIFICATION_URLS["telegram_api"].format(token=self.telegram_bot_token)
 
         payload = {"chat_id": self.telegram_chat_id, "text": message, "parse_mode": "Markdown"}
 
@@ -100,7 +102,7 @@ class Notificator:
             logger.debug("Server酱 未配置，跳过发送")
             return False
 
-        url = f"https://sctapi.ftqq.com/{self.serverchan_key}.send"
+        url = NOTIFICATION_URLS["serverchan"].format(key=self.serverchan_key)
 
         payload = {"title": title, "desp": content}
 
@@ -137,8 +139,7 @@ class Notificator:
             logger.debug("WhatsApp 未配置，跳过发送")
             return False
 
-        # CallMeBot API
-        url = "https://api.callmebot.com/whatsapp.php"
+        url = NOTIFICATION_URLS["callmebot_whatsapp"]
 
         params = {"phone": self.whatsapp_phone, "text": message, "apikey": self.whatsapp_apikey}
 

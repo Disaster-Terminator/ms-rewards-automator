@@ -8,13 +8,15 @@ from urllib.parse import quote
 
 import aiohttp
 
+from constants import QUERY_SOURCE_URLS
+
 logger = logging.getLogger(__name__)
 
 
 class BingAPIClient:
     """Client for Bing Suggestions API (no authentication required)"""
 
-    SUGGESTIONS_URL = "https://api.bing.com/osjson.aspx"
+    SUGGESTIONS_URL = QUERY_SOURCE_URLS["bing_suggestions"]
 
     def __init__(self, config):
         """

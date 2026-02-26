@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from constants import REWARDS_URLS
+
 
 class DeviceType(Enum):
     """设备类型"""
@@ -54,7 +56,7 @@ class AccountConfig:
     """账户配置"""
 
     storage_state_path: str = "storage_state.json"
-    login_url: str = "https://rewards.microsoft.com/"
+    login_url: str = REWARDS_URLS["rewards_home"]
 
 
 @dataclass

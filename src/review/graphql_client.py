@@ -4,6 +4,8 @@ from typing import Any
 
 import httpx
 
+from constants import GITHUB_URLS
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,8 +14,8 @@ class GraphQLClient:
 
     def __init__(self, token: str, max_retries: int = 3, base_delay: float = 1.0):
         self.token = token
-        self.endpoint = "https://api.github.com/graphql"
-        self.rest_endpoint = "https://api.github.com"
+        self.endpoint = GITHUB_URLS["graphql"]
+        self.rest_endpoint = GITHUB_URLS["rest"]
         self.headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         self.max_retries = max_retries
         self.base_delay = base_delay

@@ -8,6 +8,8 @@ AppConfig - 类型化配置模型
 from dataclasses import dataclass, field
 from typing import Any
 
+from constants import REWARDS_URLS
+
 
 @dataclass
 class SearchConfig:
@@ -36,7 +38,7 @@ class AccountConfig:
     """账户配置"""
 
     storage_state_path: str = "storage_state.json"
-    login_url: str = "https://rewards.microsoft.com/"
+    login_url: str = REWARDS_URLS["rewards_home"]
     email: str = ""
     password: str = ""
     totp_secret: str = ""
@@ -298,7 +300,7 @@ class AppConfig:
                 storage_state_path=get_nested(
                     account_dict, "storage_state_path", "storage_state.json"
                 ),
-                login_url=get_nested(account_dict, "login_url", "https://rewards.microsoft.com/"),
+                login_url=get_nested(account_dict, "login_url", REWARDS_URLS["rewards_home"]),
                 email=get_nested(account_dict, "email", ""),
                 password=get_nested(account_dict, "password", ""),
                 totp_secret=get_nested(account_dict, "totp_secret", ""),

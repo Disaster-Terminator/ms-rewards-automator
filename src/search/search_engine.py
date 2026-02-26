@@ -14,6 +14,7 @@ from typing import Protocol
 from playwright.async_api import Page
 
 from browser.element_detector import ElementDetector
+from constants import BING_URLS
 from login.human_behavior_simulator import HumanBehaviorSimulator
 from ui.bing_theme_manager import BingThemeManager
 from ui.cookie_handler import CookieHandler
@@ -40,7 +41,7 @@ class StatusManagerProtocol(Protocol):
 class SearchEngine:
     """搜索引擎类"""
 
-    BING_URL = "https://www.bing.com"
+    BING_URL = BING_URLS["home"]
 
     def __init__(
         self,

@@ -21,6 +21,7 @@ from typing import Any
 
 from account.manager import AccountManager
 from browser.simulator import BrowserSimulator
+from constants import BING_URLS
 from infrastructure.error_handler import ErrorHandler
 from infrastructure.health_monitor import HealthMonitor
 from infrastructure.notificator import Notificator
@@ -291,7 +292,7 @@ class MSRewardsApp:
                 if "login" in current_url.lower() or "oauth" in current_url.lower():
                     self.logger.info("  页面仍在登录页面，导航到 Bing...")
                     await self.page.goto(
-                        "https://www.bing.com", wait_until="domcontentloaded", timeout=30000
+                        BING_URLS["home"], wait_until="domcontentloaded", timeout=30000
                     )
             except Exception as e:
                 self.logger.warning(f"  导航到 Bing 失败: {e}")

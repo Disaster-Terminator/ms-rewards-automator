@@ -6,13 +6,15 @@ import random
 
 import aiohttp
 
+from constants import QUERY_SOURCE_URLS
+
 from .query_source import QuerySource
 
 
 class DuckDuckGoSource(QuerySource):
     """Query source that fetches suggestions from DuckDuckGo API"""
 
-    API_URL = "https://duckduckgo.com/ac/"
+    API_URL = QUERY_SOURCE_URLS["duckduckgo"]
 
     SEED_QUERIES = [
         "how to",

@@ -14,6 +14,8 @@ from typing import Any
 
 import psutil
 
+from constants import HEALTH_CHECK_URLS
+
 logger = logging.getLogger(__name__)
 
 
@@ -235,9 +237,9 @@ class HealthMonitor:
 
             # 测试关键网站连接
             test_urls = [
-                "https://www.bing.com",
-                "https://rewards.microsoft.com",
-                "https://www.google.com",  # 备用测试
+                HEALTH_CHECK_URLS["bing"],
+                HEALTH_CHECK_URLS["rewards"],
+                HEALTH_CHECK_URLS["google"],
             ]
 
             successful_connections = 0

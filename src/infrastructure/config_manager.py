@@ -9,6 +9,8 @@ from typing import Any
 
 import yaml
 
+from constants import REWARDS_URLS
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,7 @@ DEFAULT_CONFIG = {
     },
     "account": {
         "storage_state_path": "storage_state.json",
-        "login_url": "https://rewards.microsoft.com/",
+        "login_url": REWARDS_URLS["rewards_home"],
     },
     "login": {
         "state_machine_enabled": True,
