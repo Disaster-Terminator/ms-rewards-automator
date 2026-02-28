@@ -8,7 +8,7 @@ version = "1.0.0"
 requires-python = ">=3.10"
 dependencies = [
     "playwright>=1.49.0",
-    "playwright-stealth>=1.0.6",
+    "playwright-stealth>=1.0.6,<2.0",
     "pyyaml>=6.0.1",
     "aiohttp>=3.11.0",
     "beautifulsoup4>=4.12.3",
@@ -35,17 +35,7 @@ dev = [
     "pytest-xdist>=3.5.0",
     "hypothesis>=6.125.0",
     "faker>=35.0.0",
-]
-test = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.24.0",
-    "pytest-playwright>=0.5.0",
-    "pytest-benchmark>=5.0.0",
-    "pytest-cov>=6.0.0",
-    "pytest-timeout>=2.3.0",
-    "pytest-xdist>=3.5.0",
-    "hypothesis>=6.125.0",
-    "faker>=35.0.0",
+    "respx>=0.21.0",
 ]
 viz = [
     "streamlit>=1.41.0",

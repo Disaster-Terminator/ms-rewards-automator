@@ -366,3 +366,296 @@ class TestConfigKeys:
         config.get = MagicMock(side_effect=mock_get)
         source = WikipediaSource(config)
         assert source.timeout == 15
+
+
+class TestWikipediaTopViewsSource:
+    """Test Wikipedia Top Views query source"""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create mock config"""
+        config = MagicMock()
+        config.get = MagicMock(return_value=30)
+        return config
+
+    @pytest.fixture
+    def wikipedia_top_views_source(self, mock_config):
+        """Create Wikipedia Top Views source"""
+        from search.query_sources.wikipedia_top_views_source import WikipediaTopViewsSource
+
+        return WikipediaTopViewsSource(mock_config)
+
+    def test_source_initialization(self, wikipedia_top_views_source):
+        """Test source initialization"""
+        assert wikipedia_top_views_source is not None
+        assert wikipedia_top_views_source.get_source_name() == "wikipedia_top_views"
+        assert wikipedia_top_views_source.is_available() is True
+
+    def test_get_priority(self, wikipedia_top_views_source):
+        """Test get_priority returns 120"""
+        assert wikipedia_top_views_source.get_priority() == 120
+
+    def test_excluded_prefixes_exist(self, wikipedia_top_views_source):
+        """Test that excluded prefixes are defined"""
+        assert len(wikipedia_top_views_source.EXCLUDED_PREFIXES) > 0
+        assert "Main_Page" in wikipedia_top_views_source.EXCLUDED_PREFIXES
+        assert "Special:" in wikipedia_top_views_source.EXCLUDED_PREFIXES
+
+    def test_cache_stats_initial(self, wikipedia_top_views_source):
+        """Test initial cache stats"""
+        stats = wikipedia_top_views_source.get_cache_stats()
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+        assert stats["hit_rate"] == 0
+
+    @pytest.mark.asyncio
+    async def test_fetch_queries_returns_list(self, wikipedia_top_views_source):
+        """Test that fetch_queries returns a list with mocked HTTP"""
+        mock_session = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            return_value={
+                "items": [
+                    {
+                        "articles": [
+                            {"article": "Python_(programming_language)"},
+                            {"article": "Main_Page"},
+                            {"article": "Artificial_intelligence"},
+                        ]
+                    }
+                ]
+            }
+        )
+        mock_context = AsyncMock()
+        mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_context.__aexit__ = AsyncMock(return_value=None)
+        mock_session.get = MagicMock(return_value=mock_context)
+        mock_session.closed = False
+
+        wikipedia_top_views_source._session = mock_session
+
+        queries = await wikipedia_top_views_source.fetch_queries(5)
+        assert isinstance(queries, list)
+
+    @pytest.mark.asyncio
+    async def test_fetch_queries_filters_excluded_articles(self, wikipedia_top_views_source):
+        """Test that fetch_queries filters out excluded articles"""
+        mock_session = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            return_value={
+                "items": [
+                    {
+                        "articles": [
+                            {"article": "Main_Page"},
+                            {"article": "Special:Search"},
+                            {"article": "Valid_Article"},
+                        ]
+                    }
+                ]
+            }
+        )
+        mock_context = AsyncMock()
+        mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_context.__aexit__ = AsyncMock(return_value=None)
+        mock_session.get = MagicMock(return_value=mock_context)
+        mock_session.closed = False
+
+        wikipedia_top_views_source._session = mock_session
+
+        queries = await wikipedia_top_views_source.fetch_queries(10)
+        assert "Main Page" not in queries
+        assert "Special:Search" not in queries
+        assert "Valid Article" in queries
+
+    @pytest.mark.asyncio
+    async def test_fetch_queries_handles_error(self, wikipedia_top_views_source):
+        """Test that fetch_queries handles HTTP errors gracefully"""
+        mock_session = AsyncMock()
+        mock_session.get = AsyncMock(side_effect=Exception("Network error"))
+        mock_session.closed = False
+
+        wikipedia_top_views_source._session = mock_session
+
+        queries = await wikipedia_top_views_source.fetch_queries(5)
+        assert isinstance(queries, list)
+        assert len(queries) == 0
+
+    @pytest.mark.asyncio
+    async def test_fetch_queries_handles_non_200_status(self, wikipedia_top_views_source):
+        """Test that fetch_queries handles non-200 status codes"""
+        mock_session = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.status = 500
+        mock_context = AsyncMock()
+        mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_context.__aexit__ = AsyncMock(return_value=None)
+        mock_session.get = MagicMock(return_value=mock_context)
+        mock_session.closed = False
+
+        wikipedia_top_views_source._session = mock_session
+
+        queries = await wikipedia_top_views_source.fetch_queries(5)
+        assert isinstance(queries, list)
+
+    @pytest.mark.asyncio
+    async def test_cache_hit(self, wikipedia_top_views_source):
+        """Test that cache is used on second call"""
+        mock_session = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            return_value={
+                "items": [
+                    {
+                        "articles": [
+                            {"article": "Test_Article"},
+                        ]
+                    }
+                ]
+            }
+        )
+        mock_context = AsyncMock()
+        mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_context.__aexit__ = AsyncMock(return_value=None)
+        mock_session.get = MagicMock(return_value=mock_context)
+        mock_session.closed = False
+
+        wikipedia_top_views_source._session = mock_session
+
+        await wikipedia_top_views_source.fetch_queries(5)
+        stats_after_first = wikipedia_top_views_source.get_cache_stats()
+        assert stats_after_first["misses"] == 1
+
+        await wikipedia_top_views_source.fetch_queries(5)
+        stats_after_second = wikipedia_top_views_source.get_cache_stats()
+        assert stats_after_second["hits"] == 1
+
+    @pytest.mark.asyncio
+    async def test_close_session(self, wikipedia_top_views_source):
+        """Test that close() properly closes the session"""
+        mock_session = AsyncMock()
+        mock_session.closed = False
+        wikipedia_top_views_source._session = mock_session
+
+        await wikipedia_top_views_source.close()
+        mock_session.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_close_handles_none_session(self, wikipedia_top_views_source):
+        """Test that close() handles None session gracefully"""
+        wikipedia_top_views_source._session = None
+        await wikipedia_top_views_source.close()
+
+
+class TestSourceAvailabilitySkip:
+    """Test that sources with is_available()=False are skipped"""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create mock config"""
+        config = MagicMock()
+        config.get = MagicMock(return_value=15)
+        return config
+
+    def test_duckduckgo_unavailable_not_added(self, mock_config):
+        """Test DuckDuckGo source not added when unavailable"""
+        source = DuckDuckGoSource(mock_config)
+        source._available = False
+
+        assert source.is_available() is False
+
+    def test_wikipedia_unavailable_not_added(self, mock_config):
+        """Test Wikipedia source not added when unavailable"""
+        source = WikipediaSource(mock_config)
+        source._available = False
+
+        assert source.is_available() is False
+
+    def test_wikipedia_top_views_unavailable_not_added(self, mock_config):
+        """Test WikipediaTopViewsSource not added when unavailable"""
+        from search.query_sources.wikipedia_top_views_source import WikipediaTopViewsSource
+
+        source = WikipediaTopViewsSource(mock_config)
+        source._available = False
+
+        assert source.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_source_returns_empty_when_unavailable(self, mock_config):
+        """Test that fetch_queries returns empty list when unavailable"""
+        source = DuckDuckGoSource(mock_config)
+        source._available = False
+
+        mock_session = AsyncMock()
+        mock_session.closed = False
+        source._session = mock_session
+
+        result = await source.fetch_queries(5)
+        assert result == []
+
+
+class TestQuerySourcePriority:
+    """Test query source priority ordering"""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create mock config"""
+        config = MagicMock()
+        config.get = MagicMock(return_value=15)
+        return config
+
+    def test_local_file_source_priority(self, mock_config):
+        """Test LocalFileSource priority is 100"""
+        from search.query_sources.local_file_source import LocalFileSource
+
+        source = LocalFileSource(mock_config)
+        assert source.get_priority() == 100
+
+    def test_wikipedia_top_views_priority(self, mock_config):
+        """Test WikipediaTopViewsSource priority is 120"""
+        from search.query_sources.wikipedia_top_views_source import WikipediaTopViewsSource
+
+        source = WikipediaTopViewsSource(mock_config)
+        assert source.get_priority() == 120
+
+    def test_duckduckgo_priority(self, mock_config):
+        """Test DuckDuckGoSource priority is 50"""
+        source = DuckDuckGoSource(mock_config)
+        assert source.get_priority() == 50
+
+    def test_wikipedia_priority(self, mock_config):
+        """Test WikipediaSource priority is 60"""
+        source = WikipediaSource(mock_config)
+        assert source.get_priority() == 60
+
+    def test_bing_suggestions_priority(self, mock_config):
+        """Test BingSuggestionsSource priority is 70"""
+        from search.query_sources.bing_suggestions_source import BingSuggestionsSource
+
+        source = BingSuggestionsSource(mock_config)
+        assert source.get_priority() == 70
+
+    def test_sources_sort_by_priority(self, mock_config):
+        """Test that sources can be sorted by priority"""
+        from search.query_sources.bing_suggestions_source import BingSuggestionsSource
+        from search.query_sources.local_file_source import LocalFileSource
+        from search.query_sources.wikipedia_top_views_source import WikipediaTopViewsSource
+
+        sources = [
+            BingSuggestionsSource(mock_config),
+            WikipediaSource(mock_config),
+            LocalFileSource(mock_config),
+            DuckDuckGoSource(mock_config),
+            WikipediaTopViewsSource(mock_config),
+        ]
+
+        sources.sort(key=lambda s: s.get_priority())
+
+        assert sources[0].get_source_name() == "duckduckgo"
+        assert sources[1].get_source_name() == "wikipedia"
+        assert sources[2].get_source_name() == "bing_suggestions"
+        assert sources[3].get_source_name() == "local_file"
+        assert sources[4].get_source_name() == "wikipedia_top_views"

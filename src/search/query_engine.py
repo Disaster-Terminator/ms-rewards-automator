@@ -96,8 +96,11 @@ class QueryEngine:
         if self.config.get("query_engine.sources.duckduckgo.enabled", True):
             try:
                 ddg_source = DuckDuckGoSource(self.config)
-                self.sources.append(ddg_source)
-                self.logger.info("✓ DuckDuckGoSource enabled")
+                if ddg_source.is_available():
+                    self.sources.append(ddg_source)
+                    self.logger.info("✓ DuckDuckGoSource enabled")
+                else:
+                    self.logger.warning("DuckDuckGoSource not available")
             except Exception as e:
                 self.logger.error(f"Failed to initialize DuckDuckGoSource: {e}")
         else:
@@ -106,12 +109,32 @@ class QueryEngine:
         if self.config.get("query_engine.sources.wikipedia.enabled", True):
             try:
                 wiki_source = WikipediaSource(self.config)
-                self.sources.append(wiki_source)
-                self.logger.info("✓ WikipediaSource enabled")
+                if wiki_source.is_available():
+                    self.sources.append(wiki_source)
+                    self.logger.info("✓ WikipediaSource enabled")
+                else:
+                    self.logger.warning("WikipediaSource not available")
             except Exception as e:
                 self.logger.error(f"Failed to initialize WikipediaSource: {e}")
         else:
             self.logger.info("WikipediaSource disabled in config")
+
+        if self.config.get("query_engine.sources.wikipedia_top_views.enabled", True):
+            try:
+                from .query_sources import WikipediaTopViewsSource
+
+                wiki_top_views_source = WikipediaTopViewsSource(self.config)
+                if wiki_top_views_source.is_available():
+                    self.sources.append(wiki_top_views_source)
+                    self.logger.info("✓ WikipediaTopViewsSource enabled")
+                else:
+                    self.logger.warning("WikipediaTopViewsSource not available")
+            except ImportError as e:
+                self.logger.error(f"WikipediaTopViewsSource module not found: {e}")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize WikipediaTopViewsSource: {e}")
+        else:
+            self.logger.info("WikipediaTopViewsSource disabled in config")
 
         if self.config.get("query_engine.sources.bing_suggestions.enabled", True):
             try:
@@ -126,6 +149,8 @@ class QueryEngine:
         else:
             self.logger.info("BingSuggestionsSource disabled in config")
 
+        self.sources.sort(key=lambda s: s.get_priority())
+
     async def generate_queries(self, count: int, expand: bool = True) -> list[str]:
         """
         Generate a list of unique search queries
@@ -137,6 +162,8 @@ class QueryEngine:
         Returns:
             List of unique query strings
         """
+        self._query_sources.clear()
+
         # Check cache first
         cache_key = f"queries_{count}_{expand}"
         cached = self.cache.get(cache_key)
@@ -193,7 +220,7 @@ class QueryEngine:
                 source_name = self.sources[i].get_source_name()
                 for query in result:
                     normalized = query.lower().strip()
-                    if normalized:
+                    if normalized and normalized not in self._query_sources:
                         self._query_sources[normalized] = source_name
                 all_queries.extend(result)
                 self.logger.debug(f"Source {source_name} returned {len(result)} queries")
@@ -230,7 +257,11 @@ class QueryEngine:
                 ]:
                     normalized = suggestion.lower().strip()
                     # Only add if not already in original queries or expanded list
-                    if normalized and normalized not in existing_queries:
+                    if (
+                        normalized
+                        and normalized not in existing_queries
+                        and normalized not in self._query_sources
+                    ):
                         self._query_sources[normalized] = "bing_suggestions"
                         existing_queries.add(normalized)
                         expanded.append(suggestion)

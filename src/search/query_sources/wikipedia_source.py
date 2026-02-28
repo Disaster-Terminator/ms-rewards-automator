@@ -171,6 +171,10 @@ class WikipediaSource(QuerySource):
         """Return the name of this source"""
         return "wikipedia"
 
+    def get_priority(self) -> int:
+        """Return priority (lower = higher priority)"""
+        return 60
+
     def is_available(self) -> bool:
         """Check if this source is available"""
         return self._available

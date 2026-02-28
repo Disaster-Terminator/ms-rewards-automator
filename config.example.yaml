@@ -57,6 +57,11 @@ query_engine:
     wikipedia:
       enabled: true # Wikipedia 热门话题
       timeout: 15 # 超时（秒）
+    wikipedia_top_views:
+      enabled: true # Wikipedia 热门浏览（真实热搜数据）
+      timeout: 30 # 超时（秒）
+      lang: "en" # 语言
+      ttl: 21600 # 缓存 TTL（秒，默认 6 小时）
     bing_suggestions:
       enabled: true # Bing 建议API
   bing_api:

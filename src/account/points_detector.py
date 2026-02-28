@@ -8,7 +8,7 @@ import re
 
 from playwright.async_api import Page
 
-from constants import REWARDS_URLS
+from api.dashboard_client import DashboardClient
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class PointsDetector:
     """积分检测器类"""
 
-    DASHBOARD_URL = REWARDS_URLS["dashboard"]
+    DASHBOARD_URL = "https://rewards.bing.com/"
 
     POINTS_SELECTORS = [
         "p.text-title1.font-semibold",
@@ -90,11 +90,25 @@ class PointsDetector:
                 logger.debug("跳过导航，使用当前页面")
                 await page.wait_for_timeout(1000)
 
+            # 优先使用 Dashboard API
+            try:
+                logger.debug("尝试使用 Dashboard API 获取积分...")
+                client = DashboardClient(page)
+                api_points: int | None = await client.get_current_points()
+                if api_points is not None and api_points >= 0:
+                    logger.debug(f"✓ 从 API 获取积分: {api_points:,}")
+                    return int(api_points)
+            except Exception as e:
+                logger.warning(
+                    f"API 获取积分失败（{type(e).__name__}: {e}），使用 HTML 解析作为备用"
+                )
+
+            # 备用：HTML 解析
             logger.debug("尝试从页面源码提取积分...")
             points = await self._extract_points_from_source(page)
 
             if points is not None:
-                logger.info(f"✓ 从源码提取积分: {points:,}")
+                logger.debug(f"✓ 从源码提取积分: {points:,}")
                 return points
 
             logger.debug("源码提取失败，尝试选择器...")
@@ -107,13 +121,14 @@ class PointsDetector:
                         points_text = await element.text_content()
                         logger.debug(f"找到积分文本: {points_text}")
 
-                        points = self._parse_points(points_text)
+                        if points_text:
+                            points = self._parse_points(points_text)
 
-                        if points is not None and points >= 100:
-                            logger.info(f"✓ 当前积分: {points:,}")
-                            return points
-                        elif points is not None:
-                            logger.debug(f"积分值太小，可能是误识别: {points}")
+                            if points is not None and points >= 100:
+                                logger.debug(f"✓ 当前积分: {points:,}")
+                                return points
+                            elif points is not None:
+                                logger.debug(f"积分值太小，可能是误识别: {points}")
 
                 except Exception as e:
                     logger.debug(f"选择器 {selector} 失败: {e}")
@@ -143,7 +158,7 @@ class PointsDetector:
         Returns:
             积分数量，失败返回 None
         """
-        if not text:
+        if not text or not text.strip():
             return None
 
         try:
@@ -310,7 +325,12 @@ class PointsDetector:
         Returns:
             任务状态字典
         """
-        status = {"found": False, "completed": False, "progress": None, "max_progress": None}
+        status: dict[str, bool | int | None] = {
+            "found": False,
+            "completed": False,
+            "progress": None,
+            "max_progress": None,
+        }
 
         try:
             for selector in selectors:
@@ -338,10 +358,12 @@ class PointsDetector:
                             # 查找类似 "15/30" 的进度
                             progress_match = re.search(r"(\d+)\s*/\s*(\d+)", text)
                             if progress_match:
-                                status["progress"] = int(progress_match.group(1))
-                                status["max_progress"] = int(progress_match.group(2))
+                                progress_val = int(progress_match.group(1))
+                                max_progress_val = int(progress_match.group(2))
+                                status["progress"] = progress_val
+                                status["max_progress"] = max_progress_val
 
-                                if status["progress"] >= status["max_progress"]:
+                                if progress_val >= max_progress_val:
                                     status["completed"] = True
 
                         logger.debug(f"{task_name} 状态: {status}")

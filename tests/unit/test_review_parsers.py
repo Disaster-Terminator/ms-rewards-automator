@@ -205,7 +205,7 @@ class TestReviewMetadata:
         assert metadata.pr_number == 123
         assert metadata.owner == "test-owner"
         assert metadata.repo == "test-repo"
-        assert metadata.version == "2.2"
+        assert metadata.version == "2.3"
         assert metadata.etag_comments is None
 
 

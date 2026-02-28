@@ -1,4 +1,5 @@
 import logging
+import subprocess
 
 from .comment_manager import ReviewManager
 from .graphql_client import GraphQLClient
@@ -13,6 +14,34 @@ from .models import (
 from .parsers import ReviewParser
 
 logger = logging.getLogger(__name__)
+
+
+def get_git_branch() -> str:
+    """获取当前 git 分支名称"""
+    try:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+def get_git_head_sha() -> str:
+    """获取当前 HEAD commit SHA（前7位）"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except Exception:
+        return ""
 
 
 class ReviewResolver:
@@ -150,7 +179,16 @@ class ReviewResolver:
 
             threads = self._inject_sourcery_types(threads)
 
-            metadata = ReviewMetadata(pr_number=pr_number, owner=self.owner, repo=self.repo)
+            branch = get_git_branch()
+            head_sha = get_git_head_sha()
+
+            metadata = ReviewMetadata(
+                pr_number=pr_number,
+                owner=self.owner,
+                repo=self.repo,
+                branch=branch,
+                head_sha=head_sha,
+            )
 
             self.manager.save_threads(threads, metadata)
             self.manager.save_overviews(overviews, metadata)

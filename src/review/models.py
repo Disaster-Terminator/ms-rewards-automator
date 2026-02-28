@@ -118,8 +118,10 @@ class ReviewMetadata(BaseModel):
     pr_number: int
     owner: str
     repo: str
+    branch: str = Field(default="", description="拉取评论时的分支名称")
+    head_sha: str = Field(default="", description="拉取评论时的 HEAD commit SHA（前7位）")
     last_updated: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-    version: str = "2.2"
+    version: str = "2.3"
     etag_comments: str | None = Field(None, description="GitHub ETag，用于条件请求")
     etag_reviews: str | None = Field(None, description="Reviews ETag")
 

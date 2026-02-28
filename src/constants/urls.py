@@ -37,6 +37,8 @@ LOGIN_URLS = {
 
 API_ENDPOINTS = {
     "dashboard": "https://rewards.bing.com/api/getuserinfo",
+    "dashboard_balance": "/api/getuserbalance",
+    "dashboard_data": "/api/dashboard",
     "report_activity": "https://rewards.bing.com/api/reportactivity",
     "quiz": "https://www.bing.com/bingqa/ReportActivity",
     "app_dashboard": "https://prod.rewardsplatform.microsoft.com/dapi/me",
