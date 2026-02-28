@@ -15,6 +15,7 @@ dependencies = [
     "lxml>=5.3.0",
     "psutil>=6.1.0",
     "pyotp>=2.9.0",
+    "httpx>=0.28.0",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +24,7 @@ dev = [
     "mypy>=1.14.0",
     "pydantic>=2.9.0",
     "httpx>=0.28.0",
+    "respx>=0.21.0",
     "tinydb>=4.8.0",
     "filelock>=3.15.0",
     "rich>=13.0.0",
@@ -46,6 +48,8 @@ test = [
     "pytest-xdist>=3.5.0",
     "hypothesis>=6.125.0",
     "faker>=35.0.0",
+    "httpx>=0.28.0",
+    "respx>=0.21.0",
 ]
 viz = [
     "streamlit>=1.41.0",
@@ -84,7 +88,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["src", "infrastructure", "browser", "login", "search", "account", "tasks", "ui"]
+known-first-party = ["src", "infrastructure", "browser", "login", "search", "account", "tasks", "ui", "api", "constants"]
 
 [tool.ruff.format]
 quote-style = "double"

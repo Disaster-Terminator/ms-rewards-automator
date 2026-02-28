@@ -87,5 +87,6 @@ screenshots/*.html
 
 # Trae 规格和文档
 .trae/spec/
+.trae/specs/
 .trae/documents/
 .trae/data/
