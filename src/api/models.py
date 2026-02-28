@@ -64,8 +64,10 @@ class SearchCounters:
         if not isinstance(mobile_raw, list):
             mobile_raw = []
 
-        pc_search = [SearchCounter.from_dict(item) for item in pc_raw]
-        mobile_search = [SearchCounter.from_dict(item) for item in mobile_raw]
+        pc_search = [SearchCounter.from_dict(item) for item in pc_raw if isinstance(item, dict)]
+        mobile_search = [
+            SearchCounter.from_dict(item) for item in mobile_raw if isinstance(item, dict)
+        ]
         return cls(pc_search=pc_search, mobile_search=mobile_search)
 
 
@@ -171,8 +173,16 @@ class UserStatus:
     def from_dict(cls, data: dict[str, Any]) -> "UserStatus":
         """从字典创建实例"""
         data = _transform_dict(data)
-        level_info = LevelInfo.from_dict(data.get("level_info", {}))
-        counters = SearchCounters.from_dict(data.get("counters", {}))
+        level_info_raw = data.get("level_info")
+        level_info = (
+            LevelInfo.from_dict(level_info_raw) if isinstance(level_info_raw, dict) else LevelInfo()
+        )
+        counters_raw = data.get("counters")
+        counters = (
+            SearchCounters.from_dict(counters_raw)
+            if isinstance(counters_raw, dict)
+            else SearchCounters()
+        )
         return cls(
             available_points=data.get("available_points", 0),
             level_info=level_info,
@@ -219,22 +229,29 @@ class DashboardData:
         more_promotions_data = data.get("more_promotions") or []
         if not isinstance(more_promotions_data, list):
             more_promotions_data = []
-        more_promotions = [Promotion.from_dict(item) for item in more_promotions_data]
+        more_promotions = [
+            Promotion.from_dict(item) for item in more_promotions_data if isinstance(item, dict)
+        ]
 
         punch_cards_data = data.get("punch_cards") or []
         if not isinstance(punch_cards_data, list):
             punch_cards_data = []
-        punch_cards = [PunchCard.from_dict(item) for item in punch_cards_data]
+        punch_cards = [
+            PunchCard.from_dict(item) for item in punch_cards_data if isinstance(item, dict)
+        ]
 
         streak_promotion = None
-        if data.get("streak_promotion"):
-            streak_promotion = StreakPromotion.from_dict(data["streak_promotion"])
+        streak_promotion_raw = data.get("streak_promotion")
+        if isinstance(streak_promotion_raw, dict):
+            streak_promotion = StreakPromotion.from_dict(streak_promotion_raw)
 
         streak_bonus_data = data.get("streak_bonus_promotions") or []
         if not isinstance(streak_bonus_data, list):
             streak_bonus_data = []
         streak_bonus_promotions = [
-            StreakBonusPromotion.from_dict(item) for item in streak_bonus_data
+            StreakBonusPromotion.from_dict(item)
+            for item in streak_bonus_data
+            if isinstance(item, dict)
         ]
 
         return cls(

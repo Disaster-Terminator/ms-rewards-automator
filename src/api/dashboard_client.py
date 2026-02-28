@@ -96,23 +96,14 @@ class DashboardClient:
         """
         从 Page context 获取 cookies 字符串
 
-        只发送与 API 域名相关的 Cookie，避免跨域泄露。
+        使用 Playwright 的 URL 作用域 cookie 选择，让 Playwright 按浏览器规则
+        返回对该 URL 生效的 cookies（包括父域 cookies）。
 
         Returns:
             cookies 字符串
         """
-        from urllib.parse import urlparse
-
-        all_cookies = await self._page.context.cookies()
-        api_domain = urlparse(self._api_url).netloc
-
-        allowed_domains = {
-            api_domain,
-            f".{api_domain}",
-        }
-
-        filtered_cookies = [c for c in all_cookies if c["domain"] in allowed_domains]
-        return "; ".join(f"{c['name']}={c['value']}" for c in filtered_cookies)
+        cookies = await self._page.context.cookies([self._api_url])
+        return "; ".join(f"{c['name']}={c['value']}" for c in cookies)
 
     async def _call_api(self) -> DashboardData:
         """
@@ -133,6 +124,8 @@ class DashboardClient:
 
         for attempt in range(self._max_retries + 1):
             try:
+                if self._client is None or self._client.is_closed:
+                    raise DashboardError("HTTP client has been closed")
                 response = await self._client.get(self._api_url, headers=headers)
                 response.raise_for_status()
                 data = response.json()

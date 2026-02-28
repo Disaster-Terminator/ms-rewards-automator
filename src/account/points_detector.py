@@ -125,7 +125,7 @@ class PointsDetector:
                         points_text = await element.text_content()
                         logger.debug(f"找到积分文本: {points_text}")
 
-                        if points_text.strip():
+                        if points_text and points_text.strip():
                             points = self._parse_points(points_text.strip())
 
                             if points is not None and points >= 100:

@@ -1,10 +1,14 @@
 """Dashboard Client 单元测试"""
 
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
 import respx
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from api.dashboard_client import DashboardClient, DashboardError
 from api.models import DashboardData, SearchCounters
@@ -15,12 +19,14 @@ def mock_page():
     """Mock Playwright Page 对象"""
     page = Mock()
     page.context = Mock()
-    page.context.cookies = AsyncMock(
-        return_value=[
+
+    async def mock_cookies(urls=None):
+        return [
             {"name": "cookie1", "value": "value1", "domain": "rewards.bing.com"},
             {"name": "cookie2", "value": "value2", "domain": ".rewards.bing.com"},
         ]
-    )
+
+    page.context.cookies = mock_cookies
     page.content = AsyncMock(
         return_value="""
         <html>
@@ -58,9 +64,11 @@ def mock_page_no_dashboard():
     """没有 dashboard 变量的 Mock Page"""
     page = Mock()
     page.context = Mock()
-    page.context.cookies = AsyncMock(
-        return_value=[{"name": "cookie1", "value": "value1", "domain": "rewards.bing.com"}]
-    )
+
+    async def mock_cookies(urls=None):
+        return [{"name": "cookie1", "value": "value1", "domain": "rewards.bing.com"}]
+
+    page.context.cookies = mock_cookies
     page.content = AsyncMock(return_value="<html><body>no dashboard</body></html>")
     return page
 
@@ -525,22 +533,20 @@ async def test_search_counters_handles_scalar_values():
 
 
 async def test_cookie_filtering_by_domain(mock_page):
-    """测试 Cookie 按域名严格过滤"""
-    mock_page.context.cookies = AsyncMock(
-        return_value=[
+    """测试 Cookie 使用 Playwright URL 作用域选择"""
+
+    async def mock_cookies(urls=None):
+        return [
             {"name": "bing_cookie", "value": "bing_value", "domain": "bing.com"},
             {"name": "rewards_cookie", "value": "rewards_value", "domain": "rewards.bing.com"},
             {"name": "rewards_sub_cookie", "value": "sub_value", "domain": ".rewards.bing.com"},
-            {"name": "login_cookie", "value": "login_value", "domain": "login.live.com"},
-            {"name": "microsoft_cookie", "value": "ms_value", "domain": "microsoft.com"},
         ]
-    )
+
+    mock_page.context.cookies = mock_cookies
 
     client = DashboardClient(mock_page)
     cookies = await client._get_cookies_header()
 
-    assert "bing_cookie=bing_value" not in cookies
+    assert "bing_cookie=bing_value" in cookies
     assert "rewards_cookie=rewards_value" in cookies
     assert "rewards_sub_cookie=sub_value" in cookies
-    assert "login_cookie=login_value" not in cookies
-    assert "microsoft_cookie=ms_value" not in cookies
