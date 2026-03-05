@@ -16,7 +16,6 @@ from playwright.async_api import Page
 from browser.element_detector import ElementDetector
 from constants import BING_URLS
 from login.human_behavior_simulator import HumanBehaviorSimulator
-from ui.bing_theme_manager import BingThemeManager
 from ui.cookie_handler import CookieHandler
 from ui.tab_manager import TabManager
 
@@ -74,7 +73,6 @@ class SearchEngine:
         self.human_behavior = human_behavior or HumanBehaviorSimulator(logger)
 
         self.element_detector = ElementDetector(config)
-        self.theme_manager = BingThemeManager(config)
         self._query_cache = []
 
         self.human_behavior_level = config.get("anti_detection.human_behavior_level", "medium")
