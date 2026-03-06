@@ -100,12 +100,13 @@ class MSRewardsApp:
 
                 from diagnosis.inspector import PageInspector
                 from diagnosis.reporter import DiagnosisReporter
-                from diagnosis.rotation import cleanup_old_diagnoses
+
+                from infrastructure.log_rotation import LogRotation
 
                 self.diagnosis_reporter = DiagnosisReporter(output_dir="logs/diagnosis")
                 self._page_inspector = PageInspector()
                 self.logger.info("诊断模式已启用")
-                cleanup_old_diagnoses(Path("logs"))
+                LogRotation()._cleanup_old_diagnoses(Path("logs"))
             except ImportError as e:
                 module_name = getattr(e, "name", "未知模块")
                 self.logger.error(

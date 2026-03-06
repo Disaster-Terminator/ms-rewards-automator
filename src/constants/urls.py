@@ -43,21 +43,6 @@ API_ENDPOINTS = {
     "app_activities": "https://prod.rewardsplatform.microsoft.com/dapi/me/activities",
 }
 
-API_PARAMS = {
-    "dashboard_type": "?type=1",
-}
-
-OAUTH_URLS = {
-    "auth": "https://login.live.com/oauth20_authorize.srf",
-    "redirect": "https://login.live.com/oauth20_desktop.srf",
-    "token": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-}
-
-OAUTH_CONFIG = {
-    "client_id": "0000000040170455",
-    "scope": "service::prod.rewardsplatform.microsoft.com::MBI_SSL",
-}
-
 QUERY_SOURCE_URLS = {
     "bing_suggestions": "https://api.bing.com/osjson.aspx",
     "duckduckgo": "https://duckduckgo.com/ac/",

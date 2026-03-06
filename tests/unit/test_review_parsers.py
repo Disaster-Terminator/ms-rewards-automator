@@ -1,5 +1,5 @@
-from src.review.models import EnrichedContext, ReviewMetadata, ReviewThreadState
-from src.review.parsers import ReviewParser
+from review.models import EnrichedContext, ReviewMetadata, ReviewThreadState
+from review.parsers import ReviewParser
 
 
 class TestReviewParser:
