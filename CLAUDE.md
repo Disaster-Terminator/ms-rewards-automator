@@ -131,11 +131,9 @@ rscore --config custom_config.yaml
 rscore --dev --no-diagnose
 ```
 
-### 可视化与监控
-```bash
-# 数据面板（Streamlit）
-streamlit run tools/dashboard.py
+### 日志查看
 
+```bash
 # 查看实时日志
 tail -f logs/automator.log
 
@@ -310,7 +308,6 @@ tests/
 
 tools/
 ├── check_environment.py       # 环境验证
-├── dashboard.py              # Streamlit 数据面板
 └── search_terms.txt          # 搜索词库
 
 docs/
