@@ -5,17 +5,19 @@
 使用 TypedDict 而非 dataclass 以保持动态配置灵活性。
 """
 
-from typing import TypedDict, Any
+from typing import Any, TypedDict
 
 
 class SearchWaitInterval(TypedDict):
     """搜索等待间隔配置"""
+
     min: float
     max: float
 
 
 class SearchConfig(TypedDict):
     """搜索配置"""
+
     desktop_count: int
     mobile_count: int
     wait_interval: SearchWaitInterval
@@ -24,6 +26,7 @@ class SearchConfig(TypedDict):
 
 class BrowserConfig(TypedDict):
     """浏览器配置"""
+
     headless: bool
     prevent_focus: str  # "basic", "enhanced", "none"
     slow_mo: int
@@ -33,6 +36,7 @@ class BrowserConfig(TypedDict):
 
 class AccountConfig(TypedDict, total=False):
     """账户配置（可选字段使用 total=False）"""
+
     storage_state_path: str
     login_url: str
     email: str
@@ -42,6 +46,7 @@ class AccountConfig(TypedDict, total=False):
 
 class AutoLoginConfig(TypedDict):
     """自动登录配置"""
+
     enabled: bool
     email: str
     password: str
@@ -50,6 +55,7 @@ class AutoLoginConfig(TypedDict):
 
 class LoginConfig(TypedDict):
     """登录配置"""
+
     state_machine_enabled: bool
     max_transitions: int
     timeout_seconds: int
@@ -60,6 +66,7 @@ class LoginConfig(TypedDict):
 
 class QuerySourcesConfig(TypedDict):
     """查询源配置"""
+
     local_file: dict[str, bool]
     bing_suggestions: dict[str, bool]
     duckduckgo: dict[str, bool]
@@ -68,6 +75,7 @@ class QuerySourcesConfig(TypedDict):
 
 class BingAPIConfig(TypedDict):
     """Bing API 配置"""
+
     rate_limit: int
     max_retries: int
     timeout: int
@@ -78,6 +86,7 @@ class BingAPIConfig(TypedDict):
 
 class QueryEngineConfig(TypedDict):
     """查询引擎配置"""
+
     enabled: bool
     cache_ttl: int
     sources: QuerySourcesConfig
@@ -86,6 +95,7 @@ class QueryEngineConfig(TypedDict):
 
 class TaskTypesConfig(TypedDict):
     """任务类型配置"""
+
     url_reward: bool
     quiz: bool
     poll: bool
@@ -93,6 +103,7 @@ class TaskTypesConfig(TypedDict):
 
 class TaskParserConfig(TypedDict):
     """任务解析器配置"""
+
     skip_hrefs: list[str]
     skip_text_patterns: list[str]
     completed_text_patterns: list[str]
@@ -105,6 +116,7 @@ class TaskParserConfig(TypedDict):
 
 class TaskSystemConfig(TypedDict):
     """任务系统配置"""
+
     enabled: bool
     min_delay: int
     max_delay: int
@@ -116,6 +128,7 @@ class TaskSystemConfig(TypedDict):
 
 class BingThemeConfig(TypedDict):
     """Bing 主题配置"""
+
     enabled: bool
     theme: str  # "dark", "light"
     force_theme: bool
@@ -125,6 +138,7 @@ class BingThemeConfig(TypedDict):
 
 class HealthCheckConfig(TypedDict):
     """健康检查配置"""
+
     enabled: bool
     interval: int
     save_reports: bool
@@ -132,6 +146,7 @@ class HealthCheckConfig(TypedDict):
 
 class MonitoringConfig(TypedDict):
     """监控配置"""
+
     enabled: bool
     check_interval: int
     check_points_before_task: bool
@@ -143,6 +158,7 @@ class MonitoringConfig(TypedDict):
 
 class TelegramConfig(TypedDict):
     """Telegram 通知配置"""
+
     enabled: bool
     bot_token: str
     chat_id: str
@@ -150,12 +166,14 @@ class TelegramConfig(TypedDict):
 
 class ServerChanConfig(TypedDict):
     """Server酱通知配置"""
+
     enabled: bool
     key: str
 
 
 class WhatsAppConfig(TypedDict):
     """WhatsApp 通知配置"""
+
     enabled: bool
     phone: str
     apikey: str
@@ -163,6 +181,7 @@ class WhatsAppConfig(TypedDict):
 
 class NotificationConfig(TypedDict):
     """通知配置"""
+
     enabled: bool
     telegram: TelegramConfig
     serverchan: ServerChanConfig
@@ -170,21 +189,20 @@ class NotificationConfig(TypedDict):
 
 
 class SchedulerConfig(TypedDict):
-    """调度器配置"""
+    """调度器配置（简化版：仅支持 scheduled 模式）"""
+
     enabled: bool
-    mode: str  # "scheduled", "random", "fixed"
+    mode: str  # 保留配置但实际只支持 "scheduled"
     scheduled_hour: int
     max_offset_minutes: int
-    random_start_hour: int
-    random_end_hour: int
-    fixed_hour: int
-    fixed_minute: int
     timezone: str
     run_once_on_start: bool
+    # 注意：random_start_hour, random_end_hour, fixed_hour, fixed_minute 已移除（未使用）
 
 
 class ErrorHandlingConfig(TypedDict):
     """错误处理配置"""
+
     max_retries: int
     retry_delay: int
     exponential_backoff: bool
@@ -192,6 +210,7 @@ class ErrorHandlingConfig(TypedDict):
 
 class LoggingConfig(TypedDict):
     """日志配置"""
+
     level: str  # "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
     file: str
     console: bool
@@ -199,11 +218,13 @@ class LoggingConfig(TypedDict):
 
 class ExecutionConfig(TypedDict):
     """执行模式配置"""
+
     mode: str  # "fast", "normal", "slow"
 
 
 class AntiDetectionConfig(TypedDict):
     """反检测配置"""
+
     use_stealth: bool
     random_viewport: bool
     human_behavior_level: str
@@ -219,6 +240,7 @@ class ConfigDict(TypedDict):
     根配置结构，包含所有配置节。
     所有字段都是必需的（在通过 DEFAULT_CONFIG 合并后）。
     """
+
     execution: ExecutionConfig
     search: SearchConfig
     browser: BrowserConfig

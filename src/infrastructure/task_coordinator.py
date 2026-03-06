@@ -7,7 +7,7 @@ TaskCoordinator - 任务协调器 (依赖注入版)
 
 import argparse
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from playwright.async_api import BrowserContext, Page
 
@@ -36,11 +36,11 @@ class TaskCoordinator:
         config: "ConfigManager",
         args: argparse.Namespace,
         logger: logging.Logger,
-        account_manager: Optional["AccountManager"] = None,
-        search_engine: Optional["SearchEngine"] = None,
-        state_monitor: Optional["StateMonitor"] = None,
-        health_monitor: Optional["HealthMonitor"] = None,
-        browser_sim: Optional["BrowserSimulator"] = None,
+        account_manager: "AccountManager",
+        search_engine: "SearchEngine",
+        state_monitor: "StateMonitor",
+        health_monitor: "HealthMonitor",
+        browser_sim: "BrowserSimulator",
     ):
         """
         初始化任务协调器
@@ -49,46 +49,20 @@ class TaskCoordinator:
             config: ConfigManager 实例
             args: 命令行参数
             logger: 日志记录器
-            account_manager: AccountManager 实例（可选，依赖注入）
-            search_engine: SearchEngine 实例（可选，依赖注入）
-            state_monitor: StateMonitor 实例（可选，依赖注入）
-            health_monitor: HealthMonitor 实例（可选，依赖注入）
-            browser_sim: BrowserSimulator 实例（可选，依赖注入）
+            account_manager: AccountManager 实例
+            search_engine: SearchEngine 实例
+            state_monitor: StateMonitor 实例
+            health_monitor: HealthMonitor 实例
+            browser_sim: BrowserSimulator 实例
         """
         self.config = config
         self.args = args
         self.logger = logger
-
         self._account_manager = account_manager
         self._search_engine = search_engine
         self._state_monitor = state_monitor
         self._health_monitor = health_monitor
         self._browser_sim = browser_sim
-
-    def set_account_manager(self, account_manager: "AccountManager") -> "TaskCoordinator":
-        """设置 AccountManager（支持链式调用）"""
-        self._account_manager = account_manager
-        return self
-
-    def set_search_engine(self, search_engine: "SearchEngine") -> "TaskCoordinator":
-        """设置 SearchEngine"""
-        self._search_engine = search_engine
-        return self
-
-    def set_state_monitor(self, state_monitor: "StateMonitor") -> "TaskCoordinator":
-        """设置 StateMonitor"""
-        self._state_monitor = state_monitor
-        return self
-
-    def set_health_monitor(self, health_monitor: "HealthMonitor") -> "TaskCoordinator":
-        """设置 HealthMonitor"""
-        self._health_monitor = health_monitor
-        return self
-
-    def set_browser_sim(self, browser_sim: "BrowserSimulator") -> "TaskCoordinator":
-        """设置 BrowserSimulator"""
-        self._browser_sim = browser_sim
-        return self
 
     async def handle_login(self, page: Page, context: BrowserContext) -> None:
         """
@@ -98,7 +72,7 @@ class TaskCoordinator:
             page: Playwright Page 对象
             context: BrowserContext 对象
         """
-        account_mgr = self._get_account_manager()
+        account_mgr = self._account_manager
 
         # 检查是否有会话文件
         has_session = account_mgr.session_exists()
@@ -205,9 +179,9 @@ class TaskCoordinator:
         page: Any,
     ) -> None:
         """执行桌面搜索"""
-        search_engine = self._get_search_engine()
-        state_monitor = self._get_state_monitor()
-        health_monitor = self._get_health_monitor()
+        search_engine = self._search_engine
+        state_monitor = self._state_monitor
+        health_monitor = self._health_monitor
 
         self.logger.info("\n[5/8] 执行桌面搜索...")
         StatusManager.update_operation("执行桌面搜索")
@@ -237,10 +211,10 @@ class TaskCoordinator:
         page: Any,
     ) -> Any:
         """执行移动搜索"""
-        search_engine = self._get_search_engine()
-        state_monitor = self._get_state_monitor()
-        health_monitor = self._get_health_monitor()
-        browser_sim = self._get_browser_sim()
+        search_engine = self._search_engine
+        state_monitor = self._state_monitor
+        health_monitor = self._health_monitor
+        browser_sim = self._browser_sim
         mobile_count = self.config.get("search.mobile_count", 0)
 
         self.logger.info("\n[6/8] 执行移动搜索...")
@@ -316,8 +290,8 @@ class TaskCoordinator:
         page: Any,
     ) -> Any:
         """执行日常任务"""
-        state_monitor = self._get_state_monitor()
-        browser_sim = self._get_browser_sim()
+        state_monitor = self._state_monitor
+        browser_sim = self._browser_sim
 
         if self.args.skip_daily_tasks:
             self.logger.info("\n[7/8] 跳过日常任务（--skip-daily-tasks）")
@@ -459,63 +433,7 @@ class TaskCoordinator:
         if self.config.get("task_system.debug_mode", False):
             self.logger.info("  📊 诊断数据已保存到 logs/diagnostics/ 目录")
 
-    # ============================================================
-    # 依赖项获取方法
-    # ============================================================
-
-    def _get_account_manager(self) -> Any:
-        """获取 AccountManager"""
-        if self._account_manager is None:
-            from account.manager import AccountManager
-
-            self._account_manager = AccountManager(self.config)
-        return self._account_manager
-
-    def _get_search_engine(self) -> Any:
-        """获取 SearchEngine"""
-        if self._search_engine is None:
-            from browser.anti_ban_module import AntiBanModule
-            from search.search_engine import SearchEngine
-            from search.search_term_generator import SearchTermGenerator
-            from ui.real_time_status import StatusManager
-
-            term_gen = SearchTermGenerator(self.config)
-            anti_ban = AntiBanModule(self.config)
-            state_monitor = self._get_state_monitor()
-            self._search_engine = SearchEngine(
-                self.config,
-                term_gen,
-                anti_ban,
-                monitor=state_monitor,
-                status_manager=StatusManager,
-            )
-        return self._search_engine
-
-    def _get_state_monitor(self) -> Any:
-        """获取 StateMonitor"""
-        if self._state_monitor is None:
-            from account.points_detector import PointsDetector
-            from infrastructure.state_monitor import StateMonitor
-
-            points_det = PointsDetector()
-            self._state_monitor = StateMonitor(self.config, points_det)
-        return self._state_monitor
-
-    def _get_health_monitor(self) -> Any:
-        """获取 HealthMonitor"""
-        if self._health_monitor is None:
-            from infrastructure.health_monitor import HealthMonitor
-
-            self._health_monitor = HealthMonitor(self.config)
-        return self._health_monitor
-
-    def _get_browser_sim(self) -> Any:
-        """获取 BrowserSimulator"""
-        if self._browser_sim is None:
-            raise RuntimeError("BrowserSimulator 未设置")
-        return self._browser_sim
-
-    async def _create_desktop_browser_if_needed(self, browser_sim: Any) -> None:
+    async def _create_desktop_browser_if_needed(self, browser_sim: "BrowserSimulator") -> None:
         """如果需要时创建桌面浏览器"""
         if not browser_sim.browser:
             self.logger.info("  创建桌面浏览器...")
