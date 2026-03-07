@@ -248,7 +248,8 @@ class RealTimeStatusDisplay:
             self.mobile_completed = completed
             self.mobile_total = total
         else:
-            raise ValueError(f"Unknown search_type: {search_type}")
+            logger.warning(f"Unknown search_type: {search_type}, ignoring update")
+            return
 
         if search_time is not None:
             self.search_times.append(search_time)

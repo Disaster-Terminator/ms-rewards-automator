@@ -348,7 +348,7 @@ class SearchEngine:
 
             if self.theme_manager and self.theme_manager.enabled:
                 context = page.context
-                await self.theme_manager.ensure_theme_before_search(page, context)
+                await self.theme_manager.ensure_theme_before_search(context)
 
             current_url = page.url
             need_navigate = False

@@ -64,6 +64,7 @@ class TestSimpleThemeManager:
         theme_manager = SimpleThemeManager(mock_config)
 
         mock_context = Mock()
+        mock_context.cookies = AsyncMock(return_value=[])
         mock_context.add_cookies = AsyncMock()
 
         result = await theme_manager.set_theme_cookie(mock_context)
@@ -86,6 +87,7 @@ class TestSimpleThemeManager:
         theme_manager = SimpleThemeManager(config)
 
         mock_context = Mock()
+        mock_context.cookies = AsyncMock(return_value=[])
         mock_context.add_cookies = AsyncMock()
 
         result = await theme_manager.set_theme_cookie(mock_context)
@@ -93,6 +95,30 @@ class TestSimpleThemeManager:
         assert result is True
         cookies = mock_context.add_cookies.call_args[0][0]
         assert cookies[0]["value"] == "WEBTHEME=0"  # light = 0
+
+    async def test_set_theme_cookie_preserves_existing_settings(self, mock_config) -> None:
+        """测试设置主题Cookie时保留现有设置"""
+        theme_manager = SimpleThemeManager(mock_config)
+
+        # 模拟现有的 Cookie（包含其他设置）
+        existing_cookie = {
+            "name": "SRCHHPGUSR",
+            "value": "NRSLT=50;OBHLTH=1;WEBTHEME=0",  # 原本是亮色主题
+            "domain": ".bing.com",
+        }
+        mock_context = Mock()
+        mock_context.cookies = AsyncMock(return_value=[existing_cookie])
+        mock_context.add_cookies = AsyncMock()
+
+        result = await theme_manager.set_theme_cookie(mock_context)
+
+        assert result is True
+        cookies = mock_context.add_cookies.call_args[0][0]
+        assert cookies[0]["name"] == "SRCHHPGUSR"
+        # 应该保留 NRSLT 和 OBHLTH，只修改 WEBTHEME
+        assert "NRSLT=50" in cookies[0]["value"]
+        assert "OBHLTH=1" in cookies[0]["value"]
+        assert "WEBTHEME=1" in cookies[0]["value"]  # dark = 1
 
     async def test_set_theme_cookie_disabled(self) -> None:
         """测试主题管理器禁用时设置Cookie"""
@@ -112,7 +138,7 @@ class TestSimpleThemeManager:
         theme_manager = SimpleThemeManager(mock_config)
 
         mock_context = Mock()
-        mock_context.add_cookies.side_effect = Exception("Network error")
+        mock_context.cookies = AsyncMock(side_effect=Exception("Network error"))
 
         result = await theme_manager.set_theme_cookie(mock_context)
 
