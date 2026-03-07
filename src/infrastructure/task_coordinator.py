@@ -237,8 +237,6 @@ class TaskCoordinator:
             except Exception as e:
                 self.logger.debug(f"  关闭桌面上下文时出错: {e}")
 
-            from account.manager import AccountManager
-
             context, page = await browser_sim.create_context(
                 browser_sim.browser,
                 "mobile_iphone",
@@ -247,8 +245,7 @@ class TaskCoordinator:
 
             # 验证移动端登录状态
             self.logger.info("  验证移动端登录状态...")
-            account_mgr = AccountManager(self.config)
-            mobile_logged_in = await account_mgr.is_logged_in(page, navigate=False)
+            mobile_logged_in = await self._account_manager.is_logged_in(page, navigate=False)
             if not mobile_logged_in:
                 self.logger.warning("  移动端未登录，后续搜索可能不计积分")
 
