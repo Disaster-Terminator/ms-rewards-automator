@@ -266,7 +266,7 @@ class ConfigManager:
         self.config_path = config_path
         self.dev_mode = dev_mode
         self.user_mode = user_mode
-        self.config: ConfigDict = {}
+        self.config: dict[str, Any] = {}  # 使用 dict 而非 ConfigDict，避免 TypedDict 初始化问题
         self.config_data: dict[str, Any] = {}
         self._load_config()
 

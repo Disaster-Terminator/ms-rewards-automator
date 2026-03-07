@@ -3,14 +3,11 @@ SimpleThemeManager单元测试
 测试简化版主题管理器的各种功能
 """
 
-import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-
-# 添加src目录到路径
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from ui.simple_theme import SimpleThemeManager
 
@@ -19,7 +16,7 @@ class TestSimpleThemeManager:
     """SimpleThemeManager测试类"""
 
     @pytest.fixture
-    def mock_config(self):
+    def mock_config(self) -> Any:
         """模拟配置"""
         config = Mock()
         config.get.side_effect = lambda key, default=None: {
@@ -30,7 +27,7 @@ class TestSimpleThemeManager:
         }.get(key, default)
         return config
 
-    def test_init_with_config(self, mock_config):
+    def test_init_with_config(self, mock_config: Any) -> None:
         """测试使用配置初始化"""
         theme_manager = SimpleThemeManager(mock_config)
 
@@ -39,7 +36,7 @@ class TestSimpleThemeManager:
         assert theme_manager.persistence_enabled is True
         assert theme_manager.theme_state_file == "logs/theme_state.json"
 
-    def test_init_without_config(self):
+    def test_init_without_config(self) -> None:
         """测试不使用配置初始化"""
         theme_manager = SimpleThemeManager(None)
 
@@ -48,7 +45,7 @@ class TestSimpleThemeManager:
         assert theme_manager.persistence_enabled is False
         assert theme_manager.theme_state_file == "logs/theme_state.json"
 
-    def test_init_with_custom_config(self):
+    def test_init_with_custom_config(self) -> None:
         """测试使用自定义配置初始化"""
         config = Mock()
         config.get.side_effect = lambda key, default=None: {
@@ -63,7 +60,7 @@ class TestSimpleThemeManager:
         assert theme_manager.preferred_theme == "light"
         assert theme_manager.persistence_enabled is False
 
-    async def test_set_theme_cookie_dark(self, mock_config):
+    async def test_set_theme_cookie_dark(self, mock_config) -> None:
         """测试设置暗色主题Cookie"""
         theme_manager = SimpleThemeManager(mock_config)
 
@@ -79,7 +76,7 @@ class TestSimpleThemeManager:
         assert cookies[0]["name"] == "SRCHHPGUSR"
         assert cookies[0]["value"] == "WEBTHEME=1"  # dark = 1
 
-    async def test_set_theme_cookie_light(self, mock_config):
+    async def test_set_theme_cookie_light(self, mock_config) -> None:
         """测试设置亮色主题Cookie"""
         config = Mock()
         config.get.side_effect = lambda key, default=None: {
@@ -98,7 +95,7 @@ class TestSimpleThemeManager:
         cookies = mock_context.add_cookies.call_args[0][0]
         assert cookies[0]["value"] == "WEBTHEME=0"  # light = 0
 
-    async def test_set_theme_cookie_disabled(self):
+    async def test_set_theme_cookie_disabled(self) -> None:
         """测试主题管理器禁用时设置Cookie"""
         config = Mock()
         config.get.return_value = False
@@ -111,7 +108,7 @@ class TestSimpleThemeManager:
         assert result is True
         assert not mock_context.add_cookies.called
 
-    async def test_set_theme_cookie_exception(self, mock_config):
+    async def test_set_theme_cookie_exception(self, mock_config) -> None:
         """测试设置Cookie时发生异常"""
         theme_manager = SimpleThemeManager(mock_config)
 
@@ -122,7 +119,7 @@ class TestSimpleThemeManager:
 
         assert result is False
 
-    async def test_save_theme_state_enabled(self, mock_config, tmp_path):
+    async def test_save_theme_state_enabled(self, mock_config, tmp_path) -> None:
         """测试启用持久化时保存主题状态"""
         theme_file = tmp_path / "test_theme.json"
         config = Mock()
@@ -146,7 +143,7 @@ class TestSimpleThemeManager:
             assert data["theme"] == "dark"
             assert "timestamp" in data
 
-    async def test_save_theme_state_disabled(self, mock_config):
+    async def test_save_theme_state_disabled(self, mock_config) -> None:
         """测试禁用持久化时保存主题状态"""
         config = Mock()
         config.get.side_effect = lambda key, default=None: {
@@ -160,7 +157,7 @@ class TestSimpleThemeManager:
 
         assert result is True  # 禁用时返回True
 
-    async def test_load_theme_state_enabled(self, mock_config, tmp_path):
+    async def test_load_theme_state_enabled(self, mock_config, tmp_path) -> None:
         """测试启用持久化时加载主题状态"""
         theme_file = tmp_path / "test_theme.json"
         import json
@@ -181,7 +178,7 @@ class TestSimpleThemeManager:
 
         assert result == "dark"
 
-    async def test_load_theme_state_disabled(self, mock_config):
+    async def test_load_theme_state_disabled(self, mock_config) -> None:
         """测试禁用持久化时加载主题状态"""
         theme_manager = SimpleThemeManager(mock_config)
 
@@ -189,7 +186,7 @@ class TestSimpleThemeManager:
 
         assert result is None
 
-    async def test_load_theme_state_file_not_exists(self, mock_config, tmp_path):
+    async def test_load_theme_state_file_not_exists(self, mock_config, tmp_path) -> None:
         """测试文件不存在时加载主题状态"""
         theme_file = tmp_path / "nonexistent.json"
         config = Mock()

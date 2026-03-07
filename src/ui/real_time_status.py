@@ -6,6 +6,7 @@
 import logging
 import sys
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +14,23 @@ logger = logging.getLogger(__name__)
 _status_instance: "RealTimeStatusDisplay | None" = None
 
 
-def get_status_manager(config=None) -> "RealTimeStatusDisplay":
-    """获取或创建全局状态显示器实例"""
+def get_status_manager(config: Any = None) -> "RealTimeStatusDisplay":
+    """
+    获取或创建全局状态显示器实例
+
+    Args:
+        config: 配置管理器实例（可选，如果实例已存在则更新配置）
+
+    Returns:
+        RealTimeStatusDisplay 实例
+    """
     global _status_instance
     if _status_instance is None:
         _status_instance = RealTimeStatusDisplay(config)
+    elif config is not None:
+        # 如果实例已存在但提供了新的 config，则更新配置
+        _status_instance.config = config
+        _status_instance.enabled = config.get("monitoring.real_time_display", True)
     return _status_instance
 
 
