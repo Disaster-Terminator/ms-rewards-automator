@@ -133,7 +133,7 @@ def signal_handler(signum, frame):
     _shutdown_requested = True
 
     if logger:
-        logger.info("\n收到中断信号，正在优雅关闭...")
+        logger.info("\n收到中断信号，正在关闭...")
 
     # 触发 KeyboardInterrupt 让 asyncio.run 正常退出
     # 这会让正在运行的协程收到异常并执行 finally 块

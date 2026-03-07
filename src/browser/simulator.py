@@ -11,7 +11,6 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 
 from browser.anti_focus_scripts import AntiFocusScripts
 from browser.state_manager import BrowserStateManager
-from constants import BING_URLS
 
 logger = logging.getLogger(__name__)
 
@@ -335,58 +334,30 @@ class BrowserSimulator:
         await self.apply_stealth(context)
 
         # 预设主题Cookie（在创建页面之前，确保桌面和移动端主题一致）
-        # 同时检查是否需要主题持久化恢复
-        theme_manager = None
+        # 使用简化的主题管理
         try:
-            from ui.bing_theme_manager import BingThemeManager
+            from ui.simple_theme import SimpleThemeManager
 
-            theme_manager = BingThemeManager(self.config)
+            theme_manager = SimpleThemeManager(self.config)
             if theme_manager.enabled:
-                theme_value = "1" if theme_manager.preferred_theme == "dark" else "0"
-                await context.add_cookies(
-                    [
-                        {
-                            "name": "SRCHHPGUSR",
-                            "value": f"WEBTHEME={theme_value}",
-                            "domain": ".bing.com",
-                            "path": "/",
-                            "httpOnly": False,
-                            "secure": True,
-                            "sameSite": "Lax",
-                        }
-                    ]
-                )
-                logger.info(
-                    f"✓ 已在上下文中预设主题Cookie: WEBTHEME={theme_value} ({theme_manager.preferred_theme})"
-                )
+                # 尝试加载保存的主题状态
+                if theme_manager.persistence_enabled:
+                    saved_theme = await theme_manager.load_theme_state()
+                    if saved_theme:
+                        logger.info(f"从文件加载主题状态: {saved_theme}")
+                        theme_manager.preferred_theme = saved_theme
+
+                success = await theme_manager.set_theme_cookie(context)
+                if success:
+                    logger.info(f"✓ 已设置Bing主题: {theme_manager.preferred_theme}")
         except Exception as e:
-            logger.debug(f"预设主题Cookie失败: {e}")
+            logger.debug(f"设置主题失败: {e}")
 
         # 创建主页面
         main_page = await context.new_page()
 
         # 注册到状态管理器
         self.state_manager.register_browser(browser, context, main_page)
-
-        # 集成主题持久化：在创建上下文后尝试恢复主题设置
-        # 注意：只有当主题管理功能启用且持久化启用时才执行
-        if theme_manager and theme_manager.enabled and theme_manager.persistence_enabled:
-            try:
-                logger.debug("尝试在新上下文中恢复主题设置...")
-                # 导航到Bing首页以便应用主题
-                await main_page.goto(
-                    BING_URLS["home"], wait_until="domcontentloaded", timeout=10000
-                )
-                await asyncio.sleep(1)  # 等待页面稳定
-
-                # 尝试恢复主题
-                restore_success = await theme_manager.restore_theme_from_state(main_page)
-                if restore_success:
-                    logger.debug("✓ 在新上下文中成功恢复主题设置")
-                else:
-                    logger.debug("在新上下文中恢复主题设置失败，将使用默认设置")
-            except Exception as e:
-                logger.debug(f"上下文主题恢复过程中发生异常: {e}")
 
         logger.info(f"浏览器上下文创建成功: {device_type}, 视口: {viewport}")
         return context, main_page

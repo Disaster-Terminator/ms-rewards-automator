@@ -11,8 +11,9 @@ from pathlib import Path
 
 from playwright.async_api import BrowserContext, Page
 
+from browser.page_utils import DISABLE_BEFORE_UNLOAD_SCRIPT
+from browser.popup_handler import EdgePopupHandler
 from constants import BING_URLS, LOGIN_URLS, REWARDS_URLS
-from login.edge_popup_handler import EdgePopupHandler
 from login.handlers import (
     AuthBlockedHandler,
     EmailInputHandler,
@@ -179,26 +180,7 @@ class AccountManager:
             async def disable_beforeunload(page):
                 try:
                     if not page.is_closed():
-                        await page.evaluate("""
-                            () => {
-                                // 移除所有 beforeunload 监听器
-                                window.onbeforeunload = null;
-                                window.onunload = null;
-
-                                // 阻止新的 beforeunload 监听器
-                                const originalAddEventListener = window.addEventListener;
-                                window.addEventListener = function(type, listener, options) {
-                                    if (type === 'beforeunload' || type === 'unload') {
-                                        return;
-                                    }
-                                    return originalAddEventListener.call(this, type, listener, options);
-                                };
-
-                                // 覆盖 confirm 和 alert，防止弹窗
-                                window.confirm = () => true;
-                                window.alert = () => {};
-                            }
-                        """)
+                        await page.evaluate(DISABLE_BEFORE_UNLOAD_SCRIPT)
                         logger.debug(f"✓ 已禁用页面的 beforeunload: {page.url[:50]}")
                 except Exception as e:
                     logger.debug(f"禁用 beforeunload 失败: {e}")
@@ -227,7 +209,7 @@ class AccountManager:
                         if not page.is_closed():
                             # 再次确保 beforeunload 被禁用
                             try:
-                                await page.evaluate("() => { window.onbeforeunload = null; }")
+                                await page.evaluate(DISABLE_BEFORE_UNLOAD_SCRIPT)
                             except Exception:
                                 pass
 

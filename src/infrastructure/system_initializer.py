@@ -19,6 +19,7 @@ from infrastructure.state_monitor import StateMonitor
 from search.query_engine import QueryEngine
 from search.search_engine import SearchEngine
 from search.search_term_generator import SearchTermGenerator
+from ui.simple_theme import SimpleThemeManager
 
 
 class SystemInitializer:
@@ -73,6 +74,9 @@ class SystemInitializer:
         # 初始化 QueryEngine（如果启用）
         query_engine = self._init_query_engine()
 
+        # 初始化主题管理器
+        theme_mgr = SimpleThemeManager(self.config)
+
         # 导入 StatusManager 用于进度显示
         from ui.real_time_status import StatusManager
 
@@ -84,6 +88,7 @@ class SystemInitializer:
             monitor=state_monitor,
             query_engine=query_engine,
             status_manager=StatusManager,
+            theme_manager=theme_mgr,
         )
 
         # 创建错误处理器

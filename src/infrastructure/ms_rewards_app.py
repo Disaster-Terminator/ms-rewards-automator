@@ -90,9 +90,7 @@ class MSRewardsApp:
 
         self.initializer = SystemInitializer(config, args, self.logger)
 
-        from .task_coordinator import TaskCoordinator
-
-        self.coordinator = TaskCoordinator(config, args, self.logger, self.browser_sim)
+        # coordinator 将在 _init_components 中创建（需要所有依赖项）
 
         if self.diagnose:
             try:
@@ -100,12 +98,12 @@ class MSRewardsApp:
 
                 from diagnosis.inspector import PageInspector
                 from diagnosis.reporter import DiagnosisReporter
-                from diagnosis.rotation import cleanup_old_diagnoses
+                from infrastructure.log_rotation import LogRotation
 
                 self.diagnosis_reporter = DiagnosisReporter(output_dir="logs/diagnosis")
                 self._page_inspector = PageInspector()
                 self.logger.info("诊断模式已启用")
-                cleanup_old_diagnoses(Path("logs"))
+                LogRotation().cleanup_old_diagnoses(Path("logs"))
             except ImportError as e:
                 module_name = getattr(e, "name", "未知模块")
                 self.logger.error(
@@ -239,13 +237,19 @@ class MSRewardsApp:
             self.health_monitor,
         ) = self.initializer.initialize_components()
 
-        # 将依赖注入到TaskCoordinator中
-        # 这是实现松耦合设计的关键步骤
-        self.coordinator.set_account_manager(self.account_mgr).set_search_engine(
-            self.search_engine
-        ).set_state_monitor(self.state_monitor).set_health_monitor(
-            self.health_monitor
-        ).set_browser_sim(self.browser_sim)
+        # 使用直接构造方式传递依赖（已简化）
+        from .task_coordinator import TaskCoordinator
+
+        self.coordinator = TaskCoordinator(
+            config=self.config,
+            args=self.args,
+            logger=self.logger,
+            account_manager=self.account_mgr,
+            search_engine=self.search_engine,
+            state_monitor=self.state_monitor,
+            health_monitor=self.health_monitor,
+            browser_sim=self.browser_sim,
+        )
 
         # 启动健康监控，在后台监控系统状态
         if self.health_monitor.enabled:

@@ -1,25 +1,29 @@
 """
-Type definitions module
+Type definitions module - 简化版
 
-Centralized definition of Protocols and TypedDicts used across the project
+Centralized definition of Protocols used across the project
 for improved type safety and IDE support.
 """
 
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol
 
 from playwright.async_api import Page
 
 
 class ConfigProtocol(Protocol):
-    """Configuration manager protocol"""
+    """Configuration manager protocol - 实际被 account/manager.py 使用"""
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value"""
         ...
 
+    def get_with_env(self, key: str, env_var: str, default: Any = None) -> Any:
+        """Get configuration value with environment variable fallback"""
+        ...
+
 
 class StateHandlerProtocol(Protocol):
-    """State handler protocol for login flow"""
+    """State handler protocol for login flow - 实际被 login handlers 使用"""
 
     async def can_handle(self, page: Page) -> bool:
         """Check if this handler can handle the current state"""
@@ -28,46 +32,3 @@ class StateHandlerProtocol(Protocol):
     async def handle(self, page: Page, credentials: dict[str, str]) -> bool:
         """Handle the current state"""
         ...
-
-
-class HealthCheckResult(TypedDict):
-    """Health check result structure"""
-
-    status: str
-    cpu_percent: float
-    memory_percent: float
-    disk_percent: float
-    network_status: str
-    issues: list[str]
-    timestamp: str
-
-
-class DetectionInfo(TypedDict):
-    """Login detection information"""
-
-    current_state: str
-    confidence: float
-    detected_selectors: list[str]
-    page_url: str
-    timestamp: str
-
-
-class DiagnosticInfo(TypedDict):
-    """State machine diagnostic information"""
-
-    current_state: str
-    transition_count: int
-    max_transitions: int
-    timeout_seconds: int
-    registered_handlers: list[str]
-    state_history: list[dict[str, Any]]
-
-
-class TaskDetail(TypedDict):
-    """Task detail structure"""
-
-    id: str
-    name: str
-    points: int
-    status: str
-    url: str | None

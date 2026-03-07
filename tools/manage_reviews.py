@@ -22,8 +22,8 @@ from _common import get_github_token, setup_project_path
 
 setup_project_path()
 
-from src.review import ReviewManager, ReviewResolver  # noqa: E402
-from src.review.models import ReviewThreadState  # noqa: E402
+from review import ReviewManager, ReviewResolver  # noqa: E402
+from review.models import ReviewThreadState  # noqa: E402
 
 try:
     from rich.console import Console

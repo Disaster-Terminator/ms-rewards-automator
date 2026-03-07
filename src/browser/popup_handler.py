@@ -144,11 +144,15 @@ class BrowserPopupHandler:
 
         Args:
             page: Playwright Page 对象
-            timeout: 超时时间（毫秒）
+            timeout: 总超时时间（毫秒）
 
         Returns:
             True if popup is present, False otherwise
         """
+        # 计算每个选择器的超时时间，避免总阻塞时间过长
+        # 策略1有4个选择器，策略2有10个选择器，总共14个
+        per_selector_timeout = max(50, timeout // 14)  # 至少 50ms
+
         # 策略1: 检查弹窗容器
         popup_container_selectors = [
             '[role="dialog"]',
@@ -159,8 +163,11 @@ class BrowserPopupHandler:
 
         for selector in popup_container_selectors:
             try:
-                element = await page.query_selector(selector)
-                if element and await element.is_visible(timeout=timeout):
+                # 使用 wait_for_selector 而不是 query_selector + is_visible
+                element = await page.wait_for_selector(
+                    selector, timeout=per_selector_timeout, state="visible"
+                )
+                if element:
                     self.logger.debug(f"检测到弹窗容器: {selector}")
                     return True
             except Exception:
@@ -169,8 +176,10 @@ class BrowserPopupHandler:
         # 策略2: 检查是否有任何弹窗按钮可见
         for selector in self.POPUP_SELECTORS[:10]:  # 只检查前10个常用选择器
             try:
-                element = await page.query_selector(selector)
-                if element and await element.is_visible(timeout=timeout):
+                element = await page.wait_for_selector(
+                    selector, timeout=per_selector_timeout, state="visible"
+                )
+                if element:
                     self.logger.debug(f"检测到弹窗按钮: {selector}")
                     return True
             except Exception:
@@ -180,9 +189,12 @@ class BrowserPopupHandler:
         try:
             dialogs = await page.query_selector_all('[role="dialog"], [role="alertdialog"]')
             for dialog in dialogs:
-                if await dialog.is_visible(timeout=timeout):
+                try:
+                    await dialog.wait_for_element_state("visible", timeout=per_selector_timeout)
                     self.logger.debug("检测到 dialog 元素")
                     return True
+                except Exception:
+                    continue
         except Exception:
             pass
 

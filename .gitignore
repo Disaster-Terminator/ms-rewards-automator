@@ -75,6 +75,11 @@ htmlcov/
 *.tmp
 temp/
 
+# 开发工件
+*.bak
+MEMORY.md
+PR_DESCRIPTION.md
+
 # 代码审查临时文件
 1.txt
 2.md

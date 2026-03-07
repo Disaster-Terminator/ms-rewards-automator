@@ -8,6 +8,11 @@ import logging
 
 from playwright.async_api import BrowserContext, Page
 
+from browser.page_utils import (
+    DISABLE_BEFORE_UNLOAD_AND_WINDOW_OPEN_SCRIPT,
+    DISABLE_BEFORE_UNLOAD_SCRIPT,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,28 +73,7 @@ class TabManager:
         try:
             # 立即注入防护脚本，防止 beforeunload 对话框
             try:
-                await new_page.evaluate("""
-                    () => {
-                        // 禁用 beforeunload 事件
-                        window.onbeforeunload = null;
-
-                        // 阻止新的 beforeunload 监听器
-                        const originalAddEventListener = window.addEventListener;
-                        window.addEventListener = function(type, listener, options) {
-                            if (type === 'beforeunload') {
-                                console.log('[TabManager] Blocked beforeunload listener');
-                                return;
-                            }
-                            return originalAddEventListener.call(this, type, listener, options);
-                        };
-
-                        // 阻止 window.open
-                        window.open = function() {
-                            console.log('[TabManager] Blocked window.open()');
-                            return null;
-                        };
-                    }
-                """)
+                await new_page.evaluate(DISABLE_BEFORE_UNLOAD_AND_WINDOW_OPEN_SCRIPT)
                 logger.debug("已为新页面注入防护脚本")
             except Exception as e:
                 logger.debug(f"注入防护脚本失败: {e}")
@@ -133,21 +117,7 @@ class TabManager:
             if not page.is_closed():
                 # 在关闭前禁用 beforeunload 事件，防止"确定要离开？"对话框
                 try:
-                    await page.evaluate("""
-                        () => {
-                            // 移除所有 beforeunload 监听器
-                            window.onbeforeunload = null;
-
-                            // 覆盖 addEventListener 以阻止新的 beforeunload 监听器
-                            const originalAddEventListener = window.addEventListener;
-                            window.addEventListener = function(type, listener, options) {
-                                if (type === 'beforeunload') {
-                                    return; // 忽略 beforeunload 监听器
-                                }
-                                return originalAddEventListener.call(this, type, listener, options);
-                            };
-                        }
-                    """)
+                    await page.evaluate(DISABLE_BEFORE_UNLOAD_SCRIPT)
                     logger.debug("已禁用页面的 beforeunload 事件")
                 except Exception as e:
                     logger.debug(f"禁用 beforeunload 事件失败: {e}")

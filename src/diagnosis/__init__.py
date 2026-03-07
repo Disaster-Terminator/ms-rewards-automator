@@ -6,7 +6,6 @@
 from .engine import DiagnosisCategory, DiagnosisResult, DiagnosticEngine
 from .inspector import DetectedIssue, IssueSeverity, IssueType, PageInspector
 from .reporter import DiagnosisReporter
-from .rotation import cleanup_old_diagnoses
 from .screenshot import ScreenshotManager
 
 __all__ = [
@@ -19,5 +18,4 @@ __all__ = [
     "IssueType",
     "ScreenshotManager",
     "DiagnosisReporter",
-    "cleanup_old_diagnoses",
 ]
