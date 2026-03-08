@@ -56,8 +56,11 @@ class SystemInitializer:
         # 创建反检测模块
         anti_ban = AntiBanModule(self.config)
 
-        # 创建浏览器模拟器
-        browser_sim = BrowserSimulator(self.config, anti_ban)
+        # 初始化主题管理器（需要在 BrowserSimulator 之前创建）
+        theme_mgr = SimpleThemeManager(self.config)
+
+        # 创建浏览器模拟器（传入主题管理器）
+        browser_sim = BrowserSimulator(self.config, anti_ban, theme_mgr)
 
         # 创建搜索词生成器
         term_gen = SearchTermGenerator(self.config)
@@ -73,9 +76,6 @@ class SystemInitializer:
 
         # 初始化 QueryEngine（如果启用）
         query_engine = self._init_query_engine()
-
-        # 初始化主题管理器
-        theme_mgr = SimpleThemeManager(self.config)
 
         # 导入 StatusManager 用于进度显示
         from ui.real_time_status import StatusManager

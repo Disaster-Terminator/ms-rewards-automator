@@ -18,16 +18,18 @@ logger = logging.getLogger(__name__)
 class BrowserSimulator:
     """浏览器模拟器类"""
 
-    def __init__(self, config, anti_ban):
+    def __init__(self, config, anti_ban, theme_manager=None):
         """
         初始化浏览器模拟器
 
         Args:
             config: ConfigManager 实例
             anti_ban: AntiBanModule 实例
+            theme_manager: SimpleThemeManager 实例（可选）
         """
         self.config = config
         self.anti_ban = anti_ban
+        self.theme_manager = theme_manager
         self.playwright: Playwright | None = None
         self.browser: Browser | None = None
 
@@ -334,24 +336,21 @@ class BrowserSimulator:
         await self.apply_stealth(context)
 
         # 预设主题Cookie（在创建页面之前，确保桌面和移动端主题一致）
-        # 使用简化的主题管理
-        try:
-            from ui.simple_theme import SimpleThemeManager
-
-            theme_manager = SimpleThemeManager(self.config)
-            if theme_manager.enabled:
+        # 使用共享的主题管理器实例（如果提供）
+        if self.theme_manager and self.theme_manager.enabled:
+            try:
                 # 尝试加载保存的主题状态
-                if theme_manager.persistence_enabled:
-                    saved_theme = await theme_manager.load_theme_state()
+                if self.theme_manager.persistence_enabled:
+                    saved_theme = await self.theme_manager.load_theme_state()
                     if saved_theme:
                         logger.info(f"从文件加载主题状态: {saved_theme}")
-                        theme_manager.preferred_theme = saved_theme
+                        self.theme_manager.preferred_theme = saved_theme
 
-                success = await theme_manager.set_theme_cookie(context)
+                success = await self.theme_manager.set_theme_cookie(context)
                 if success:
-                    logger.info(f"✓ 已设置Bing主题: {theme_manager.preferred_theme}")
-        except Exception as e:
-            logger.debug(f"设置主题失败: {e}")
+                    logger.info(f"✓ 已设置Bing主题: {self.theme_manager.preferred_theme}")
+            except Exception as e:
+                logger.debug(f"设置主题失败: {e}")
 
         # 创建主页面
         main_page = await context.new_page()
