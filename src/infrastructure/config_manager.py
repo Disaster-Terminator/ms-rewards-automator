@@ -144,10 +144,6 @@ DEFAULT_CONFIG = {
         "mode": "scheduled",
         "scheduled_hour": 17,
         "max_offset_minutes": 45,
-        "random_start_hour": 8,
-        "random_end_hour": 22,
-        "fixed_hour": 10,
-        "fixed_minute": 0,
     },
     "anti_detection": {
         "use_stealth": True,
