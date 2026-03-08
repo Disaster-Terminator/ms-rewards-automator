@@ -663,7 +663,7 @@ class SearchEngine:
 
         # 保存主题状态（如果启用持久化）
         if self.theme_manager and self.theme_manager.persistence_enabled:
-            await self.theme_manager.save_theme_state(self.theme_manager.preferred_theme)
+            self.theme_manager.save_theme_state(self.theme_manager.preferred_theme)
             logger.debug("已保存主题状态")
 
         return success_count
@@ -717,7 +717,7 @@ class SearchEngine:
 
         # 保存主题状态（如果启用持久化）
         if self.theme_manager and self.theme_manager.persistence_enabled:
-            await self.theme_manager.save_theme_state(self.theme_manager.preferred_theme)
+            self.theme_manager.save_theme_state(self.theme_manager.preferred_theme)
             logger.debug("已保存主题状态")
 
         return success_count
