@@ -190,11 +190,11 @@ class Notificator:
         # 准备数据
         data = {
             "date_str": datetime.now().strftime("%Y-%m-%d"),
-            "points_gained": report_data.get("points_gained", 0),
-            "current_points": report_data.get("current_points", 0),
-            "desktop_searches": report_data.get("desktop_searches", 0),
-            "mobile_searches": report_data.get("mobile_searches", 0),
-            "status": report_data.get("status", "未知"),
+            "points_gained": report_data.get("points_gained") or 0,
+            "current_points": report_data.get("current_points") or 0,
+            "desktop_searches": report_data.get("desktop_searches") or 0,
+            "mobile_searches": report_data.get("mobile_searches") or 0,
+            "status": report_data.get("status") or "未知",
             "alerts_section": "",
         }
 
