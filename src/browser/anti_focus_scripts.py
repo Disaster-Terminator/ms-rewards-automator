@@ -94,12 +94,21 @@ class AntiFocusScripts:
         return """
         window.focus = () => {};
         window.blur = () => {};
-        Object.defineProperty(document, 'hasFocus', {value: () => false, writable: false});
+        Object.defineProperty(
+            document, 'hasFocus',
+            {value: () => false, writable: false, configurable: false}
+        );
         ['focus', 'blur', 'focusin', 'focusout'].forEach(et => {
             window.addEventListener(et, e => {e.stopPropagation(); e.preventDefault();}, true);
         });
-        Object.defineProperty(document, 'visibilityState', {value: 'hidden', writable: false});
-        Object.defineProperty(document, 'hidden', {value: true, writable: false});
+        Object.defineProperty(
+            document, 'visibilityState',
+            {value: 'hidden', writable: false, configurable: false}
+        );
+        Object.defineProperty(
+            document, 'hidden',
+            {value: true, writable: false, configurable: false}
+        );
         """
 
     @staticmethod
