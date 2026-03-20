@@ -1,0 +1,17 @@
+{
+  "workflow_mode": "interactive",
+  "planning": {
+    "commit_docs": true,
+    "search_gitignored": false
+  },
+  "models": {
+    "profile": "balanced"
+  },
+  "research": {
+    "enabled": false
+  },
+  "phase_validation": {
+    "enabled": true,
+    "max_iterations": 2
+  }
+}
