@@ -144,10 +144,6 @@ DEFAULT_CONFIG = {
         "mode": "scheduled",
         "scheduled_hour": 17,
         "max_offset_minutes": 45,
-        "random_start_hour": 8,
-        "random_end_hour": 22,
-        "fixed_hour": 10,
-        "fixed_minute": 0,
     },
     "anti_detection": {
         "use_stealth": True,
@@ -264,13 +260,11 @@ class ConfigManager:
         self.config_path = config_path
         self.dev_mode = dev_mode
         self.user_mode = user_mode
-        self.config: dict[str, Any] = {}
+        self.config: dict[str, Any] = {}  # 使用 dict 而非 ConfigDict，避免 TypedDict 初始化问题
         self.config_data: dict[str, Any] = {}
         self._load_config()
 
         self._apply_execution_mode()
-
-        self._init_typed_config()
 
         if self.dev_mode:
             self._apply_dev_mode()
@@ -278,16 +272,6 @@ class ConfigManager:
         elif self.user_mode:
             self._apply_user_mode()
             logger.info("🎯 用户模式已启用")
-
-    def _init_typed_config(self) -> None:
-        """初始化类型化配置"""
-        try:
-            from .app_config import AppConfig
-
-            self.app = AppConfig.from_dict(self.config)
-        except Exception as e:
-            logger.warning(f"类型化配置初始化失败，使用字典配置: {e}")
-            self.app = None
 
     def _apply_execution_mode(self) -> None:
         """应用执行模式预设配置"""
@@ -315,16 +299,12 @@ class ConfigManager:
         """应用开发模式覆盖配置"""
         self.config = self._merge_configs(self.config, DEV_MODE_OVERRIDES)
         self.config_data = self.config
-        if self.app:
-            self.app = type(self.app).from_dict(self.config)
         logger.debug("开发模式配置已应用")
 
     def _apply_user_mode(self) -> None:
         """应用用户模式覆盖配置"""
         self.config = self._merge_configs(self.config, USER_MODE_OVERRIDES)
         self.config_data = self.config
-        if self.app:
-            self.app = type(self.app).from_dict(self.config)
         logger.debug("用户模式配置已应用")
 
     def _load_config(self) -> None:
@@ -461,7 +441,7 @@ class ConfigManager:
 
     def validate_config(self, auto_fix: bool = False) -> bool:
         """
-        验证配置文件的完整性和有效性（增强版）
+        验证配置文件的完整性和有效性
 
         Args:
             auto_fix: 是否自动修复常见问题
@@ -470,11 +450,9 @@ class ConfigManager:
             配置是否有效
         """
         try:
-            # 使用新的配置验证器
             from .config_validator import ConfigValidator
 
             validator = ConfigValidator(self)
-
             is_valid, errors, warnings = validator.validate_config(self.config)
 
             # 显示验证报告
@@ -496,86 +474,9 @@ class ConfigManager:
 
             return is_valid
 
-        except ImportError:
-            # 降级到原有的验证逻辑
-            logger.debug("使用基础配置验证")
-            return self._validate_config_basic()
         except Exception as e:
             logger.error(f"配置验证失败: {e}")
-            return self._validate_config_basic()
-
-    def _validate_config_basic(self) -> bool:
-        """
-        基础配置验证（原有逻辑）
-
-        Returns:
-            配置是否有效
-        """
-        required_keys = [
-            "search.desktop_count",
-            "search.mobile_count",
-            "search.wait_interval",
-            "browser.headless",
-            "account.storage_state_path",
-            "logging.level",
-        ]
-
-        for key in required_keys:
-            value = self.get(key)
-            if value is None:
-                logger.error(f"缺少必需的配置项: {key}")
-                return False
-
-        # 验证数值范围
-        desktop_count = self.get("search.desktop_count")
-        if not isinstance(desktop_count, int) or desktop_count < 1:
-            logger.error(f"search.desktop_count 必须是正整数: {desktop_count}")
             return False
-
-        mobile_count = self.get("search.mobile_count")
-        if not isinstance(mobile_count, int) or mobile_count < 0:
-            logger.error(f"search.mobile_count 必须是非负整数: {mobile_count}")
-            return False
-
-        # 验证 wait_interval（支持单个值和字典两种格式）
-        wait_interval = self.get("search.wait_interval")
-        if isinstance(wait_interval, dict):
-            wait_min = wait_interval.get("min")
-            wait_max = wait_interval.get("max")
-            if wait_min is None or wait_max is None:
-                logger.error("wait_interval 字典必须包含 min 和 max 键")
-                return False
-            if not isinstance(wait_min, (int, float)) or not isinstance(wait_max, (int, float)):
-                logger.error("wait_interval.min 和 wait_interval.max 必须是数字")
-                return False
-            if wait_min >= wait_max:
-                logger.error(
-                    f"wait_interval.min ({wait_min}) 必须小于 wait_interval.max ({wait_max})"
-                )
-                return False
-        elif isinstance(wait_interval, (int, float)):
-            if wait_interval <= 0:
-                logger.error(f"wait_interval 必须为正数: {wait_interval}")
-                return False
-        else:
-            logger.error(f"wait_interval 格式无效，应为数字或包含 min/max 的字典: {wait_interval}")
-            return False
-
-        # 验证浏览器配置
-        headless = self.get("browser.headless")
-        if not isinstance(headless, bool):
-            logger.error(f"browser.headless 必须是布尔值: {headless}")
-            return False
-
-        # 验证日志级别
-        valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        log_level = self.get("logging.level")
-        if log_level not in valid_log_levels:
-            logger.error(f"无效的日志级别: {log_level}，有效值: {valid_log_levels}")
-            return False
-
-        logger.info("配置验证通过")
-        return True
 
     def validate_browser_config(self) -> tuple[bool, list[str]]:
         """

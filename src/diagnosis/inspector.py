@@ -351,38 +351,23 @@ class PageInspector:
             if any(keyword in url for keyword in ["login", "signin", "search", "bing.com"]):
                 for indicator in self.rate_limit_indicators:
                     if indicator in content_lower:
-                        is_visible = False
-                        try:
-                            elements = await page.query_selector_all("body *")
-                            for element in elements:
-                                try:
-                                    text = await element.inner_text()
-                                    if indicator.lower() in text.lower():
-                                        is_displayed = await element.is_visible()
-                                        if is_displayed:
-                                            is_visible = True
-                                            break
-                                except Exception:
-                                    pass
-                        except Exception:
-                            pass
-
-                        if is_visible:
-                            issues.append(
-                                DetectedIssue(
-                                    issue_type=IssueType.RATE_LIMITED,
-                                    severity=IssueSeverity.WARNING,
-                                    title="检测到频率限制",
-                                    description=f"发现限制指示器: '{indicator}'",
-                                    evidence=indicator,
-                                    suggestions=[
-                                        "增加操作间隔时间",
-                                        "暂停一段时间后重试",
-                                        "降低自动化速度",
-                                    ],
-                                )
+                        # 简化：既然文本中包含指示器，且页面在相关域名下，直接报告问题
+                        # 移除低效的 body * 查询
+                        issues.append(
+                            DetectedIssue(
+                                issue_type=IssueType.RATE_LIMITED,
+                                severity=IssueSeverity.WARNING,
+                                title="检测到频率限制",
+                                description=f"发现限制指示器: '{indicator}'",
+                                evidence=indicator,
+                                suggestions=[
+                                    "增加操作间隔时间",
+                                    "暂停一段时间后重试",
+                                    "降低自动化速度",
+                                ],
                             )
-                            break
+                        )
+                        break
 
         except Exception as e:
             logger.debug(f"频率限制检查异常: {e}")
@@ -394,20 +379,7 @@ class PageInspector:
         issues = []
 
         try:
-            content = await page.content()
-            content.lower()
-
-            error_indicators = [
-                "error",
-                "错误",
-                "failed",
-                "失败",
-                "something went wrong",
-                "出了点问题",
-                "try again",
-                "重试",
-            ]
-
+            # 使用实例变量中的 error_indicators
             visible_error_elements = []
             error_selectors = [
                 ".error",
@@ -426,7 +398,9 @@ class PageInspector:
                         is_visible = await element.is_visible()
                         if is_visible:
                             text = await element.inner_text()
-                            if any(indicator in text.lower() for indicator in error_indicators):
+                            if any(
+                                indicator in text.lower() for indicator in self.error_indicators
+                            ):
                                 visible_error_elements.append(text)
                     except Exception:
                         pass

@@ -190,21 +190,6 @@ rscore --user
 rscore --dev
 ```
 
-### 4. 查看执行结果
-
-#### 启动数据面板
-
-```bash
-streamlit run tools/dashboard.py
-```
-
-数据面板显示：
-
-- 今天的任务完成情况
-- 积分获得详情
-- 7天积分增长趋势
-- 执行状态和错误信息
-
 ## 🎯 实际使用场景
 
 ### 日常自动化任务
@@ -329,7 +314,6 @@ rewards-core/
 
 - [Playwright](https://playwright.dev/) - 浏览器自动化框架
 - [playwright-stealth](https://github.com/AtuboDad/playwright_stealth) - 反检测插件
-- [Streamlit](https://streamlit.io/) - 数据可视化框架
 
 ---
 

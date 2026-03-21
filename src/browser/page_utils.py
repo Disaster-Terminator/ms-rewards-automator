@@ -11,6 +11,55 @@ from playwright.async_api import BrowserContext, Page
 
 logger = logging.getLogger(__name__)
 
+# 共享的 JavaScript 脚本常量
+# 用于禁用页面的 beforeunload 事件，防止"确定要离开？"对话框
+# 覆盖 confirm 和 alert 以静默处理弹窗
+DISABLE_BEFORE_UNLOAD_SCRIPT = """
+    () => {
+        // 移除所有 beforeunload 监听器
+        window.onbeforeunload = null;
+        window.onunload = null;
+
+        // 阻止新的 beforeunload 监听器
+        const originalAddEventListener = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+            if (type === 'beforeunload' || type === 'unload') {
+                return;
+            }
+            return originalAddEventListener.call(this, type, listener, options);
+        };
+
+        // 覆盖 confirm 和 alert，防止弹窗
+        window.confirm = () => true;
+        window.alert = () => {};
+    }
+"""
+
+# 用于禁用 beforeunload 事件并阻止 window.open
+# 适用于需要完全控制新标签页的场景
+DISABLE_BEFORE_UNLOAD_AND_WINDOW_OPEN_SCRIPT = """
+    () => {
+        // 禁用 beforeunload 事件
+        window.onbeforeunload = null;
+
+        // 阻止新的 beforeunload 监听器
+        const originalAddEventListener = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+            if (type === 'beforeunload') {
+                console.log('[TabManager] Blocked beforeunload listener');
+                return;
+            }
+            return originalAddEventListener.call(this, type, listener, options);
+        };
+
+        // 阻止 window.open
+        window.open = function() {
+            console.log('[TabManager] Blocked window.open()');
+            return null;
+        };
+    }
+"""
+
 
 @asynccontextmanager
 async def temp_page(context: BrowserContext):

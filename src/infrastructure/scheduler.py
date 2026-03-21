@@ -1,12 +1,12 @@
 """
-任务调度器模块
-支持时区选择、定时+随机偏移调度
+任务调度器模块 - 简化版
+仅保留 scheduled 模式（定时+随机偏移）
 """
 
 import asyncio
 import logging
 import random
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 
 try:
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class TaskScheduler:
-    """任务调度器类"""
+    """任务调度器类 - 简化版（仅支持 scheduled 模式）"""
 
     def __init__(self, config):
         """
@@ -33,7 +33,15 @@ class TaskScheduler:
         self.config = config
 
         self.enabled = config.get("scheduler.enabled", True)
+        # 保留 mode 配置选项以保证向后兼容，但实际只使用 scheduled
         self.mode = config.get("scheduler.mode", "scheduled")
+        if self.mode not in ["scheduled", "random", "fixed"]:
+            logger.warning(f"未知的调度模式: {self.mode}，将使用 scheduled 模式")
+        elif self.mode in ["random", "fixed"]:
+            logger.warning(
+                f"调度模式 '{self.mode}' 已弃用，现在只支持 'scheduled' 模式。"
+                f"配置项 scheduler.mode 将在未来的版本中移除。"
+            )
         self.run_once_on_start = config.get("scheduler.run_once_on_start", True)
 
         self.timezone_str = config.get("scheduler.timezone", "Asia/Shanghai")
@@ -52,41 +60,30 @@ class TaskScheduler:
         self.scheduled_hour = config.get("scheduler.scheduled_hour", 17)
         self.max_offset_minutes = config.get("scheduler.max_offset_minutes", 45)
 
-        # 随机模式配置（旧）
-        self.random_start_hour = config.get("scheduler.random_start_hour", 8)
-        self.random_end_hour = config.get("scheduler.random_end_hour", 22)
-
-        # 固定模式配置（旧）
-        self.fixed_hour = config.get("scheduler.fixed_hour", 10)
-        self.fixed_minute = config.get("scheduler.fixed_minute", 0)
-
         # 测试模式
         self.test_delay_seconds = config.get("scheduler.test_delay_seconds", 0)
 
         self.running = False
         self.next_run_time = None
 
-        logger.info(
-            f"任务调度器初始化完成 (enabled={self.enabled}, mode={self.mode}, timezone={self.timezone_str})"
-        )
+        logger.info(f"任务调度器初始化完成 (enabled={self.enabled}, timezone={self.timezone_str})")
 
     def _get_now(self) -> datetime:
         """获取当前时区的当前时间"""
         if self.timezone:
             return datetime.now(self.timezone)
-        else:
-            return datetime.now()
+        return datetime.now()
 
     def calculate_next_run_time(self) -> datetime:
         """
-        计算下次运行时间
+        计算下次运行时间（仅支持 scheduled 模式）
 
         Returns:
             下次运行的 datetime 对象（带时区）
         """
         now = self._get_now()
 
-        # 测试模式
+        # 测试模式：立即执行（指定秒后）
         if self.test_delay_seconds > 0:
             target_time = now + timedelta(seconds=self.test_delay_seconds)
             logger.info(
@@ -94,14 +91,8 @@ class TaskScheduler:
             )
             return target_time
 
-        if self.mode == "scheduled":
-            target_time = self._calculate_scheduled_time(now)
-        elif self.mode == "random":
-            target_time = self._calculate_random_time(now)
-        else:
-            target_time = self._calculate_fixed_time(now)
-
-        return target_time
+        # 仅支持 scheduled 模式（定时+随机偏移）
+        return self._calculate_scheduled_time(now)
 
     def _calculate_scheduled_time(self, now: datetime) -> datetime:
         """
@@ -118,6 +109,7 @@ class TaskScheduler:
         actual_hour = total_minutes // 60
         actual_minute = total_minutes % 60
 
+        # 处理跨天情况
         if actual_hour < 0:
             actual_hour += 24
             target_time = now.replace(
@@ -135,6 +127,7 @@ class TaskScheduler:
                 hour=actual_hour, minute=actual_minute, second=0, microsecond=0
             )
 
+        # 如果时间已过，安排到明天（带新的随机偏移）
         if target_time <= now:
             target_time += timedelta(days=1)
             offset_minutes = random.randint(-max_offset, max_offset)
@@ -152,38 +145,12 @@ class TaskScheduler:
         )
         return target_time
 
-    def _calculate_random_time(self, now: datetime) -> datetime:
-        """计算随机模式的下次运行时间"""
-        target_hour = random.randint(self.random_start_hour, self.random_end_hour)
-        target_minute = random.randint(0, 59)
-
-        target_time = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)
-
-        if target_time <= now:
-            target_time += timedelta(days=1)
-
-        logger.info(f"随机调度: 下次运行时间 {target_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        return target_time
-
-    def _calculate_fixed_time(self, now: datetime) -> datetime:
-        """计算固定模式的下次运行时间"""
-        target_time = now.replace(
-            hour=self.fixed_hour, minute=self.fixed_minute, second=0, microsecond=0
-        )
-
-        if target_time <= now:
-            target_time += timedelta(days=1)
-
-        logger.info(f"固定调度: 下次运行时间 {target_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        return target_time
-
     async def wait_until_next_run(self) -> None:
         """等待到下次运行时间"""
         self.next_run_time = self.calculate_next_run_time()
 
         now = self._get_now()
         wait_seconds = (self.next_run_time - now).total_seconds()
-
         if wait_seconds < 0:
             wait_seconds = 0
 
@@ -206,7 +173,9 @@ class TaskScheduler:
                 else:
                     logger.debug(f"还需等待 {wait_seconds / 60:.1f} 分钟...")
 
-    async def run_scheduled_task(self, task_func: Callable, run_once_first: bool = True) -> None:
+    async def run_scheduled_task(
+        self, task_func: Callable[[], Awaitable[None]], run_once_first: bool = True
+    ) -> None:
         """
         运行调度任务
 
@@ -222,9 +191,6 @@ class TaskScheduler:
         logger.info("=" * 60)
         logger.info("任务调度器启动")
         logger.info(f"时区: {self.timezone_str}")
-        logger.info(f"模式: {self.mode}")
-        if self.mode == "scheduled":
-            logger.info(f"定时: 每天 {self.scheduled_hour}:00 ± {self.max_offset_minutes} 分钟")
         logger.info("=" * 60)
 
         try:
@@ -275,32 +241,20 @@ class TaskScheduler:
 
     def get_status(self) -> dict:
         """
-        获取调度器状态
+        获取调度器状态（简化版，仅保留 scheduled 模式信息）
 
         Returns:
             状态字典
         """
-        status = {
+        return {
             "enabled": self.enabled,
             "running": self.running,
             "mode": self.mode,
             "timezone": self.timezone_str,
             "run_once_on_start": self.run_once_on_start,
             "next_run_time": self.next_run_time.isoformat() if self.next_run_time else None,
-            "config": {},
-        }
-
-        if self.mode == "scheduled":
-            status["config"] = {
+            "config": {
                 "scheduled_hour": self.scheduled_hour,
                 "max_offset_minutes": self.max_offset_minutes,
-            }
-        elif self.mode == "random":
-            status["config"] = {
-                "random_start_hour": self.random_start_hour,
-                "random_end_hour": self.random_end_hour,
-            }
-        else:
-            status["config"] = {"fixed_hour": self.fixed_hour, "fixed_minute": self.fixed_minute}
-
-        return status
+            },
+        }

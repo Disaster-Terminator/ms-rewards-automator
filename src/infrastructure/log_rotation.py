@@ -4,6 +4,7 @@
 """
 
 import logging
+import shutil
 import time
 from pathlib import Path
 
@@ -96,17 +97,18 @@ class LogRotation:
         # 按修改时间排序（旧的在前）
         files.sort(key=lambda x: x.stat().st_mtime)
 
-        # 计算应该保留的文件数
-        files_to_keep = max(len(files) - self.keep_min_files, 0)
+        # 计算应该保留的文件数 - 始终保留最近的 keep_min_files 个文件
+        files_to_keep = self.keep_min_files
+        num_files = len(files)
 
         for i, file_path in enumerate(files):
             try:
-                # 如果还有足够的文件保留，跳过
-                if i < files_to_keep and not self.should_delete(file_path):
+                # 强制保留最近的文件（无论是否应该删除）
+                if i >= num_files - files_to_keep:
                     result["skipped"] += 1
                     continue
 
-                # 检查是否应该删除（必须通过 should_delete 检查）
+                # 检查是否应该删除
                 if self.should_delete(file_path):
                     file_size = file_path.stat().st_size
 
@@ -160,9 +162,7 @@ class LogRotation:
         # 2. 清理诊断目录（logs/diagnosis）
         diagnosis_dir = self.logs_dir / "diagnosis"
         if diagnosis_dir.exists():
-            from diagnosis.rotation import cleanup_old_diagnoses
-
-            diagnosis_result = cleanup_old_diagnoses(
+            diagnosis_result = self._cleanup_old_diagnoses(
                 self.logs_dir, max_folders=10, max_age_days=self.max_age_days, dry_run=dry_run
             )
             total_result["diagnosis"] = diagnosis_result
@@ -212,6 +212,104 @@ class LogRotation:
         )
 
         return total_result
+
+    def cleanup_old_diagnoses(
+        self,
+        logs_dir: Path,
+        max_folders: int = 10,
+        max_age_days: int = 7,
+        dry_run: bool = False,
+    ) -> dict:
+        """
+        清理旧的诊断目录（公共接口）
+
+        Args:
+            logs_dir: logs 目录路径
+            max_folders: 最多保留的文件夹数量
+            max_age_days: 最大保留天数
+            dry_run: 若为 True，仅模拟删除不实际删除
+
+        Returns:
+            清理结果统计
+        """
+        return self._cleanup_old_diagnoses(logs_dir, max_folders, max_age_days, dry_run)
+
+    def _cleanup_old_diagnoses(
+        self,
+        logs_dir: Path,
+        max_folders: int = 10,
+        max_age_days: int = 7,
+        dry_run: bool = False,
+    ) -> dict:
+        """
+        清理旧的诊断目录，保留最近的 N 个或不超过最大天数的
+
+        Args:
+            logs_dir: logs 目录路径
+            max_folders: 最多保留的文件夹数量
+            max_age_days: 最大保留天数
+            dry_run: 若为 True，仅模拟删除不实际删除
+
+        Returns:
+            清理结果统计，包含 deleted, skipped, errors, total_size_freed 字段
+        """
+        diagnosis_dir = logs_dir / "diagnosis"
+        if not diagnosis_dir.exists():
+            return {"deleted": 0, "skipped": 0, "errors": 0, "total_size_freed": 0}
+
+        folders = sorted(diagnosis_dir.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)
+
+        result = {"deleted": 0, "skipped": 0, "errors": 0, "total_size_freed": 0}
+        age_threshold = max_age_days * 24 * 60 * 60
+
+        for i, folder in enumerate(folders):
+            if not folder.is_dir():
+                continue
+
+            try:
+                folder_age = time.time() - folder.stat().st_mtime
+
+                should_delete = (i >= max_folders) or (folder_age > age_threshold)
+
+                if should_delete:
+                    if dry_run:
+                        logger.debug(f"[dry_run] 将删除旧诊断目录: {folder}")
+                        result["deleted"] += 1
+                    else:
+                        folder_size = self._get_dir_size(folder)
+                        shutil.rmtree(folder)
+                        logger.debug(f"已清理旧诊断目录: {folder}")
+                        result["deleted"] += 1
+                        result["total_size_freed"] += folder_size
+                else:
+                    result["skipped"] += 1
+            except Exception as e:
+                logger.warning(f"清理诊断目录失败 {folder}: {e}")
+                result["errors"] += 1
+
+        if result["deleted"] > 0:
+            logger.info(f"诊断目录清理完成: 删除 {result['deleted']} 个旧目录")
+
+        return result
+
+    def _get_dir_size(self, dir_path: Path) -> int:
+        """
+        计算目录的总大小（字节）
+
+        Args:
+            dir_path: 目录路径
+
+        Returns:
+            目录总大小（字节）
+        """
+        total_size = 0
+        try:
+            for item in dir_path.rglob("*"):
+                if item.is_file():
+                    total_size += item.stat().st_size
+        except Exception as e:
+            logger.warning(f"计算目录大小时出错 {dir_path}: {e}")
+        return total_size
 
 
 def cleanup_old_files(

@@ -8,9 +8,6 @@ URL 常量模块
 - BING_URLS: Bing 搜索相关 URL
 - LOGIN_URLS: Microsoft 登录 URL
 - API_ENDPOINTS: Dashboard 和 App API 端点
-- API_PARAMS: API 查询参数
-- OAUTH_URLS: OAuth 认证 URL
-- OAUTH_CONFIG: OAuth 配置值
 - QUERY_SOURCE_URLS: 搜索查询来源 URL
 - NOTIFICATION_URLS: 通知服务 URL
 - HEALTH_CHECK_URLS: 健康检查测试 URL
@@ -41,21 +38,6 @@ API_ENDPOINTS = {
     "quiz": "https://www.bing.com/bingqa/ReportActivity",
     "app_dashboard": "https://prod.rewardsplatform.microsoft.com/dapi/me",
     "app_activities": "https://prod.rewardsplatform.microsoft.com/dapi/me/activities",
-}
-
-API_PARAMS = {
-    "dashboard_type": "?type=1",
-}
-
-OAUTH_URLS = {
-    "auth": "https://login.live.com/oauth20_authorize.srf",
-    "redirect": "https://login.live.com/oauth20_desktop.srf",
-    "token": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-}
-
-OAUTH_CONFIG = {
-    "client_id": "0000000040170455",
-    "scope": "service::prod.rewardsplatform.microsoft.com::MBI_SSL",
 }
 
 QUERY_SOURCE_URLS = {
