@@ -9,28 +9,22 @@
 
 from .urls import (
     API_ENDPOINTS,
-    API_PARAMS,
     BING_URLS,
     GITHUB_URLS,
     HEALTH_CHECK_URLS,
     LOGIN_URLS,
     NOTIFICATION_URLS,
-    OAUTH_CONFIG,
-    OAUTH_URLS,
     QUERY_SOURCE_URLS,
     REWARDS_URLS,
 )
 
 __all__ = [
     "API_ENDPOINTS",
-    "API_PARAMS",
     "BING_URLS",
     "GITHUB_URLS",
     "HEALTH_CHECK_URLS",
     "LOGIN_URLS",
     "NOTIFICATION_URLS",
-    "OAUTH_CONFIG",
-    "OAUTH_URLS",
     "QUERY_SOURCE_URLS",
     "REWARDS_URLS",
 ]

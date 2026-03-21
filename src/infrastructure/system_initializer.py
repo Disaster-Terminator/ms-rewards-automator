@@ -19,6 +19,7 @@ from infrastructure.state_monitor import StateMonitor
 from search.query_engine import QueryEngine
 from search.search_engine import SearchEngine
 from search.search_term_generator import SearchTermGenerator
+from ui.simple_theme import SimpleThemeManager
 
 
 class SystemInitializer:
@@ -55,8 +56,11 @@ class SystemInitializer:
         # 创建反检测模块
         anti_ban = AntiBanModule(self.config)
 
-        # 创建浏览器模拟器
-        browser_sim = BrowserSimulator(self.config, anti_ban)
+        # 初始化主题管理器（需要在 BrowserSimulator 之前创建）
+        theme_mgr = SimpleThemeManager(self.config)
+
+        # 创建浏览器模拟器（传入主题管理器）
+        browser_sim = BrowserSimulator(self.config, anti_ban, theme_mgr)
 
         # 创建搜索词生成器
         term_gen = SearchTermGenerator(self.config)
@@ -84,6 +88,7 @@ class SystemInitializer:
             monitor=state_monitor,
             query_engine=query_engine,
             status_manager=StatusManager,
+            theme_manager=theme_mgr,
         )
 
         # 创建错误处理器

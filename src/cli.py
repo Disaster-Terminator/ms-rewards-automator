@@ -6,6 +6,7 @@ RewardsCore CLI 入口
 import argparse
 import asyncio
 import logging
+import os
 import signal
 import sys
 from datetime import datetime
@@ -88,6 +89,12 @@ def parse_arguments():
 
     parser.add_argument("--config", default="config.yaml", help="配置文件路径 (默认: config.yaml)")
 
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="启用认证预检（E2E 测试前快速验证）",
+    )
+
     return parser.parse_args()
 
 
@@ -133,7 +140,7 @@ def signal_handler(signum, frame):
     _shutdown_requested = True
 
     if logger:
-        logger.info("\n收到中断信号，正在优雅关闭...")
+        logger.info("\n收到中断信号，正在关闭...")
 
     # 触发 KeyboardInterrupt 让 asyncio.run 正常退出
     # 这会让正在运行的协程收到异常并执行 finally 块
@@ -181,6 +188,37 @@ async def async_main():
         if args.dry_run:
             logger.info(validator.get_validation_report())
 
+        # Preflight check (enabled via env var or flag)
+        if os.getenv("E2E_PREFLIGHT") == "1" or args.preflight:
+            logger.info("执行认证预检 (preflight)...")
+            from infrastructure.preflight import PreflightChecker
+
+            # Determine if we require full logged-in validation (E2E mode)
+            # For standard preflight, we only check file validity; for E2E we also do smoke test
+            require_login = os.getenv("E2E_PREFLIGHT") == "1"
+
+            import asyncio
+            try:
+                # Run preflight with a timeout to ensure fast-fail (< 15s)
+                checker = PreflightChecker(config)
+                blockers = await asyncio.wait_for(
+                    checker.validate(require_logged_in=require_login), timeout=15.0
+                )
+
+                if blockers:
+                    for blocker in blockers:
+                        print(checker.format_blocker_message(blocker), file=sys.stderr)
+                        logger.error(f"Preflight blocked: {blocker.code}")
+                    sys.exit(blockers[0].exit_code)
+                else:
+                    logger.info("✓ 预检通过")
+            except asyncio.TimeoutError:
+                logger.error("预检超时（>15秒），请在 WSL 本地文件系统上运行")
+                sys.exit(1)
+            except Exception as e:
+                logger.exception("预检过程发生异常")
+                sys.exit(1)
+
     except Exception:
         logger.exception("配置加载失败")
         return 1
@@ -201,6 +239,11 @@ async def async_main():
     scheduler_enabled = config.get("scheduler.enabled", True)
 
     try:
+        # 初始化 StatusManager（调度和非调度模式都需要）
+        from ui.real_time_status import StatusManager
+
+        StatusManager.start(config)
+
         if scheduler_enabled:
             logger.info("启动调度模式...")
             from infrastructure.scheduler import TaskScheduler
@@ -223,10 +266,6 @@ async def async_main():
             logger.info(f"浏览器: {args.browser}")
             logger.info(f"无头模式: {config.get('browser.headless', True)}")
             logger.info("=" * 70)
-
-            from ui.real_time_status import StatusManager
-
-            StatusManager.start(config)
 
             return await _current_app.run()
 
