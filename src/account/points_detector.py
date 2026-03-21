@@ -3,11 +3,13 @@
 从 Microsoft Rewards Dashboard 抓取积分信息
 """
 
+import asyncio
 import logging
 import re
 
 from playwright.async_api import Page
 
+from api.dashboard_client import DashboardClient, DashboardError
 from constants import REWARDS_URLS
 
 logger = logging.getLogger(__name__)
@@ -90,6 +92,22 @@ class PointsDetector:
                 logger.debug("跳过导航，使用当前页面")
                 await page.wait_for_timeout(1000)
 
+            # 优先使用 Dashboard API
+            try:
+                logger.debug("尝试使用 Dashboard API 获取积分...")
+                async with DashboardClient(page) as client:
+                    api_points: int | None = await asyncio.wait_for(
+                        client.get_current_points(), timeout=35.0
+                    )
+                if api_points is not None and api_points >= 0:
+                    logger.info("✓ 从 API 获取积分成功")
+                    return int(api_points)
+            except asyncio.TimeoutError:
+                logger.warning("Dashboard API 超时，使用 HTML 解析作为备用")
+            except DashboardError as e:
+                logger.warning(f"Dashboard API 失败: {e}，使用 HTML 解析作为备用")
+
+            # 备用：HTML 解析
             logger.debug("尝试从页面源码提取积分...")
             points = await self._extract_points_from_source(page)
 
@@ -107,13 +125,14 @@ class PointsDetector:
                         points_text = await element.text_content()
                         logger.debug(f"找到积分文本: {points_text}")
 
-                        points = self._parse_points(points_text)
+                        if points_text and points_text.strip():
+                            points = self._parse_points(points_text.strip())
 
-                        if points is not None and points >= 100:
-                            logger.info(f"✓ 当前积分: {points:,}")
-                            return points
-                        elif points is not None:
-                            logger.debug(f"积分值太小，可能是误识别: {points}")
+                            if points is not None and points >= 100:
+                                logger.info("✓ 当前积分获取成功")
+                                return points
+                            elif points is not None:
+                                logger.debug(f"积分值太小，可能是误识别: {points}")
 
                 except Exception as e:
                     logger.debug(f"选择器 {selector} 失败: {e}")
@@ -310,7 +329,12 @@ class PointsDetector:
         Returns:
             任务状态字典
         """
-        status = {"found": False, "completed": False, "progress": None, "max_progress": None}
+        status: dict[str, bool | int | None] = {
+            "found": False,
+            "completed": False,
+            "progress": None,
+            "max_progress": None,
+        }
 
         try:
             for selector in selectors:
@@ -338,10 +362,12 @@ class PointsDetector:
                             # 查找类似 "15/30" 的进度
                             progress_match = re.search(r"(\d+)\s*/\s*(\d+)", text)
                             if progress_match:
-                                status["progress"] = int(progress_match.group(1))
-                                status["max_progress"] = int(progress_match.group(2))
+                                progress_val = int(progress_match.group(1))
+                                max_progress_val = int(progress_match.group(2))
+                                status["progress"] = progress_val
+                                status["max_progress"] = max_progress_val
 
-                                if status["progress"] >= status["max_progress"]:
+                                if progress_val >= max_progress_val:
                                     status["completed"] = True
 
                         logger.debug(f"{task_name} 状态: {status}")
