@@ -341,7 +341,7 @@ class BrowserSimulator:
             try:
                 # 尝试加载保存的主题状态
                 if self.theme_manager.persistence_enabled:
-                    saved_theme = await self.theme_manager.load_theme_state()
+                    saved_theme = self.theme_manager.load_theme_state()
                     if saved_theme:
                         logger.info(f"从文件加载主题状态: {saved_theme}")
                         self.theme_manager.preferred_theme = saved_theme
