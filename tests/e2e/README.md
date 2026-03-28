@@ -484,6 +484,13 @@ python -m pytest -n auto tests/e2e/tasks/test_task_discovery.py -v
 
 # Only URL reward tasks
 python -m pytest -n auto tests/e2e/tasks/test_url_reward_tasks.py -v
+
+# Quiz & Poll tasks
+python -m pytest -n auto tests/e2e/tasks/test_quiz_tasks.py -v
+python -m pytest -n auto tests/e2e/tasks/test_poll_tasks.py -v
+
+# Points verification
+python -m pytest -n auto tests/e2e/tasks/test_task_points_award.py -v
 ```
 
 ### Test Coverage
@@ -492,14 +499,19 @@ python -m pytest -n auto tests/e2e/tasks/test_url_reward_tasks.py -v
 |-----------|----------|
 | `test_task_discovery.py` | Discovering and parsing task cards |
 | `test_url_reward_tasks.py` | Executing URL-based reward tasks |
+| `test_quiz_tasks.py` | Multi-step quiz completion |
+| `test_poll_tasks.py` | Single-vote poll completion |
+| `test_task_points_award.py` | Points increase verification after task |
 | `test_task_persistence.py` | Completed task state persistence |
 | `test_task_filtering.py` | Categories and filters |
+| `test_task_timeouts.py` | Timeout handling (skips by default) |
+| `test_task_error_recovery.py`| Network/refresh recovery (skips by default) |
 
 ### Task Types Supported
 
 - **URL Reward**: Visit a URL → earn points (automatically or after interaction)
-- **Quiz**: Multi-step questionnaire (covered in next plan)
-- **Poll**: Single vote (covered in next plan)
+- **Quiz**: Multi-step questionnaire (5-10 questions)
+- **Poll**: Single vote/choice survey
 
 ### Prerequisites
 
@@ -510,4 +522,5 @@ python -m pytest -n auto tests/e2e/tasks/test_url_reward_tasks.py -v
 
 - Tasks are account-specific; some tests may skip if no tasks of that type available
 - Task execution can involve external sites; may be slower
+- Points awarding may be delayed (10-30s). Test checks within 2-minute window.
 - Use `storage_state.json` to speed up authentication overhead
