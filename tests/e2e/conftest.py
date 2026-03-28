@@ -195,3 +195,28 @@ async def admin_logged_in_page(page, test_credentials):
     from tests.e2e.helpers.login import perform_login
     await perform_login(page, test_credentials)
     return page
+
+
+@pytest.fixture
+async def no_login_page(page: Page):
+    """Ensure page is in no-login state; skip if login detected."""
+    await page.goto("https://www.bing.com", wait_until="domcontentloaded")
+
+    # Check if we're logged in - if so, optionally skip or logout
+    signin_btn = await page.query_selector("a[href*='login'], button:has-text('Sign in')")
+    profile_elem = await page.query_selector(".mee-avatar, [data-ct*='profile']")
+
+    if profile_elem and not signin_btn:
+        # Appears logged in - Option A: skip, Option B: logout
+        # Preferred: skip to preserve test isolation
+        pytest.skip("Test requires no-login state but page appears authenticated. Use --no-login context.")
+
+    return page
+
+
+@pytest.fixture
+async def incognito_context(browser: Browser):
+    """Fresh context without any storage state (guaranteed no-login)."""
+    context = await browser.new_context()
+    yield context
+    await context.close()

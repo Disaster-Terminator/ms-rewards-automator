@@ -269,6 +269,48 @@ python -m pytest -n auto tests/e2e/login/ -v -m "not slow"
 - ❌ 2FA failures → Check TOTP secret matches Microsoft Authenticator
 - ❌ Redirect failures → Verify account not locked (health check)
 
+## Search E2E Tests (No-Login Mode)
+
+### Why No-Login First?
+
+- **Reduced risk**: No account lockout from automated searches
+- **Parallelizable**: Can run multiple instances simultaneously
+- **Fast**: No login overhead (2FA, redirects)
+- **Reliable**: Less state, fewer moving parts
+
+### Running No-Login Tests
+
+```bash
+# Only no-login tests (with parallel execution)
+pytest -n auto tests/e2e/search/ -v -m "no_login"
+
+# With parametrized search terms (runs 10+ times)
+pytest -n auto tests/e2e/search/test_search_no_login.py::TestSearchNoLogin::test_parametrized_search_terms -v
+
+# All search tests (includes with-login)
+pytest -n auto tests/e2e/search/ -v
+```
+
+### Test Coverage
+
+| Test File | Coverage |
+|-----------|----------|
+| `test_search_no_login.py` | Basic search, autocomplete, tabs (images/videos) |
+| `test_consent_handling.py` | Cookie consent acceptance/ignorance |
+
+### Expected Behavior
+
+- ✅ All tests should pass without any credentials configured
+- ✅ Bing homepage loads reliably (<5s)
+- ✅ Search results appear within 10s
+- ✅ Cookie consent handled automatically
+
+### Troubleshooting
+
+- **Results not appearing**: Check Bing accessibility, network connectivity
+- **Autocomplete not showing**: May depend on region; test may skip
+- **Images/Videos tabs missing**: Region-specific features; skip acceptable
+
 ## Configuration
 
 ### Environment Variables
@@ -335,6 +377,7 @@ When adding new smoke tests:
 - ✅ **02-01**: Environment validation, Bing health tests
 - ✅ **02-02**: Search execution, flakiness tracking, performance gates
 - ✅ **02-03**: Login E2E tests (Happy path, persistence, edge cases)
-- ⏳ **02-04**: Search E2E tests with login
-- ⏳ **02-05**: Task E2E tests
-- ⏳ **02-06**: CI/CD integration
+- ✅ **02-04**: Search E2E tests (No-login mode)
+- ⏳ **02-05**: Search E2E tests with login
+- ⏳ **02-06**: Task E2E tests
+- ⏳ **02-07**: CI/CD integration
