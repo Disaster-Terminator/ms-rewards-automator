@@ -74,27 +74,33 @@ jobs:
           echo "MS_REWARDS_E2E_TOTP_SECRET=${{ secrets.MS_REWARDS_E2E_TOTP_SECRET }}" >> .env.test
           echo "E2E_STORAGE_STATE=tests/fixtures/storage_state.json" >> .env.test
 
-      - name: Upload storage state artifact (if exists)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: storage-state
-          path: tests/fixtures/storage_state.json
-          retention-days: 7
-
       - name: Run smoke tests (no-login only)
         run: |
-          pytest tests/e2e/smoke/ -v --tb=short -m "no_login or smoke" --junitxml=pytest-smoke.xml
+          mkdir -p reports
+          pytest tests/e2e/smoke/ -v --tb=short -m "no_login or smoke" --junitxml=reports/pytest-smoke.xml
         env:
           E2E_HEADLESS: true
+          E2E_REPORT_DIR: reports
 
-      - name: Upload test results (JUnit)
+      - name: Generate E2E HTML Report
+        if: always()
+        run: |
+          python tests/e2e/reporting/generate_report.py reports/ reports/pytest-smoke.xml
+
+      - name: Send Slack notification
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          python tests/e2e/notifications/slack_notifier.py reports/summary.json ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-results-smoke
+          name: e2e-reports-smoke
           path: |
-            pytest-smoke.xml
+            reports/
             logs/e2e/**/*.json
           retention-days: 7
 

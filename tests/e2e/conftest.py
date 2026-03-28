@@ -220,3 +220,44 @@ async def incognito_context(browser: Browser):
     context = await browser.new_context()
     yield context
     await context.close()
+
+
+def pytest_configure(config):
+    """Ensure report directory exists."""
+    import os
+    config.option.report_dir = os.getenv("E2E_REPORT_DIR", "reports")
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Add custom summary section."""
+    import json
+    import os
+    from datetime import datetime, timezone
+
+    reports_dir = getattr(config.option, "report_dir", "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # Gather stats
+    passed = len(terminalreporter.stats.get('passed', []))
+    failed = len(terminalreporter.stats.get('failed', []))
+    error = len(terminalreporter.stats.get('error', []))
+    skipped = len(terminalreporter.stats.get('skipped', []))
+    total = passed + failed + error + skipped
+
+    terminalreporter.write_line(f"\n📊 E2E Summary: {passed}/{total} passed, {failed+error} failed, {skipped} skipped")
+
+    # Save summary JSON
+    summary = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "passed": passed,
+        "failed": failed + error,
+        "skipped": skipped,
+        "total": total,
+        "pass_rate": (passed / total * 100) if total > 0 else 0
+    }
+
+    summary_path = os.path.join(reports_dir, "summary.json")
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, indent=2)
+
+    terminalreporter.write_line(f"Report saved to: {summary_path}")

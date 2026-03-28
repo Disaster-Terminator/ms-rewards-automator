@@ -84,23 +84,38 @@ jobs:
 
       - name: Run E2E tests (no-login first)
         run: |
-          pytest tests/e2e/ -v --tb=short -m "no_login" --junitxml=pytest-no-login.xml
+          mkdir -p reports
+          pytest tests/e2e/ -v --tb=short -m "no_login" --junitxml=reports/pytest-no-login.xml
         env:
           E2E_HEADLESS: true
+          E2E_REPORT_DIR: reports
 
       - name: Run E2E tests (with-login)
         run: |
-          pytest tests/e2e/ -v --tb=short -m "requires_login" --junitxml=pytest-with-login.xml
+          pytest tests/e2e/ -v --tb=short -m "requires_login" --junitxml=reports/pytest-with-login.xml
         env:
           E2E_HEADLESS: true
+          E2E_REPORT_DIR: reports
+
+      - name: Generate E2E HTML Report
+        if: always()
+        run: |
+          python tests/e2e/reporting/generate_report.py reports/ reports/pytest-no-login.xml reports/pytest-with-login.xml
+
+      - name: Send Slack notification
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          python tests/e2e/notifications/slack_notifier.py reports/summary.json ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-results-full
+          name: e2e-reports-full
           path: |
-            pytest-*.xml
+            reports/
             logs/e2e/**/*.json
             logs/daily_reports/
           retention-days: 30
