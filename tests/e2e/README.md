@@ -361,6 +361,43 @@ pytest -n auto tests/e2e/search/test_search_quota.py -v
 - Use `storage_state.json` to reduce time by 60-70%
 - Default: no-login tests for rapid iteration; with-login for integration validation
 
+## Advanced Search Verification Tests
+
+### Coverage
+
+| Test File | Focus |
+|-----------|-------|
+| `test_search_points_verification.py` | Post-search points awarding |
+| `test_search_region.py` | Region detection, localization |
+| `test_search_history.py` | Search history tracking |
+| `test_search_quality.py` | Result relevance, diversity |
+| `test_search_performance.py` | Load times, execution speed |
+
+### Running
+
+```bash
+# All advanced verification tests with parallel execution
+pytest -n auto tests/e2e/search/test_search_* -v
+
+# Only performance tests
+pytest -n auto tests/e2e/search/test_search_performance.py -v
+```
+
+### Notes
+
+- **Points Verification**: Points awarding may be delayed (10-30s). Test checks within 2-minute window.
+- **Region Tests**: Expected values depend on test environment's region. May skip if region-unavailable.
+- **Quality Validation**: Keyword matching heuristic; may need tuning per locale.
+- **Performance**: Thresholds based on typical broadband. CI may be slower; adjust thresholds accordingly.
+
+### Benchmark Targets
+
+| Metric | Target |
+|--------|--------|
+| Bing.com page load | < 3 seconds |
+| Search execution (query→results) | < 5 seconds |
+| Results interactive | < 2 seconds after load |
+
 ## Configuration
 
 ### Environment Variables
