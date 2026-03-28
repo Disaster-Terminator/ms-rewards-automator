@@ -165,7 +165,7 @@ async def _capture_failure_on_error(request: Any, page: Page):
         logging.error(f"Test failed. Artifacts saved: {artifacts}")
 
 @pytest.fixture(scope="session")
-def e2e_test_account() -> Dict[str, str]:
+def test_credentials() -> Dict[str, str]:
     """Load MS Rewards test credentials from environment."""
     creds = {
         "email": os.getenv("MS_REWARDS_E2E_EMAIL"),
@@ -178,8 +178,8 @@ def e2e_test_account() -> Dict[str, str]:
 
 
 @pytest.fixture
-async def admin_logged_in_page(page, e2e_test_account):
+async def admin_logged_in_page(page, test_credentials):
     """Perform full login flow and return authenticated page."""
     from tests.e2e.helpers.login import perform_login
-    await perform_login(page, e2e_test_account)
+    await perform_login(page, test_credentials)
     return page

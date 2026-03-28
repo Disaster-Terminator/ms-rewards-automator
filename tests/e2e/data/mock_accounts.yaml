@@ -1,0 +1,5 @@
+test_accounts:
+  - email: "${MS_REWARDS_E2E_EMAIL}"
+    password: "${MS_REWARDS_E2E_PASSWORD}"
+    totp_secret: "${MS_REWARDS_E2E_TOTP_SECRET}"
+    name: "primary"

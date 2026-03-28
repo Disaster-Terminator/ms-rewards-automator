@@ -224,6 +224,51 @@ CI will typically run:
     cp logs/e2e/flakiness.jsonl ${{ runner.temp }}/
 ```
 
+## Login E2E Tests
+
+Tests covering authentication flows: fresh login, session persistence, 2FA, edge cases.
+
+### Prerequisites
+
+- Test account credentials in environment:
+  ```bash
+  export MS_REWARDS_E2E_EMAIL=user@outlook.com
+  export MS_REWARDS_E2E_PASSWORD=secret
+  export MS_REWARDS_E2E_TOTP_SECRET=  # Optional: for 2FA accounts
+  ```
+
+- Optional: `tests/e2e/fixtures/storage_state.json` for faster tests (generated via `scripts/save_storage_state.py`)
+
+### Running
+
+```bash
+# All login tests with parallel execution
+python -m pytest -n auto tests/e2e/login/ -v
+
+# Only tests requiring credentials
+python -m pytest -n auto tests/e2e/login/ -v -m "requires_login"
+
+# Skip slow tests
+python -m pytest -n auto tests/e2e/login/ -v -m "not slow"
+```
+
+### Test Categories
+
+| Test File | Coverage |
+|-----------|----------|
+| `test_login_flow.py` | Fresh login, 2FA, success path |
+| `test_session_persistence.py` | Storage state reuse, session survival |
+| `test_already_logged_in.py` | Already-authenticated scenarios |
+| `test_login_edge_cases.py` | Invalid password, redirects, cleanup |
+| `test_multi_account.py` | Parametrized tests across multiple accounts |
+
+### Interpreting Results
+
+- ✅ All green → Login infrastructure healthy, proceed to search tests
+- ⚠️ Skipped tests → Expected if credentials not configured
+- ❌ 2FA failures → Check TOTP secret matches Microsoft Authenticator
+- ❌ Redirect failures → Verify account not locked (health check)
+
 ## Configuration
 
 ### Environment Variables
@@ -289,7 +334,7 @@ When adding new smoke tests:
 
 - ✅ **02-01**: Environment validation, Bing health tests
 - ✅ **02-02**: Search execution, flakiness tracking, performance gates
-- ⏳ **02-03**: Login E2E tests (requires credentials)
+- ✅ **02-03**: Login E2E tests (Happy path, persistence, edge cases)
 - ⏳ **02-04**: Search E2E tests with login
 - ⏳ **02-05**: Task E2E tests
 - ⏳ **02-06**: CI/CD integration
