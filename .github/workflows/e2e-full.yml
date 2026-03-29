@@ -1,9 +1,7 @@
 name: E2E Full Tests
 
 on:
-  schedule:
-    - cron: '0 18 * * *'  # Daily at 6 PM UTC
-  workflow_dispatch:     # Manual trigger
+  workflow_dispatch:     # Manual trigger only
 
 jobs:
   e2e-tests:
